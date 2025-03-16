@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckSquare, Plus, X, Edit, Trash2 } from 'lucide-react';
+import { CheckSquare, Plus, X, Edit, Trash2, Calendar, AlertCircle, Users } from 'lucide-react';
 
 // Define types
 interface Task {
@@ -18,19 +18,39 @@ interface TaskStatus {
   color: string;
 }
 
+interface Client {
+  id: number;
+  name: string;
+  contact_email: string | null;
+  contact_phone: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [statuses, setStatuses] = useState<TaskStatus[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // New state variables for the task form
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskClientId, setNewTaskClientId] = useState<number | null>(null);
+  const [newTaskStatusId, setNewTaskStatusId] = useState<number | null>(null);
+  const [newTaskStartDate, setNewTaskStartDate] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState('medium');
+  
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   
-  // Fetch tasks and statuses on component mount
+  // Fetch tasks, statuses, and clients on component mount
   useEffect(() => {
     fetchTasks();
     fetchStatuses();
+    fetchClients();
   }, []);
   
   // Fetch tasks from API
@@ -85,6 +105,94 @@ const TasksPage = () => {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'No date set';
     return new Date(dateString).toLocaleDateString();
+  };
+  
+  // Fetch clients from API
+  const fetchClients = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/clients/list`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setClients(data.clients);
+      }
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    }
+  };
+  
+  // Reset form fields
+  const resetForm = () => {
+    setNewTaskTitle('');
+    setNewTaskDescription('');
+    setNewTaskClientId(null);
+    setNewTaskStatusId(null);
+    setNewTaskStartDate('');
+    setNewTaskDueDate('');
+    setNewTaskPriority('medium');
+  };
+  
+  // Create a new task
+  const createTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newTaskTitle.trim()) {
+      setError('Task title is required');
+      return;
+    }
+    
+    if (!newTaskClientId) {
+      setError('Please select a client');
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Use the first status as default if none selected
+      const statusId = newTaskStatusId || (statuses.length > 0 ? statuses[0].id : null);
+      
+      if (!statusId) {
+        setError('No task status available. Please create a status first.');
+        setIsLoading(false);
+        return;
+      }
+      
+      const response = await fetch(`${apiUrl}/tasks/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: newTaskClientId,
+          title: newTaskTitle,
+          description: newTaskDescription || null,
+          status_id: statusId,
+          start_date: newTaskStartDate || null,
+          due_date: newTaskDueDate || null,
+          priority: newTaskPriority
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Reset form
+        resetForm();
+        setShowCreateForm(false);
+        
+        // Refresh tasks list
+        fetchTasks();
+      } else {
+        setError(data.message || 'Failed to create task');
+      }
+    } catch (error) {
+      console.error("Error creating task:", error);
+      setError('Network error while creating task');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // Toggle task completion
@@ -195,20 +303,178 @@ const TasksPage = () => {
       {showCreateForm && (
         <div className="mb-6 bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium mb-4">Create New Task</h2>
-          {/* Task form will be implemented here */}
-          <div className="flex justify-end">
-            <button
-              onClick={() => setShowCreateForm(false)}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg mr-2"
-            >
-              Cancel
-            </button>
-            <button
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-            >
-              Create Task
-            </button>
-          </div>
+          
+          <form onSubmit={createTask}>
+            <div className="mb-4">
+              <label htmlFor="taskClient" className="block text-sm font-medium text-gray-700 mb-1">
+                Client *
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Users className="h-4 w-4 text-gray-400" />
+                </div>
+                <select
+                  id="taskClient"
+                  value={newTaskClientId || ''}
+                  onChange={(e) => setNewTaskClientId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={isLoading || clients.length === 0}
+                >
+                  <option value="">Select a client</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {clients.length === 0 && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  No clients available. Please create a client first.
+                </p>
+              )}
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="taskTitle" className="block text-sm font-medium text-gray-700 mb-1">
+                Title *
+              </label>
+              <input
+                type="text"
+                id="taskTitle"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter task title"
+                required
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="taskDescription" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                id="taskDescription"
+                value={newTaskDescription}
+                onChange={(e) => setNewTaskDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter task description"
+                rows={3}
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label htmlFor="taskStatus" className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  id="taskStatus"
+                  value={newTaskStatusId || ''}
+                  onChange={(e) => setNewTaskStatusId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading || statuses.length === 0}
+                >
+                  <option value="">Select a status</option>
+                  {statuses.map((status) => (
+                    <option key={status.id} value={status.id}>
+                      {status.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label htmlFor="taskPriority" className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
+                <select
+                  id="taskPriority"
+                  value={newTaskPriority}
+                  onChange={(e) => setNewTaskPriority(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label htmlFor="taskStartDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    type="date"
+                    id="taskStartDate"
+                    value={newTaskStartDate}
+                    onChange={(e) => setNewTaskStartDate(e.target.value)}
+                    className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="taskDueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  Due Date
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    type="date"
+                    id="taskDueDate"
+                    value={newTaskDueDate}
+                    onChange={(e) => setNewTaskDueDate(e.target.value)}
+                    className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm();
+                  setShowCreateForm(false);
+                }}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg mr-2"
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg flex items-center"
+                disabled={isLoading || !newTaskTitle.trim() || !newTaskClientId}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Create Task'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       )}
       
