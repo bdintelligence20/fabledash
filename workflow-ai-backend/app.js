@@ -26,6 +26,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Make db available to routes
+app.use((req, res, next) => {
+  req.app.locals.db = db;
+  next();
+});
+
 // Setup OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key',
@@ -34,6 +40,12 @@ const openai = new OpenAI({
 // Use memory storage instead of disk storage to avoid path issues
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+
+// Import routes
+const clientTaskRoutes = require('./routes/client-task-routes');
+
+// Use routes
+app.use('/api', clientTaskRoutes);
 
 // Initialize SQLite database
 let db;
@@ -95,6 +107,14 @@ async function initDatabase() {
       FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE CASCADE
     );
   `);
+
+  // Initialize client and task tables
+  const clientTaskSchemaPath = path.join(__dirname, 'client-task-schema.sql');
+  if (fs.existsSync(clientTaskSchemaPath)) {
+    const clientTaskSchema = fs.readFileSync(clientTaskSchemaPath, 'utf8');
+    await db.exec(clientTaskSchema);
+    console.log('Client and task tables initialized');
+  }
 
   console.log('Database initialized');
 }
