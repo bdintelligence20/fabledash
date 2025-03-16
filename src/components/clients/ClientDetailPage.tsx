@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Edit, X } from 'lucide-react';
 import { Client } from './ClientTypes';
 import ClientTasks from './ClientTasks';
@@ -14,11 +14,20 @@ const ClientDetailPage = ({
   onBack, 
   onClientUpdated 
 }: ClientDetailPageProps) => {
-  const [activeTab, setActiveTab] = useState('tasks');
+  // Initialize activeTab from localStorage or default to 'tasks'
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem(`client_${client.id}_activeTab`);
+    return savedTab || 'tasks';
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [editedClient, setEditedClient] = useState<Client>({ ...client });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Save activeTab to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(`client_${client.id}_activeTab`, activeTab);
+  }, [activeTab, client.id]);
   
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   

@@ -41,17 +41,57 @@ interface Message {
 function AIAgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  
+  // Initialize selectedAgent from localStorage or default to null
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(() => {
+    const savedAgent = localStorage.getItem('selectedAgent');
+    return savedAgent ? JSON.parse(savedAgent) : null;
+  });
+  
+  // Initialize showCreateForm from localStorage or default to false
+  const [showCreateForm, setShowCreateForm] = useState(() => {
+    const savedShowCreateForm = localStorage.getItem('showCreateForm');
+    return savedShowCreateForm === 'true';
+  });
+  
   const [newAgentName, setNewAgentName] = useState('');
   const [newAgentDescription, setNewAgentDescription] = useState('');
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<number | null>(null);
+  
+  // Initialize currentChatId from localStorage or default to null
+  const [currentChatId, setCurrentChatId] = useState<number | null>(() => {
+    const savedChatId = localStorage.getItem('currentChatId');
+    return savedChatId ? parseInt(savedChatId) : null;
+  });
+  
   const [messageInput, setMessageInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(Date.now());
   const [backendAvailable, setBackendAvailable] = useState(true);
+  
+  // Save selectedAgent to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedAgent) {
+      localStorage.setItem('selectedAgent', JSON.stringify(selectedAgent));
+    } else {
+      localStorage.removeItem('selectedAgent');
+    }
+  }, [selectedAgent]);
+  
+  // Save showCreateForm to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('showCreateForm', showCreateForm.toString());
+  }, [showCreateForm]);
+  
+  // Save currentChatId to localStorage whenever it changes
+  useEffect(() => {
+    if (currentChatId) {
+      localStorage.setItem('currentChatId', currentChatId.toString());
+    } else {
+      localStorage.removeItem('currentChatId');
+    }
+  }, [currentChatId]);
   
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   

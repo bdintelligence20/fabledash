@@ -5,14 +5,39 @@ import ClientDetailPage from '../clients/ClientDetailPage';
 
 const ClientsPage = () => {
   const [clients, setClients] = useState<Client[]>([]);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  
+  // Initialize selectedClient from localStorage or default to null
+  const [selectedClient, setSelectedClient] = useState<Client | null>(() => {
+    const savedClient = localStorage.getItem('selectedClient');
+    return savedClient ? JSON.parse(savedClient) : null;
+  });
+  
+  // Initialize showCreateForm from localStorage or default to false
+  const [showCreateForm, setShowCreateForm] = useState(() => {
+    const savedShowCreateForm = localStorage.getItem('showCreateForm');
+    return savedShowCreateForm === 'true';
+  });
+  
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientNotes, setNewClientNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Save selectedClient to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedClient) {
+      localStorage.setItem('selectedClient', JSON.stringify(selectedClient));
+    } else {
+      localStorage.removeItem('selectedClient');
+    }
+  }, [selectedClient]);
+  
+  // Save showCreateForm to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('showCreateForm', showCreateForm.toString());
+  }, [showCreateForm]);
   
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   

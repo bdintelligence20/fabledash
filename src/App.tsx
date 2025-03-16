@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Home, 
   CheckSquare, 
@@ -18,8 +18,17 @@ import AIAgentsPage from './components/pages/AIAgentsPage';
 
 // Main App Component
 function App() {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  // Initialize currentPage from localStorage or default to 'dashboard'
+  const [currentPage, setCurrentPage] = useState(() => {
+    const savedPage = localStorage.getItem('currentPage');
+    return savedPage || 'dashboard';
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Save currentPage to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('currentPage', currentPage);
+  }, [currentPage]);
   
   // Toggle mobile menu
   const toggleMobileMenu = () => {
