@@ -15,8 +15,8 @@ app.use(cors({
 }));
 
 // Middleware
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+app.use(express.json({ limit: '1gb' }));
+app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 
 // Setup OpenAI
 const openai = new OpenAI({

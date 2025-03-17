@@ -218,9 +218,9 @@ function AIAgentsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    // Check file size (20MB limit)
-    if (file.size > 20 * 1024 * 1024) {
-      setUploadError("File size exceeds 20MB limit");
+    // Check file size (1GB limit)
+    if (file.size > 1024 * 1024 * 1024) {
+      setUploadError("File size exceeds 1GB limit");
       setFileInputKey(Date.now()); // Reset file input
       return;
     }

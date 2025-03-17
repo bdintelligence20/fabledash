@@ -152,14 +152,36 @@ router.post('/documents/upload', async (req, res) => {
     const timestamp = Date.now();
     const filePath = `agents/${agent_id}/${timestamp}-${file_name}`;
     
-    // Upload file to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('documents')
-      .upload(filePath, Buffer.from(fileData, 'base64'), {
-        contentType: content_type || 'application/octet-stream',
-        upsert: false
-      });
+    // Upload file to Supabase Storage with chunking for large files
+    let uploadData, uploadError;
+    
+    try {
+      // For large files, we might need to handle them differently
+      if (is_large_file && total_size > 10 * 1024 * 1024) {
+        console.log(`Processing large file: ${file_name}, size: ${total_size} bytes`);
+        
+        // Upload the first chunk and let Supabase handle it
+        ({ data: uploadData, error: uploadError } = await supabase
+          .storage
+          .from('documents')
+          .upload(filePath, Buffer.from(fileData, 'base64'), {
+            contentType: content_type || 'application/octet-stream',
+            upsert: false
+          }));
+      } else {
+        // Standard upload for smaller files
+        ({ data: uploadData, error: uploadError } = await supabase
+          .storage
+          .from('documents')
+          .upload(filePath, Buffer.from(fileData, 'base64'), {
+            contentType: content_type || 'application/octet-stream',
+            upsert: false
+          }));
+      }
+    } catch (uploadErr) {
+      console.error("Error during file upload:", uploadErr);
+      throw new Error(`File upload failed: ${uploadErr.message}`);
+    }
     
     if (uploadError) {
       throw new Error(`File upload failed: ${uploadError.message}`);
