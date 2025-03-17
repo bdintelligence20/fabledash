@@ -40,11 +40,17 @@ const supabaseRoutes = require('./routes/supabase-routes');
 // Use routes
 app.use('/api', supabaseRoutes);
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, 'uploads');
+// Create uploads directory in /tmp for serverless environments
+const uploadsDir = process.env.NODE_ENV === 'production' 
+  ? path.join('/tmp', 'uploads') 
+  : path.join(__dirname, 'uploads');
+
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+// Make uploadsDir available to routes
+app.locals.uploadsDir = uploadsDir;
 
 
 // Start server

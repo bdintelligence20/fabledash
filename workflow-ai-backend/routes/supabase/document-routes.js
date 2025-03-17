@@ -32,8 +32,11 @@ async function extractTextFromPDF(buffer) {
 // Helper function to extract text from CSV
 function extractTextFromCSV(buffer) {
   return new Promise((resolve, reject) => {
-    // Create a temp file
-    const tempPath = path.join(__dirname, '../../temp_' + Date.now() + '.csv');
+    // Create a temp file in /tmp for serverless environments
+    const tempPath = process.env.NODE_ENV === 'production'
+      ? path.join('/tmp', 'temp_' + Date.now() + '.csv')
+      : path.join(__dirname, '../../temp_' + Date.now() + '.csv');
+    
     fs.writeFileSync(tempPath, buffer);
     
     let results = [];
@@ -119,21 +122,27 @@ router.post('/documents/upload', upload.single('file'), async (req, res) => {
       return res.status(404).json({ success: false, message: "Agent not found" });
     }
     
-    // Create directory for this agent if it doesn't exist
-    const uploadsDir = path.join(__dirname, '../../uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    
-    const agentDir = path.join(uploadsDir, agent_id.toString());
-    if (!fs.existsSync(agentDir)) {
-      fs.mkdirSync(agentDir, { recursive: true });
-    }
-    
-    // Save file to disk
-    const filename = Date.now() + '-' + file.originalname;
-    const filePath = path.join(agentDir, filename);
-    fs.writeFileSync(filePath, file.buffer);
+// Get the uploads directory from app.locals or use a default for serverless environments
+const uploadsDir = req.app.locals.uploadsDir || 
+  (process.env.NODE_ENV === 'production' 
+    ? path.join('/tmp', 'uploads') 
+    : path.join(__dirname, '../../uploads'));
+
+// Create directory for this agent
+const agentDir = path.join(uploadsDir, agent_id.toString());
+if (!fs.existsSync(agentDir)) {
+  fs.mkdirSync(agentDir, { recursive: true });
+}
+
+// Save file to disk
+const filename = Date.now() + '-' + file.originalname;
+const filePath = path.join(agentDir, filename);
+fs.writeFileSync(filePath, file.buffer);
+
+// For Vercel, store the relative path for database but keep the full path for processing
+const dbFilePath = process.env.NODE_ENV === 'production'
+  ? `uploads/${agent_id}/${filename}`
+  : filePath;
     
     // Extract text from file
     const extractedText = await extractTextFromBuffer(file.buffer, file.mimetype, file.originalname);
@@ -142,7 +151,7 @@ router.post('/documents/upload', upload.single('file'), async (req, res) => {
     const { data: document, error: documentError } = await supabase
       .from('documents')
       .insert([
-        { agent_id, file_name: file.originalname, file_path: filePath }
+        { agent_id, file_name: file.originalname, file_path: dbFilePath }
       ])
       .select();
     
