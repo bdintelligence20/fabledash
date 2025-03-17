@@ -13,6 +13,9 @@
     }
   ],
   "env": {
-    "PORT": "3001"
+    "PORT": "3001",
+    "SUPABASE_URL": "@supabase_url",
+    "SUPABASE_KEY": "@supabase_key",
+    "OPENAI_API_KEY": "@openai_api_key"
   }
 }
