@@ -311,6 +311,15 @@ function AIAgentsPage() {
             }
           }
           
+          // Check if response is JSON
+          const contentType = response.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            // Not JSON, likely an HTML error page
+            const text = await response.text();
+            console.error("Server returned non-JSON response:", text.substring(0, 200) + "...");
+            throw new Error("Server returned an HTML error page. The server might be misconfigured or overloaded.");
+          }
+          
           const data = await response.json();
           
           if (data.success) {
@@ -352,6 +361,15 @@ function AIAgentsPage() {
                 content_type: file.type
               }),
             });
+            
+            // Check if response is JSON
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+              // Not JSON, likely an HTML error page
+              const text = await response.text();
+              console.error("Server returned non-JSON response:", text.substring(0, 200) + "...");
+              throw new Error("Server returned an HTML error page. The server might be misconfigured or overloaded.");
+            }
             
             const data = await response.json();
             
