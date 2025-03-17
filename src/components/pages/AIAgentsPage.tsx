@@ -218,9 +218,9 @@ function AIAgentsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    // Check file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError("File size exceeds 10MB limit");
+    // Check file size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      setUploadError("File size exceeds 20MB limit");
       setFileInputKey(Date.now()); // Reset file input
       return;
     }
@@ -237,60 +237,116 @@ function AIAgentsPage() {
       setIsLoading(true);
       setUploadError(null);
       
-      // Read file as base64
-      const reader = new FileReader();
-      
-      reader.onload = async (e) => {
-        try {
-          const base64Data = e.target?.result as string;
-          
-          // Send to API
-          const response = await fetch(`${apiUrl}/documents/upload`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              agent_id: agentId,
-              file_data: base64Data,
-              file_name: file.name,
-              content_type: file.type
-            }),
+      // For larger files, we'll use a different approach
+      if (file.size > 5 * 1024 * 1024) {
+        // Create a blob slice function
+        const sliceFile = (file: File, start: number, end: number): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const slice = file.slice(start, end);
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(slice);
           });
-          
-          const data = await response.json();
-          
-          if (data.success) {
-            // Refresh documents list
-            fetchDocuments(agentId);
-          } else {
-            setUploadError(data.message || "Failed to upload document");
-            console.error("Error uploading document:", data.message);
-          }
-        } catch (error) {
-          setUploadError("Error processing file");
-          console.error("Error processing file:", error);
-        } finally {
-          setIsLoading(false);
-          // Reset the file input
-          setFileInputKey(Date.now());
+        };
+        
+        // Process in chunks of 5MB
+        const chunkSize = 5 * 1024 * 1024;
+        const totalChunks = Math.ceil(file.size / chunkSize);
+        
+        // Read the first chunk to get the file type and start processing
+        const firstChunk = await sliceFile(file, 0, Math.min(chunkSize, file.size));
+        
+        // Send to API
+        const response = await fetch(`${apiUrl}/documents/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            agent_id: agentId,
+            file_data: firstChunk,
+            file_name: file.name,
+            content_type: file.type,
+            total_size: file.size,
+            is_large_file: true
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Refresh documents list
+          fetchDocuments(agentId);
+        } else {
+          setUploadError(data.message || "Failed to upload document");
+          console.error("Error uploading document:", data.message);
         }
-      };
-      
-      reader.onerror = () => {
-        setUploadError("Error reading file");
-        setIsLoading(false);
-        setFileInputKey(Date.now());
-      };
-      
-      // Start reading the file
-      reader.readAsDataURL(file);
-      
-    } catch (error) {
-      setUploadError("Network error while uploading document");
-      console.error("Error uploading document:", error);
+      } else {
+        // For smaller files, use the original approach
+        const reader = new FileReader();
+        
+        reader.onload = async (e) => {
+          try {
+            const base64Data = e.target?.result as string;
+            
+            // Send to API
+            const response = await fetch(`${apiUrl}/documents/upload`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                agent_id: agentId,
+                file_data: base64Data,
+                file_name: file.name,
+                content_type: file.type
+              }),
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              // Refresh documents list
+              fetchDocuments(agentId);
+            } else {
+              setUploadError(data.message || "Failed to upload document");
+              console.error("Error uploading document:", data.message);
+            }
+          } catch (error: any) {
+            if (error.toString().includes("too large")) {
+              setUploadError("File is too large for upload. Please try a smaller file or compress this one.");
+            } else {
+              setUploadError("Error processing file: " + error.toString());
+              console.error("Error processing file:", error);
+            }
+          } finally {
+            setIsLoading(false);
+            // Reset the file input
+            setFileInputKey(Date.now());
+          }
+        };
+        
+        reader.onerror = () => {
+          setUploadError("Error reading file");
+          setIsLoading(false);
+          setFileInputKey(Date.now());
+        };
+        
+        // Start reading the file
+        reader.readAsDataURL(file);
+      }
+    } catch (error: any) {
+      if (error.toString().includes("too large")) {
+        setUploadError("File is too large for upload. Please try a smaller file or compress this one.");
+      } else {
+        setUploadError("Network error while uploading document: " + error.toString());
+        console.error("Error uploading document:", error);
+      }
       setIsLoading(false);
       setFileInputKey(Date.now());
+    } finally {
+      setIsLoading(false);
     }
   };
   

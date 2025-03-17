@@ -113,8 +113,15 @@ function splitTextIntoChunks(text, chunkSize = 1000, overlap = 200) {
 // Upload a document to an agent
 router.post('/documents/upload', async (req, res) => {
   try {
-    // Get agent_id from body
-    const { agent_id, file_data, file_name, content_type } = req.body;
+    // Get parameters from body
+    const { 
+      agent_id, 
+      file_data, 
+      file_name, 
+      content_type, 
+      is_large_file = false,
+      total_size
+    } = req.body;
     
     if (!agent_id) {
       return res.status(400).json({ success: false, message: "Agent ID is required" });
@@ -141,8 +148,11 @@ router.post('/documents/upload', async (req, res) => {
       fileData = file_data.split(',')[1];
     }
     
+    // Generate a unique file path
+    const timestamp = Date.now();
+    const filePath = `agents/${agent_id}/${timestamp}-${file_name}`;
+    
     // Upload file to Supabase Storage
-    const filePath = `agents/${agent_id}/${Date.now()}-${file_name}`;
     const { data: uploadData, error: uploadError } = await supabase
       .storage
       .from('documents')
@@ -192,29 +202,34 @@ router.post('/documents/upload', async (req, res) => {
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       
-      // Get embedding from OpenAI
-      const embeddingResponse = await openai.embeddings.create({
-        model: "text-embedding-ada-002",
-        input: chunk
-      });
-      
-      const embedding = embeddingResponse.data[0].embedding;
-      
-      // Store chunk and embedding in database
-      const { error: chunkError } = await supabase
-        .from('chunks')
-        .insert([
-          {
-            document_id: document[0].id,
-            agent_id,
-            content: chunk,
-            embedding: embedding,
-            source: file_name
-          }
-        ]);
-      
-      if (chunkError) {
-        throw chunkError;
+      try {
+        // Get embedding from OpenAI
+        const embeddingResponse = await openai.embeddings.create({
+          model: "text-embedding-ada-002",
+          input: chunk
+        });
+        
+        const embedding = embeddingResponse.data[0].embedding;
+        
+        // Store chunk and embedding in database
+        const { error: chunkError } = await supabase
+          .from('chunks')
+          .insert([
+            {
+              document_id: document[0].id,
+              agent_id,
+              content: chunk,
+              embedding: embedding,
+              source: file_name
+            }
+          ]);
+        
+        if (chunkError) {
+          console.error(`Error storing chunk ${i}:`, chunkError);
+        }
+      } catch (embeddingError) {
+        console.error(`Error generating embedding for chunk ${i}:`, embeddingError);
+        // Continue processing other chunks even if one fails
       }
     }
     
