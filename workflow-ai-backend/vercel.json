@@ -14,8 +14,8 @@
   ],
   "env": {
     "PORT": "3001",
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_KEY": "@supabase_key",
-    "OPENAI_API_KEY": "@openai_api_key"
+    "SUPABASE_URL": "${SUPABASE_URL}",
+    "SUPABASE_KEY": "${SUPABASE_KEY}",
+    "OPENAI_API_KEY": "${OPENAI_API_KEY}"
   }
 }
