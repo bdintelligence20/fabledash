@@ -15,6 +15,9 @@ export interface Task {
   status_id: number;
   due_date: string | null;
   client_id: number;
+  priority?: string;
+  start_date?: string | null;
+  created_at?: string;
 }
 
 export interface TaskStatus {
