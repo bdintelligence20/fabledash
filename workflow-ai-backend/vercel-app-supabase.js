@@ -1,4 +1,4 @@
-// vercel-app-supabase-final.js - Modified for Vercel serverless environment with Supabase
+// vercel-app-supabase.js - Modified for Vercel serverless environment with Supabase
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
@@ -30,12 +30,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Import routes
-const supabaseRoutes = require('./routes/supabase-routes');
-
-// Use routes
-app.use('/api/supabase', supabaseRoutes);
-
 // Setup OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -44,6 +38,18 @@ const openai = new OpenAI({
 // Use memory storage for multer
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+
+// Import routes
+const supabaseRoutes = require('./routes/supabase-routes');
+
+// Use routes
+app.use('/api', supabaseRoutes);
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
