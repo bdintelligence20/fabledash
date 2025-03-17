@@ -5,6 +5,17 @@ const router = express.Router();
 // Import the Supabase client
 const supabase = require('../supabase');
 
+// Import route modules
+const clientRoutes = require('./supabase/client-routes');
+const taskStatusRoutes = require('./supabase/task-status-routes');
+const taskRoutes = require('./supabase/task-routes');
+const taskCommentRoutes = require('./supabase/task-comment-routes');
+const taskAttachmentRoutes = require('./supabase/task-attachment-routes');
+const taskCalendarRoutes = require('./supabase/task-calendar-routes');
+const agentRoutes = require('./supabase/agent-routes');
+const documentRoutes = require('./supabase/document-routes');
+const chatRoutes = require('./supabase/chat-routes');
+
 // Simple health check endpoint
 router.get('/health', async (req, res) => {
   try {
@@ -29,6 +40,17 @@ router.get('/health', async (req, res) => {
     });
   }
 });
+
+// Use the route modules
+router.use(clientRoutes);
+router.use(taskStatusRoutes);
+router.use(taskRoutes);
+router.use(taskCommentRoutes);
+router.use(taskAttachmentRoutes);
+router.use(taskCalendarRoutes);
+router.use(agentRoutes);
+router.use(documentRoutes);
+router.use(chatRoutes);
 
 // Export the router
 module.exports = router;

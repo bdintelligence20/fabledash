@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "vercel-app.js",
+      "src": "vercel-app-supabase.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/vercel-app.js"
+      "dest": "/vercel-app-supabase.js"
     }
   ],
   "env": {
