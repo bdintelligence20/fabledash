@@ -20,8 +20,8 @@ app.use(cors({
 }));
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1gb' }));
+app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 
 // Make supabase available to routes
 app.use((req, res, next) => {
@@ -52,20 +52,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Make uploadsDir available to routes
 app.locals.uploadsDir = uploadsDir;
 
-// Add a placeholder for file upload routes
-app.post('/api/tasks/:id/attachments', (req, res) => {
-  res.status(503).json({
-    success: false,
-    message: "File uploads are temporarily disabled. Please try again later."
-  });
-});
-
-app.post('/api/documents/upload', (req, res) => {
-  res.status(503).json({
-    success: false,
-    message: "Document uploads are temporarily disabled. Please try again later."
-  });
-});
+// Note: File upload routes are now handled by the supabase-routes.js
 
 // Health check endpoint with Supabase connection test
 app.get('/api/health', async (req, res) => {
