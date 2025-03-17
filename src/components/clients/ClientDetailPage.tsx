@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Edit, X } from 'lucide-react';
 import { Client } from './ClientTypes';
 import ClientTasks from './ClientTasks';
+import CalendarView from './CalendarView';
+import KanbanView from './KanbanView';
 
 interface ClientDetailPageProps {
   client: Client;
@@ -79,9 +81,9 @@ const ClientDetailPage = ({
       case 'tasks':
         return <ClientTasks clientId={client.id} />;
       case 'calendar':
-        return <div className="p-4 text-center text-gray-500">Calendar view coming soon</div>;
+        return <CalendarView clientId={client.id} />;
       case 'kanban':
-        return <div className="p-4 text-center text-gray-500">Kanban view coming soon</div>;
+        return <KanbanView clientId={client.id} />;
       default:
         return <ClientTasks clientId={client.id} />;
     }

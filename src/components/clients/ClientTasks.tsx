@@ -12,6 +12,7 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   
   // New state variables for the task form
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -120,10 +121,11 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
     setNewTaskStartDate('');
     setNewTaskDueDate('');
     setNewTaskPriority('medium');
+    setEditingTaskId(null);
   };
   
-  // Create a new task
-  const createTask = async (e: React.FormEvent) => {
+  // Create or update a task
+  const createOrUpdateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newTaskTitle.trim()) {
@@ -144,20 +146,31 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
         return;
       }
       
-      const response = await fetch(`${apiUrl}/tasks/create`, {
-        method: 'POST',
+      const taskData = {
+        client_id: clientId,
+        title: newTaskTitle,
+        description: newTaskDescription || null,
+        status_id: statusId,
+        start_date: newTaskStartDate || null,
+        due_date: newTaskDueDate || null,
+        priority: newTaskPriority
+      };
+      
+      let url = `${apiUrl}/tasks/create`;
+      let method = 'POST';
+      
+      // If we're editing an existing task, use PUT method and the task's ID
+      if (editingTaskId) {
+        url = `${apiUrl}/tasks/${editingTaskId}`;
+        method = 'PUT';
+      }
+      
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          client_id: clientId,
-          title: newTaskTitle,
-          description: newTaskDescription || null,
-          status_id: statusId,
-          start_date: newTaskStartDate || null,
-          due_date: newTaskDueDate || null,
-          priority: newTaskPriority
-        }),
+        body: JSON.stringify(taskData),
       });
       
       const data = await response.json();
@@ -170,11 +183,11 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
         // Refresh tasks list
         fetchTasks();
       } else {
-        setError(data.message || 'Failed to create task');
+        setError(data.message || `Failed to ${editingTaskId ? 'update' : 'create'} task`);
       }
     } catch (error) {
-      console.error("Error creating task:", error);
-      setError('Network error while creating task');
+      console.error(`Error ${editingTaskId ? 'updating' : 'creating'} task:`, error);
+      setError(`Network error while ${editingTaskId ? 'updating' : 'creating'} task`);
     } finally {
       setIsLoading(false);
     }
@@ -185,7 +198,10 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Tasks</h2>
         <button 
-          onClick={() => setShowCreateForm(true)}
+          onClick={() => {
+            resetForm();
+            setShowCreateForm(true);
+          }}
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center"
           disabled={isLoading}
         >
@@ -209,9 +225,11 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
       
       {showCreateForm && (
         <div className="mb-6 bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium mb-4">Create New Task</h3>
+          <h3 className="text-lg font-medium mb-4">
+            {editingTaskId ? 'Edit Task' : 'Create New Task'}
+          </h3>
           
-          <form onSubmit={createTask}>
+          <form onSubmit={createOrUpdateTask}>
             <div className="mb-4">
               <label htmlFor="taskTitle" className="block text-sm font-medium text-gray-700 mb-1">
                 Title *
@@ -342,10 +360,10 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
                 {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                    Creating...
+                    {editingTaskId ? 'Updating...' : 'Creating...'}
                   </>
                 ) : (
-                  'Create Task'
+                  editingTaskId ? 'Update Task' : 'Create Task'
                 )}
               </button>
             </div>
@@ -353,7 +371,7 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
         </div>
       )}
       
-      {isLoading ? (
+      {isLoading && !showCreateForm ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
@@ -390,6 +408,21 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
                       <button 
                         className="text-gray-500 hover:text-gray-700"
                         aria-label={`Edit ${task.title}`}
+                        onClick={() => {
+                          // Set form fields with task data
+                          setNewTaskTitle(task.title);
+                          setNewTaskDescription(task.description || '');
+                          setNewTaskStatusId(task.status_id);
+                          setNewTaskStartDate(task.start_date || '');
+                          setNewTaskDueDate(task.due_date || '');
+                          setNewTaskPriority(task.priority || 'medium');
+                          
+                          // Show the form
+                          setShowCreateForm(true);
+                          
+                          // Store the task ID for update
+                          setEditingTaskId(task.id);
+                        }}
                         disabled={isLoading}
                       >
                         <Edit className="h-5 w-5" />

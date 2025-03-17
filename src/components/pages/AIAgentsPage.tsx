@@ -237,30 +237,59 @@ function AIAgentsPage() {
       setIsLoading(true);
       setUploadError(null);
       
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('agent_id', agentId.toString());
+      // Read file as base64
+      const reader = new FileReader();
       
-      const response = await fetch(`${apiUrl}/documents/upload`, {
-        method: 'POST',
-        body: formData,
-      });
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target?.result as string;
+          
+          // Send to API
+          const response = await fetch(`${apiUrl}/documents/upload`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              agent_id: agentId,
+              file_data: base64Data,
+              file_name: file.name,
+              content_type: file.type
+            }),
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // Refresh documents list
+            fetchDocuments(agentId);
+          } else {
+            setUploadError(data.message || "Failed to upload document");
+            console.error("Error uploading document:", data.message);
+          }
+        } catch (error) {
+          setUploadError("Error processing file");
+          console.error("Error processing file:", error);
+        } finally {
+          setIsLoading(false);
+          // Reset the file input
+          setFileInputKey(Date.now());
+        }
+      };
       
-      const data = await response.json();
+      reader.onerror = () => {
+        setUploadError("Error reading file");
+        setIsLoading(false);
+        setFileInputKey(Date.now());
+      };
       
-      if (data.success) {
-        // Refresh documents list
-        fetchDocuments(agentId);
-      } else {
-        setUploadError(data.message || "Failed to upload document");
-        console.error("Error uploading document:", data.message);
-      }
+      // Start reading the file
+      reader.readAsDataURL(file);
+      
     } catch (error) {
       setUploadError("Network error while uploading document");
       console.error("Error uploading document:", error);
-    } finally {
       setIsLoading(false);
-      // Reset the file input
       setFileInputKey(Date.now());
     }
   };
