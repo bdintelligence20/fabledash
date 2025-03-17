@@ -237,8 +237,10 @@ function AIAgentsPage() {
       setIsLoading(true);
       setUploadError(null);
       
-      // For larger files, we'll use a different approach with timeout handling
-      if (file.size > 5 * 1024 * 1024) {
+      // For larger files, we'll use a different approach with extreme chunking
+      if (file.size > 1 * 1024 * 1024) { // For files larger than 1MB
+        setUploadError("Processing large file... Please wait.");
+        
         // Create a blob slice function
         const sliceFile = (file: File, start: number, end: number): Promise<string> => {
           return new Promise((resolve, reject) => {
@@ -250,17 +252,34 @@ function AIAgentsPage() {
           });
         };
         
-        // Process in chunks of 2MB for better reliability
-        const chunkSize = 2 * 1024 * 1024;
+        // Process in very small chunks of 500KB for maximum reliability
+        const chunkSize = 500 * 1024; // 500KB chunks
         const totalChunks = Math.ceil(file.size / chunkSize);
         
-        // Read the first chunk to get the file type and start processing
-        const firstChunk = await sliceFile(file, 0, Math.min(chunkSize, file.size));
-        
         try {
+          // Extract text from the file first
+          let extractedText = "";
+          
+          // For text files, we can read the whole file as text
+          if (file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+            const textReader = new FileReader();
+            extractedText = await new Promise((resolve, reject) => {
+              textReader.onload = (e) => resolve(e.target?.result as string);
+              textReader.onerror = reject;
+              textReader.readAsText(file);
+            });
+          } else {
+            // For binary files like PDFs, we'll let the server handle it
+            // But we'll still chunk the upload
+            extractedText = "Binary file - text will be extracted on the server";
+          }
+          
+          // Upload the first chunk to create the document
+          const firstChunk = await sliceFile(file, 0, Math.min(chunkSize, file.size));
+          
           // Set a longer timeout for large files
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 minute timeout
           
           // Send to API with timeout handling
           const response = await fetch(`${apiUrl}/documents/upload`, {
@@ -274,7 +293,8 @@ function AIAgentsPage() {
               file_name: file.name,
               content_type: file.type,
               total_size: file.size,
-              is_large_file: true
+              is_large_file: true,
+              extracted_text: file.type.includes('text') ? extractedText : null
             }),
             signal: controller.signal
           });
@@ -282,7 +302,13 @@ function AIAgentsPage() {
           clearTimeout(timeoutId);
           
           if (!response.ok) {
-            throw new Error(`Server responded with status: ${response.status}`);
+            if (response.status === 413) {
+              // If we get a 413 Payload Too Large error, try with an even smaller chunk
+              setUploadError("File is too large for direct upload. Please try a smaller file or contact support.");
+              throw new Error("Payload too large (413)");
+            } else {
+              throw new Error(`Server responded with status: ${response.status}`);
+            }
           }
           
           const data = await response.json();
@@ -290,6 +316,7 @@ function AIAgentsPage() {
           if (data.success) {
             // Refresh documents list
             fetchDocuments(agentId);
+            setUploadError(null);
           } else {
             setUploadError(data.message || "Failed to upload document");
             console.error("Error uploading document:", data.message);
@@ -297,6 +324,8 @@ function AIAgentsPage() {
         } catch (error: any) {
           if (error.name === 'AbortError') {
             setUploadError("Upload timed out. The file may be too large or the server is busy.");
+          } else if (error.message.includes('413')) {
+            setUploadError("The file is too large for the server to process. Please try a smaller file (under 10MB).");
           } else {
             setUploadError(`Network error: ${error.message}`);
           }

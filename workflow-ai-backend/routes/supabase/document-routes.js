@@ -120,7 +120,8 @@ router.post('/documents/upload', async (req, res) => {
       file_name, 
       content_type, 
       is_large_file = false,
-      total_size
+      total_size,
+      extracted_text
     } = req.body;
     
     if (!agent_id) {
@@ -193,12 +194,21 @@ router.post('/documents/upload', async (req, res) => {
       .from('documents')
       .getPublicUrl(filePath);
     
-    // Extract text from file
-    const extractedText = await extractTextFromData(
-      Buffer.from(fileData, 'base64'),
-      content_type || 'application/octet-stream',
-      file_name
-    );
+    // Extract text from file or use the provided extracted_text
+    let finalExtractedText;
+    if (extracted_text && (content_type.includes('text') || file_name.endsWith('.txt') || file_name.endsWith('.csv'))) {
+      // Use the text extracted on the client side for text files
+      console.log("Using client-side extracted text");
+      finalExtractedText = extracted_text;
+    } else {
+      // Extract text on the server side
+      console.log("Extracting text on server side");
+      finalExtractedText = await extractTextFromData(
+        Buffer.from(fileData, 'base64'),
+        content_type || 'application/octet-stream',
+        file_name
+      );
+    }
     
     // Save document in database
     const { data: document, error: documentError } = await supabase
@@ -208,7 +218,7 @@ router.post('/documents/upload', async (req, res) => {
           agent_id, 
           file_name, 
           file_path: filePath,
-          content: extractedText // Store the extracted text in the document record
+          content: finalExtractedText // Store the extracted text in the document record
         }
       ])
       .select();
@@ -218,7 +228,7 @@ router.post('/documents/upload', async (req, res) => {
     }
     
     // Split text into chunks
-    const chunks = splitTextIntoChunks(extractedText);
+    const chunks = splitTextIntoChunks(finalExtractedText);
     
     // Process each chunk
     for (let i = 0; i < chunks.length; i++) {
