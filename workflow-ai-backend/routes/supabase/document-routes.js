@@ -271,6 +271,75 @@ router.post('/documents/upload', async (req, res) => {
   }
 });
 
+// Delete a document
+router.post('/documents/delete', async (req, res) => {
+  try {
+    const { document_id } = req.body;
+    
+    if (!document_id) {
+      return res.status(400).json({ success: false, message: "Document ID is required" });
+    }
+    
+    // Get document details first to get the agent_id and file_path
+    const { data: document, error: documentError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', document_id)
+      .single();
+    
+    if (documentError) {
+      return res.status(404).json({ success: false, message: "Document not found" });
+    }
+    
+    // Delete chunks associated with this document
+    const { error: chunksError } = await supabase
+      .from('chunks')
+      .delete()
+      .eq('document_id', document_id);
+    
+    if (chunksError) {
+      console.error("Error deleting chunks:", chunksError);
+      // Continue with document deletion even if chunk deletion fails
+    }
+    
+    // Delete the file from Supabase Storage if it exists
+    if (document.file_path) {
+      try {
+        const { error: storageError } = await supabase
+          .storage
+          .from('documents')
+          .remove([document.file_path]);
+        
+        if (storageError) {
+          console.error("Error deleting file from storage:", storageError);
+          // Continue with document deletion even if storage deletion fails
+        }
+      } catch (storageError) {
+        console.error("Error deleting file from storage:", storageError);
+        // Continue with document deletion even if storage deletion fails
+      }
+    }
+    
+    // Delete the document from the database
+    const { error: deleteError } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', document_id);
+    
+    if (deleteError) {
+      throw deleteError;
+    }
+    
+    res.json({
+      success: true,
+      message: "Document deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error deleting document:", error);
+    res.status(500).json({ success: false, message: "Failed to delete document: " + error.message });
+  }
+});
+
 // List documents for an agent
 router.get('/documents/list', async (req, res) => {
   try {

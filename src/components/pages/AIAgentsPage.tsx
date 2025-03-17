@@ -237,7 +237,7 @@ function AIAgentsPage() {
       setIsLoading(true);
       setUploadError(null);
       
-      // For larger files, we'll use a different approach
+      // For larger files, we'll use a different approach with timeout handling
       if (file.size > 5 * 1024 * 1024) {
         // Create a blob slice function
         const sliceFile = (file: File, start: number, end: number): Promise<string> => {
@@ -250,37 +250,57 @@ function AIAgentsPage() {
           });
         };
         
-        // Process in chunks of 5MB
-        const chunkSize = 5 * 1024 * 1024;
+        // Process in chunks of 2MB for better reliability
+        const chunkSize = 2 * 1024 * 1024;
         const totalChunks = Math.ceil(file.size / chunkSize);
         
         // Read the first chunk to get the file type and start processing
         const firstChunk = await sliceFile(file, 0, Math.min(chunkSize, file.size));
         
-        // Send to API
-        const response = await fetch(`${apiUrl}/documents/upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            agent_id: agentId,
-            file_data: firstChunk,
-            file_name: file.name,
-            content_type: file.type,
-            total_size: file.size,
-            is_large_file: true
-          }),
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          // Refresh documents list
-          fetchDocuments(agentId);
-        } else {
-          setUploadError(data.message || "Failed to upload document");
-          console.error("Error uploading document:", data.message);
+        try {
+          // Set a longer timeout for large files
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+          
+          // Send to API with timeout handling
+          const response = await fetch(`${apiUrl}/documents/upload`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              agent_id: agentId,
+              file_data: firstChunk,
+              file_name: file.name,
+              content_type: file.type,
+              total_size: file.size,
+              is_large_file: true
+            }),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // Refresh documents list
+            fetchDocuments(agentId);
+          } else {
+            setUploadError(data.message || "Failed to upload document");
+            console.error("Error uploading document:", data.message);
+          }
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            setUploadError("Upload timed out. The file may be too large or the server is busy.");
+          } else {
+            setUploadError(`Network error: ${error.message}`);
+          }
+          console.error("Error uploading document:", error);
         }
       } else {
         // For smaller files, use the original approach

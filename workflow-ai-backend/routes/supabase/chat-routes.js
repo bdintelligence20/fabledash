@@ -165,31 +165,66 @@ router.post('/chats/message', async (req, res) => {
     }));
     
     // Get embedding for the message
-    const queryEmbeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-ada-002",
-      input: message
-    });
+    let queryEmbedding;
+    try {
+      const queryEmbeddingResponse = await openai.embeddings.create({
+        model: "text-embedding-ada-002",
+        input: message
+      });
+      
+      queryEmbedding = queryEmbeddingResponse.data[0].embedding;
+    } catch (embeddingError) {
+      console.error("Error generating query embedding:", embeddingError);
+      throw new Error(`Failed to generate embedding: ${embeddingError.message}`);
+    }
     
-    const queryEmbedding = queryEmbeddingResponse.data[0].embedding;
-    
-    // Get all chunks for this agent
-    const { data: chunks, error: chunksError } = await supabase
-      .from('chunks')
-      .select('*')
-      .eq('agent_id', chat.agent_id);
-    
-    if (chunksError) {
-      throw chunksError;
+    // Get all chunks for this agent with better error handling
+    let chunks = [];
+    try {
+      const { data, error } = await supabase
+        .from('chunks')
+        .select('*')
+        .eq('agent_id', chat.agent_id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      chunks = data || [];
+      
+      if (chunks.length === 0) {
+        // No chunks found, might be because no documents have been uploaded
+        console.warn(`No chunks found for agent ${chat.agent_id}. The agent may not have any documents.`);
+      }
+    } catch (chunksError) {
+      console.error("Error fetching chunks:", chunksError);
+      throw new Error(`Failed to fetch chunks: ${chunksError.message}`);
     }
     
     // Calculate similarity and find the most relevant chunks
     const scoredChunks = chunks.map(chunk => {
-      const embedding = JSON.parse(chunk.embedding);
-      const similarity = cosineSimilarity(queryEmbedding, embedding);
-      return {
-        ...chunk,
-        similarity
-      };
+      try {
+        // Handle both string and array embedding formats
+        let embedding;
+        if (typeof chunk.embedding === 'string') {
+          embedding = JSON.parse(chunk.embedding);
+        } else {
+          embedding = chunk.embedding;
+        }
+        
+        const similarity = cosineSimilarity(queryEmbedding, embedding);
+        return {
+          ...chunk,
+          similarity
+        };
+      } catch (error) {
+        console.error(`Error processing chunk ${chunk.id}:`, error);
+        // Return with very low similarity so it's not selected
+        return {
+          ...chunk,
+          similarity: -1
+        };
+      }
     });
     
     // Sort by similarity and take top 10
