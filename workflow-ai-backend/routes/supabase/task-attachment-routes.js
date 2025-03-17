@@ -1,27 +1,33 @@
 // Task attachment routes for Supabase
 const express = require('express');
-const multer = require('multer');
 const router = express.Router();
 
 // Import the Supabase client
 const supabase = require('../../supabase');
 
-// Configure multer for file uploads (memory storage for Vercel)
-const memoryStorage = multer.memoryStorage();
-const upload = multer({
-  storage: memoryStorage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
-});
-
 // Upload an attachment to a task (using Supabase storage)
-router.post('/tasks/:id/attachments', upload.single('file'), async (req, res) => {
+router.post('/tasks/:id/attachments', async (req, res) => {
   try {
     const { id } = req.params;
-    const file = req.file;
     
-    if (!file) {
+    // For direct Supabase storage uploads from client
+    res.json({
+      success: true,
+      message: "Please use Supabase Storage client-side upload",
+      uploadInfo: {
+        bucketName: 'attachments',
+        folderPath: `tasks/${id}/`,
+        taskId: id
+      }
+    });
+    
+    /* 
+    // Server-side implementation would be:
+    if (!req.files || !req.files.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
+    
+    const file = req.files.file;
     
     // Check if task exists
     const { data: existingTask, error: taskError } = await supabase
@@ -84,6 +90,7 @@ router.post('/tasks/:id/attachments', upload.single('file'), async (req, res) =>
       success: true,
       attachment: data[0]
     });
+    */
   } catch (error) {
     console.error("Error uploading attachment:", error);
     res.status(500).json({ success: false, message: "Failed to upload attachment" });

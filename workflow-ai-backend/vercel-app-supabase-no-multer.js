@@ -1,4 +1,4 @@
-// vercel-app-supabase.js - Modified for Vercel serverless environment with Supabase
+// vercel-app-supabase-no-multer.js - Modified version without multer dependency
 const express = require('express');
 const cors = require('cors');
 const { OpenAI } = require('openai');
@@ -52,13 +52,28 @@ if (!fs.existsSync(uploadsDir)) {
 // Make uploadsDir available to routes
 app.locals.uploadsDir = uploadsDir;
 
+// Add a placeholder for file upload routes
+app.post('/api/tasks/:id/attachments', (req, res) => {
+  res.status(503).json({
+    success: false,
+    message: "File uploads are temporarily disabled. Please try again later."
+  });
+});
+
+app.post('/api/documents/upload', (req, res) => {
+  res.status(503).json({
+    success: false,
+    message: "Document uploads are temporarily disabled. Please try again later."
+  });
+});
+
 // Health check endpoint with Supabase connection test
 app.get('/api/health', async (req, res) => {
   try {
     // Basic health check
     const healthInfo = {
       status: 'ok',
-      message: 'Server is running with Supabase',
+      message: 'Server is running with Supabase (no-multer version)',
       timestamp: new Date().toISOString(),
       environment: {
         node_env: process.env.NODE_ENV || 'not set',

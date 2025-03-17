@@ -1,6 +1,5 @@
 // Document routes for Supabase
 const express = require('express');
-const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { OpenAI } = require('openai');
@@ -14,13 +13,6 @@ const supabase = require('../../supabase');
 // Setup OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key',
-});
-
-// Configure multer for file uploads
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
 // Helper function to extract text from PDF
@@ -96,7 +88,7 @@ function splitTextIntoChunks(text, chunkSize = 1000, overlap = 200) {
 }
 
 // Upload a document to an agent
-router.post('/documents/upload', upload.single('file'), async (req, res) => {
+router.post('/documents/upload', async (req, res) => {
   try {
     // Get agent_id from body or query params
     const agent_id = req.body.agent_id || req.query.agent_id;
@@ -105,11 +97,24 @@ router.post('/documents/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ success: false, message: "Agent ID is required" });
     }
     
-    const file = req.file;
+    // For direct Supabase storage uploads from client
+    res.json({
+      success: true,
+      message: "Please use Supabase Storage client-side upload",
+      uploadInfo: {
+        bucketName: 'documents',
+        folderPath: `agents/${agent_id}/`,
+        agentId: agent_id
+      }
+    });
     
-    if (!file) {
+    /* 
+    // Server-side implementation would be:
+    if (!req.files || !req.files.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
+    
+    const file = req.files.file;
     
     // Verify agent exists
     const { data: agent, error: agentError } = await supabase
@@ -122,28 +127,28 @@ router.post('/documents/upload', upload.single('file'), async (req, res) => {
       return res.status(404).json({ success: false, message: "Agent not found" });
     }
     
-// Get the uploads directory from app.locals or use a default for serverless environments
-const uploadsDir = req.app.locals.uploadsDir || 
-  (process.env.NODE_ENV === 'production' 
-    ? path.join('/tmp', 'uploads') 
-    : path.join(__dirname, '../../uploads'));
+    // Get the uploads directory from app.locals or use a default for serverless environments
+    const uploadsDir = req.app.locals.uploadsDir || 
+      (process.env.NODE_ENV === 'production' 
+        ? path.join('/tmp', 'uploads') 
+        : path.join(__dirname, '../../uploads'));
 
-// Create directory for this agent
-const agentDir = path.join(uploadsDir, agent_id.toString());
-if (!fs.existsSync(agentDir)) {
-  fs.mkdirSync(agentDir, { recursive: true });
-}
+    // Create directory for this agent
+    const agentDir = path.join(uploadsDir, agent_id.toString());
+    if (!fs.existsSync(agentDir)) {
+      fs.mkdirSync(agentDir, { recursive: true });
+    }
 
-// Save file to disk
-const filename = Date.now() + '-' + file.originalname;
-const filePath = path.join(agentDir, filename);
-fs.writeFileSync(filePath, file.buffer);
+    // Save file to disk
+    const filename = Date.now() + '-' + file.originalname;
+    const filePath = path.join(agentDir, filename);
+    fs.writeFileSync(filePath, file.buffer);
 
-// For Vercel, store the relative path for database but keep the full path for processing
-const dbFilePath = process.env.NODE_ENV === 'production'
-  ? `uploads/${agent_id}/${filename}`
-  : filePath;
-    
+    // For Vercel, store the relative path for database but keep the full path for processing
+    const dbFilePath = process.env.NODE_ENV === 'production'
+      ? `uploads/${agent_id}/${filename}`
+      : filePath;
+        
     // Extract text from file
     const extractedText = await extractTextFromBuffer(file.buffer, file.mimetype, file.originalname);
     
@@ -201,6 +206,7 @@ const dbFilePath = process.env.NODE_ENV === 'production'
         created_at: document[0].created_at
       }
     });
+    */
   } catch (error) {
     console.error("Error uploading document:", error);
     res.status(500).json({ success: false, message: "Failed to upload document: " + error.message });
