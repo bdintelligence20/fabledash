@@ -157,6 +157,22 @@ router.post('/documents/upload', async (req, res) => {
     let uploadData, uploadError;
     
     try {
+      // Check if the bucket exists, create it if it doesn't
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const documentsBucketExists = buckets.some(bucket => bucket.name === 'documents');
+      
+      if (!documentsBucketExists) {
+        console.log("Creating 'documents' bucket in Supabase Storage");
+        const { error: createBucketError } = await supabase.storage.createBucket('documents', {
+          public: true
+        });
+        
+        if (createBucketError) {
+          console.error("Error creating bucket:", createBucketError);
+          throw new Error(`Failed to create storage bucket: ${createBucketError.message}`);
+        }
+      }
+      
       // For large files, we might need to handle them differently
       if (is_large_file && total_size > 10 * 1024 * 1024) {
         console.log(`Processing large file: ${file_name}, size: ${total_size} bytes`);
@@ -167,7 +183,7 @@ router.post('/documents/upload', async (req, res) => {
           .from('documents')
           .upload(filePath, Buffer.from(fileData, 'base64'), {
             contentType: content_type || 'application/octet-stream',
-            upsert: false
+            upsert: true // Changed to true to overwrite if exists
           }));
       } else {
         // Standard upload for smaller files
@@ -176,7 +192,7 @@ router.post('/documents/upload', async (req, res) => {
           .from('documents')
           .upload(filePath, Buffer.from(fileData, 'base64'), {
             contentType: content_type || 'application/octet-stream',
-            upsert: false
+            upsert: true // Changed to true to overwrite if exists
           }));
       }
     } catch (uploadErr) {
