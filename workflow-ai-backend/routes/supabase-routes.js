@@ -41,16 +41,16 @@ router.get('/health', async (req, res) => {
   }
 });
 
-// Use the route modules
-router.use(clientRoutes);
-router.use(taskStatusRoutes);
-router.use(taskRoutes);
-router.use(taskCommentRoutes);
-router.use(taskAttachmentRoutes);
-router.use(taskCalendarRoutes);
-router.use(agentRoutes);
-router.use(documentRoutes);
-router.use(chatRoutes);
+// Use the route modules with proper prefixes
+router.use('/clients', clientRoutes);
+router.use('/task-statuses', taskStatusRoutes);
+router.use('/tasks', taskRoutes);
+router.use('/task-comments', taskCommentRoutes);
+router.use('/task-attachments', taskAttachmentRoutes);
+router.use('/task-calendar', taskCalendarRoutes);
+router.use('/agents', agentRoutes);
+router.use('/documents', documentRoutes);
+router.use('/chats', chatRoutes);
 
 // Export the router
 module.exports = router;

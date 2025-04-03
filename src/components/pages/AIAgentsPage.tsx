@@ -43,7 +43,7 @@ const AIAgentsPage = () => {
       setError(null);
       
       // Only fetch parent agents or standalone agents (no parent_id)
-      const response = await fetch(`${apiUrl}/agents/list?is_parent=true`);
+      const response = await fetch(`${apiUrl}/agents?is_parent=true`);
       const data = await response.json();
       
       if (data.success) {
@@ -62,7 +62,7 @@ const AIAgentsPage = () => {
   // Fetch clients from API
   const fetchClients = async () => {
     try {
-      const response = await fetch(`${apiUrl}/clients/list`);
+      const response = await fetch(`${apiUrl}/clients`);
       const data = await response.json();
       
       if (data.success) {
@@ -99,7 +99,7 @@ const AIAgentsPage = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch(`${apiUrl}/documents/list?agent_id=${agentId}`);
+      const response = await fetch(`${apiUrl}/documents?agent_id=${agentId}`);
       const data = await response.json();
       
       if (data.success) {
@@ -121,7 +121,7 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/agents/create`, {
+      const response = await fetch(`${apiUrl}/agents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,8 +161,8 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/documents/delete`, {
-        method: 'POST',
+      const response = await fetch(`${apiUrl}/documents/${documentId}`, {
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -205,7 +205,7 @@ const AIAgentsPage = () => {
           const base64Data = e.target?.result as string;
           
           // Send to API
-          const response = await fetch(`${apiUrl}/documents/upload`, {
+      const response = await fetch(`${apiUrl}/documents`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -260,7 +260,7 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/chats/create`, {
+      const response = await fetch(`${apiUrl}/chats`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -305,13 +305,12 @@ const AIAgentsPage = () => {
       
       setChatMessages([...chatMessages, userMessage]);
       
-      const response = await fetch(`${apiUrl}/chats/message`, {
+      const response = await fetch(`${apiUrl}/chats/${currentChatId}/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          chat_id: currentChatId,
           message: message,
         }),
       });

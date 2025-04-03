@@ -25,7 +25,7 @@ const safeApiCall = async (apiCall, fallbackMessage) => {
 };
 
 // Create a new chat
-router.post('/create', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { agent_id, title } = req.body;
     
@@ -183,16 +183,19 @@ router.get('/:id', async (req, res) => {
 });
 
 // Send a message in a chat
-router.post('/message', async (req, res) => {
+router.post('/:id/message', async (req, res) => {
   try {
-    const { chat_id, message } = req.body;
+    const { id } = req.params;
+    const { message } = req.body;
     
-    if (!chat_id || !message) {
+    if (!message) {
       return res.status(400).json({
         success: false,
-        message: 'Chat ID and message are required'
+        message: 'Message content is required'
       });
     }
+    
+    const chat_id = id;
     
     // Get chat
     const { data: chat, error: chatError } = await supabase
