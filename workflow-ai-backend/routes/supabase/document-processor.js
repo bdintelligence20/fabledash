@@ -24,7 +24,7 @@ async function extractTextFromDocument(buffer, fileType, fileName) {
     // Handle different file types
     if (fileType.includes('pdf')) {
       // PDF files
-      const pdfData = await pdfParse(buffer);
+      const pdfData = await pdfParse({ data: buffer });
       return pdfData.text;
     } else if (fileType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') || 
                fileName.endsWith('.docx')) {
