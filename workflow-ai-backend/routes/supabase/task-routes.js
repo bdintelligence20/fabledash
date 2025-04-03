@@ -7,7 +7,7 @@ const supabase = require('../../supabase');
 const { formatTask } = require('./helper-functions');
 
 // Create a new task
-router.post('/tasks/create', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { 
       client_id, 
@@ -103,7 +103,7 @@ router.post('/tasks/create', async (req, res) => {
 });
 
 // Get all tasks for a client
-router.get('/tasks/client/:clientId', async (req, res) => {
+router.get('/client/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
     
@@ -143,7 +143,7 @@ router.get('/tasks/client/:clientId', async (req, res) => {
 });
 
 // Get all tasks (with optional filters)
-router.get('/tasks/list', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { status_id, priority, due_before, due_after, search } = req.query;
     
@@ -194,7 +194,7 @@ router.get('/tasks/list', async (req, res) => {
 });
 
 // Get a specific task
-router.get('/tasks/:id', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -250,7 +250,7 @@ router.get('/tasks/:id', async (req, res) => {
 });
 
 // Update a task
-router.put('/tasks/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -335,7 +335,7 @@ router.put('/tasks/:id', async (req, res) => {
 });
 
 // Delete a task
-router.delete('/tasks/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     

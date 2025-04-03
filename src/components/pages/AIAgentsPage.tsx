@@ -42,12 +42,19 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      // Only fetch parent agents or standalone agents (no parent_id)
-      const response = await fetch(`${apiUrl}/agents?is_parent=true`);
+      console.log('Fetching all agents');
+      // Fetch all agents
+      const response = await fetch(`${apiUrl}/agents`);
+      console.log('All agents response:', response);
+      
       const data = await response.json();
+      console.log('All agents data:', data);
       
       if (data.success) {
-        setAgents(data.agents);
+        // Filter to only parent agents for the main list
+        const parentAgents = data.agents.filter((agent: Agent) => agent.is_parent);
+        console.log('Filtered parent agents:', parentAgents);
+        setAgents(parentAgents);
       } else {
         setError(data.message || 'Failed to fetch agents');
       }
@@ -78,12 +85,17 @@ const AIAgentsPage = () => {
     try {
       setIsLoading(true);
       
+      console.log(`Fetching child agents for parent ID: ${parentId}`);
       const response = await fetch(`${apiUrl}/agents/parent/${parentId}/children`);
+      console.log('Child agents response:', response);
+      
       const data = await response.json();
+      console.log('Child agents data:', data);
       
       if (data.success) {
         setChildAgents(data.agents);
       } else {
+        console.error('Failed to fetch child agents:', data.message);
         setError(data.message || 'Failed to fetch child agents');
       }
     } catch (error) {
@@ -329,6 +341,7 @@ const AIAgentsPage = () => {
   
   // Select an agent and fetch its documents
   const handleSelectAgent = (agent: Agent) => {
+    console.log('Agent selected:', agent);
     setSelectedAgent(agent);
     fetchDocuments(agent.id);
     setCurrentChatId(null);
@@ -336,8 +349,10 @@ const AIAgentsPage = () => {
     
     // If this is a parent agent, fetch its child agents
     if (agent.is_parent) {
+      console.log('This is a parent agent, fetching child agents');
       fetchChildAgents(agent.id);
     } else {
+      console.log('This is not a parent agent, clearing child agents');
       setChildAgents([]);
     }
   };
@@ -384,6 +399,16 @@ const AIAgentsPage = () => {
     );
   }
   
+  // Debug render conditions
+  console.log('Render conditions:', {
+    selectedAgent: !!selectedAgent,
+    showCreateForm,
+    showChildAgentForm,
+    renderingAgentList: !selectedAgent && !showCreateForm,
+    renderingAgentForm: showCreateForm || showChildAgentForm,
+    renderingAgentDetails: selectedAgent && !showCreateForm && !showChildAgentForm
+  });
+
   return (
     <div>
       {/* Show agent list if no agent is selected and not creating a new agent */}

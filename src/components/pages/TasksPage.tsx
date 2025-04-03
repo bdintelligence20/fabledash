@@ -52,7 +52,7 @@ const TasksPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/tasks/list`);
+      const response = await fetch(`${apiUrl}/tasks`);
       const data = await response.json();
       
       if (data.success) {
@@ -205,7 +205,7 @@ const TasksPage = () => {
   // Fetch task statuses from API
   const fetchStatuses = async () => {
     try {
-      const response = await fetch(`${apiUrl}/task-statuses/list`);
+      const response = await fetch(`${apiUrl}/task-statuses`);
       const data = await response.json();
       
       if (data.success) {
@@ -219,7 +219,7 @@ const TasksPage = () => {
   // Fetch clients from API
   const fetchClients = async () => {
     try {
-      const response = await fetch(`${apiUrl}/clients/list`);
+      const response = await fetch(`${apiUrl}/clients`);
       const data = await response.json();
       
       if (data.success) {
@@ -236,7 +236,7 @@ const TasksPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/tasks/create`, {
+      const response = await fetch(`${apiUrl}/tasks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

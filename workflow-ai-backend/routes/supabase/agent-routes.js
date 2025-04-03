@@ -94,6 +94,39 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get child agents for a parent agent
+router.get('/parent/:parentId/children', async (req, res) => {
+  try {
+    const { parentId } = req.params;
+    
+    const { data, error } = await supabase
+      .from('agents')
+      .select('*')
+      .eq('parent_id', parentId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching child agents:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch child agents',
+        error: error.message
+      });
+    }
+    
+    return res.json({
+      success: true,
+      agents: data
+    });
+  } catch (error) {
+    console.error('Error fetching child agents:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching child agents'
+    });
+  }
+});
+
 // Get agent by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -130,39 +163,6 @@ router.get('/:id', async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while fetching agent'
-    });
-  }
-});
-
-// Get child agents for a parent agent
-router.get('/parent/:parentId/children', async (req, res) => {
-  try {
-    const { parentId } = req.params;
-    
-    const { data, error } = await supabase
-      .from('agents')
-      .select('*')
-      .eq('parent_id', parentId)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching child agents:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to fetch child agents',
-        error: error.message
-      });
-    }
-    
-    return res.json({
-      success: true,
-      agents: data
-    });
-  } catch (error) {
-    console.error('Error fetching child agents:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error while fetching child agents'
     });
   }
 });

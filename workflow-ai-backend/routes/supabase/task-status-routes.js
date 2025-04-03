@@ -6,7 +6,7 @@ const router = express.Router();
 const supabase = require('../../supabase');
 
 // Get all task statuses
-router.get('/task-statuses/list', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('task_statuses')
@@ -28,7 +28,7 @@ router.get('/task-statuses/list', async (req, res) => {
 });
 
 // Create a custom task status
-router.post('/task-statuses/create', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, color } = req.body;
     
@@ -71,7 +71,7 @@ router.post('/task-statuses/create', async (req, res) => {
 });
 
 // Update a task status
-router.put('/task-statuses/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, color } = req.body;
@@ -115,7 +115,7 @@ router.put('/task-statuses/:id', async (req, res) => {
 });
 
 // Delete a task status
-router.delete('/task-statuses/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -178,7 +178,7 @@ router.delete('/task-statuses/:id', async (req, res) => {
 });
 
 // Reorder task statuses
-router.post('/task-statuses/reorder', async (req, res) => {
+router.post('/reorder', async (req, res) => {
   try {
     const { statusIds } = req.body;
     
