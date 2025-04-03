@@ -1,347 +1,399 @@
-// Chat routes for Supabase
 const express = require('express');
-const { OpenAI } = require('openai');
 const router = express.Router();
+const { supabase } = require('../../supabase');
+const { OpenAI } = require('openai');
 
-// Import the Supabase client
-const supabase = require('../../supabase');
-
-// Setup OpenAI
+// Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key',
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Helper function to calculate cosine similarity between two vectors
-function cosineSimilarity(vecA, vecB) {
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-  
-  for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    normA += vecA[i] * vecA[i];
-    normB += vecB[i] * vecB[i];
-  }
-  
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
 // Create a new chat
-router.post('/chats/create', async (req, res) => {
+router.post('/create', async (req, res) => {
   try {
-    const { agent_id } = req.body;
+    const { agent_id, title } = req.body;
     
     if (!agent_id) {
-      return res.status(400).json({ success: false, message: "Agent ID is required" });
+      return res.status(400).json({
+        success: false,
+        message: 'Agent ID is required'
+      });
     }
     
-    // Verify agent exists
+    // Check if agent exists
     const { data: agent, error: agentError } = await supabase
       .from('agents')
       .select('*')
       .eq('id', agent_id)
       .single();
     
-    if (agentError) {
-      return res.status(404).json({ success: false, message: "Agent not found" });
+    if (agentError || !agent) {
+      console.error('Error fetching agent:', agentError);
+      return res.status(404).json({
+        success: false,
+        message: 'Agent not found'
+      });
     }
     
+    // Create chat in database
     const { data, error } = await supabase
       .from('chats')
-      .insert([
-        { agent_id }
-      ])
-      .select();
+      .insert({
+        agent_id,
+        title: title || `Chat with ${agent.name}`,
+      })
+      .select()
+      .single();
     
     if (error) {
-      throw error;
+      console.error('Error creating chat:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create chat',
+        error: error.message
+      });
     }
     
-    res.json({
+    // Add system message to initialize the chat
+    const systemMessage = {
+      chat_id: data.id,
+      role: 'system',
+      content: `You are an AI assistant named ${agent.name}. ${agent.description || ''}`,
+    };
+    
+    const { error: messageError } = await supabase
+      .from('messages')
+      .insert(systemMessage);
+    
+    if (messageError) {
+      console.error('Error creating system message:', messageError);
+      // Continue anyway, not critical
+    }
+    
+    return res.json({
       success: true,
-      chat: {
-        id: data[0].id,
-        agent_id: data[0].agent_id,
-        created_at: data[0].created_at
-      }
+      chat: data
     });
   } catch (error) {
-    console.error("Error creating chat:", error);
-    res.status(500).json({ success: false, message: "Failed to create chat" });
+    console.error('Error creating chat:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while creating chat'
+    });
   }
 });
 
-// Get chat details
-router.get('/chats/details', async (req, res) => {
+// Get all chats for an agent
+router.get('/agent/:agentId', async (req, res) => {
   try {
-    const { chat_id } = req.query;
-    
-    if (!chat_id) {
-      return res.status(400).json({ success: false, message: "Chat ID is required" });
-    }
+    const { agentId } = req.params;
     
     const { data, error } = await supabase
       .from('chats')
       .select('*')
-      .eq('id', chat_id)
-      .single();
+      .eq('agent_id', agentId)
+      .order('created_at', { ascending: false });
     
     if (error) {
-      return res.status(404).json({ success: false, message: "Chat not found" });
+      console.error('Error fetching chats:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch chats',
+        error: error.message
+      });
     }
     
-    res.json({
+    return res.json({
       success: true,
-      chat: {
-        id: data.id,
-        agent_id: data.agent_id,
-        created_at: data.created_at
-      }
+      chats: data
     });
   } catch (error) {
-    console.error("Error getting chat details:", error);
-    res.status(500).json({ success: false, message: "Failed to get chat details" });
+    console.error('Error fetching chats:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching chats'
+    });
+  }
+});
+
+// Get chat by ID with messages
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get chat
+    const { data: chat, error: chatError } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (chatError || !chat) {
+      console.error('Error fetching chat:', chatError);
+      return res.status(404).json({
+        success: false,
+        message: 'Chat not found'
+      });
+    }
+    
+    // Get messages for this chat
+    const { data: messages, error: messagesError } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('chat_id', id)
+      .order('created_at', { ascending: true });
+    
+    if (messagesError) {
+      console.error('Error fetching messages:', messagesError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch messages',
+        error: messagesError.message
+      });
+    }
+    
+    return res.json({
+      success: true,
+      chat,
+      messages: messages || []
+    });
+  } catch (error) {
+    console.error('Error fetching chat with messages:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching chat with messages'
+    });
   }
 });
 
 // Send a message in a chat
-router.post('/chats/message', async (req, res) => {
+router.post('/message', async (req, res) => {
   try {
     const { chat_id, message } = req.body;
     
     if (!chat_id || !message) {
-      return res.status(400).json({ success: false, message: "Chat ID and message are required" });
+      return res.status(400).json({
+        success: false,
+        message: 'Chat ID and message are required'
+      });
     }
     
-    // Get chat details
+    // Get chat
     const { data: chat, error: chatError } = await supabase
       .from('chats')
-      .select('*')
+      .select('*, agents(*)')
       .eq('id', chat_id)
       .single();
     
-    if (chatError) {
-      return res.status(404).json({ success: false, message: "Chat not found" });
-    }
-    
-    // Get agent details
-    const { data: agent, error: agentError } = await supabase
-      .from('agents')
-      .select('*')
-      .eq('id', chat.agent_id)
-      .single();
-    
-    if (agentError) {
-      return res.status(404).json({ success: false, message: "Agent not found" });
-    }
-    
-    // Store user message
-    const { error: messageError } = await supabase
-      .from('messages')
-      .insert([
-        { chat_id, role: 'user', content: message }
-      ]);
-    
-    if (messageError) {
-      throw messageError;
-    }
-    
-    // Get chat history for better context
-    const { data: chatHistory, error: historyError } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('chat_id', chat_id)
-      .order('created_at', { ascending: true })
-      .limit(10);
-    
-    if (historyError) {
-      throw historyError;
-    }
-    
-    // Format previous messages for context
-    const previousMessages = chatHistory.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
-    
-    // Get embedding for the message
-    let queryEmbedding;
-    try {
-      const queryEmbeddingResponse = await openai.embeddings.create({
-        model: "text-embedding-ada-002",
-        input: message
+    if (chatError || !chat) {
+      console.error('Error fetching chat:', chatError);
+      return res.status(404).json({
+        success: false,
+        message: 'Chat not found'
       });
-      
-      queryEmbedding = queryEmbeddingResponse.data[0].embedding;
-    } catch (embeddingError) {
-      console.error("Error generating query embedding:", embeddingError);
-      throw new Error(`Failed to generate embedding: ${embeddingError.message}`);
     }
     
-    // Get all chunks for this agent with better error handling
-    let chunks = [];
-    try {
-      const { data, error } = await supabase
-        .from('chunks')
-        .select('*')
-        .eq('agent_id', chat.agent_id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      chunks = data || [];
-      
-      if (chunks.length === 0) {
-        // No chunks found, might be because no documents have been uploaded
-        console.warn(`No chunks found for agent ${chat.agent_id}. The agent may not have any documents.`);
-      }
-    } catch (chunksError) {
-      console.error("Error fetching chunks:", chunksError);
-      throw new Error(`Failed to fetch chunks: ${chunksError.message}`);
-    }
-    
-    // Calculate similarity and find the most relevant chunks
-    const scoredChunks = chunks.map(chunk => {
-      try {
-        // Handle both string and array embedding formats
-        let embedding;
-        if (typeof chunk.embedding === 'string') {
-          embedding = JSON.parse(chunk.embedding);
-        } else {
-          embedding = chunk.embedding;
-        }
-        
-        const similarity = cosineSimilarity(queryEmbedding, embedding);
-        return {
-          ...chunk,
-          similarity
-        };
-      } catch (error) {
-        console.error(`Error processing chunk ${chunk.id}:`, error);
-        // Return with very low similarity so it's not selected
-        return {
-          ...chunk,
-          similarity: -1
-        };
-      }
-    });
-    
-    // Sort by similarity and take top 10
-    const topChunks = scoredChunks
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 10);
-    
-    // Build context from top chunks with source information
-    let context = "";
-    if (topChunks && topChunks.length > 0) {
-      context = topChunks.map((chunk, index) => 
-        `[Document ${index + 1}] ${chunk.content}\nSource: ${chunk.source} (Relevance: ${(chunk.similarity * 100).toFixed(1)}%)`
-      ).join("\n\n");
-    }
-    
-    // Build conversation messages including system prompt and previous messages
-    const conversationMessages = [
-      {
-        role: "system",
-        content: `You are ${agent.name}, an intelligent AI assistant specialized in providing accurate information based on provided documents. ${agent.description || ""}
-        
-Your task is to give helpful, accurate, and thoughtful answers based ONLY on the context provided below. If you're unsure or the answer isn't contained in the provided context, be honest and say "I don't have enough information about that in my knowledge base." Don't make up information that isn't supported by the documents.
-
-When referring to information, cite the source (Document number) when possible.
-
-Here is the relevant information from the knowledge base:
-${context}
-
-Remember: Be concise yet thorough. Prioritize accuracy over speculation. Structure complex answers with headings and bullet points when helpful.`
-      }
-    ];
-    
-    // Add previous messages for conversation context (up to last 6 messages)
-    const recentMessages = previousMessages.slice(-6);
-    conversationMessages.push(...recentMessages);
-    
-    // Generate AI response with the specified model and parameters
-    const completion = await openai.chat.completions.create({
-      model: "o3-mini-2025-01-31",
-      messages: conversationMessages,
-      response_format: {
-        "type": "text"
-      },
-      reasoning_effort: "medium"
-    });
-    
-    const aiResponse = completion.choices[0].message.content;
-    
-    // Store AI response
-    const { error: responseError } = await supabase
-      .from('messages')
-      .insert([
-        { chat_id, role: 'assistant', content: aiResponse }
-      ]);
-    
-    if (responseError) {
-      throw responseError;
-    }
-    
-    // Get all messages for this chat
-    const { data: messages, error: messagesError } = await supabase
+    // Get previous messages for context
+    const { data: previousMessages, error: messagesError } = await supabase
       .from('messages')
       .select('*')
       .eq('chat_id', chat_id)
       .order('created_at', { ascending: true });
     
     if (messagesError) {
-      throw messagesError;
+      console.error('Error fetching previous messages:', messagesError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch previous messages',
+        error: messagesError.message
+      });
     }
     
-    res.json({
-      success: true,
-      message: aiResponse,
-      messages: messages.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        created_at: msg.created_at
-      }))
+    // Add user message to database
+    const userMessage = {
+      chat_id,
+      role: 'user',
+      content: message,
+    };
+    
+    const { data: savedUserMessage, error: userMessageError } = await supabase
+      .from('messages')
+      .insert(userMessage)
+      .select()
+      .single();
+    
+    if (userMessageError) {
+      console.error('Error saving user message:', userMessageError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save user message',
+        error: userMessageError.message
+      });
+    }
+    
+    // Prepare messages for OpenAI API
+    const openaiMessages = previousMessages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+    
+    // Add the new user message
+    openaiMessages.push({
+      role: 'user',
+      content: message
     });
+    
+    // Get agent documents for context if needed
+    let documents = [];
+    if (chat.agents && chat.agents.id) {
+      const { data: agentDocs, error: docsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('agent_id', chat.agents.id);
+      
+      if (!docsError && agentDocs) {
+        documents = agentDocs;
+      }
+    }
+    
+    // If there are documents, add their content to the system message
+    if (documents.length > 0) {
+      // Find the system message
+      const systemMessageIndex = openaiMessages.findIndex(msg => msg.role === 'system');
+      
+      if (systemMessageIndex !== -1) {
+        // Add document context to system message
+        openaiMessages[systemMessageIndex].content += '\n\nYou have access to the following documents:';
+        documents.forEach(doc => {
+          openaiMessages[systemMessageIndex].content += `\n- ${doc.file_name}`;
+        });
+      }
+    }
+    
+    try {
+      // Call OpenAI API
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: openaiMessages,
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
+      
+      // Get assistant response
+      const assistantResponse = completion.choices[0].message.content;
+      
+      // Save assistant response to database
+      const assistantMessage = {
+        chat_id,
+        role: 'assistant',
+        content: assistantResponse,
+      };
+      
+      const { error: assistantMessageError } = await supabase
+        .from('messages')
+        .insert(assistantMessage);
+      
+      if (assistantMessageError) {
+        console.error('Error saving assistant message:', assistantMessageError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to save assistant message',
+          error: assistantMessageError.message
+        });
+      }
+      
+      // Get all messages for this chat
+      const { data: allMessages, error: allMessagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('chat_id', chat_id)
+        .order('created_at', { ascending: true });
+      
+      if (allMessagesError) {
+        console.error('Error fetching all messages:', allMessagesError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to fetch all messages',
+          error: allMessagesError.message
+        });
+      }
+      
+      return res.json({
+        success: true,
+        messages: allMessages
+      });
+    } catch (openaiError) {
+      console.error('OpenAI API error:', openaiError);
+      
+      // Save error message to database
+      const errorMessage = {
+        chat_id,
+        role: 'assistant',
+        content: 'I apologize, but I encountered an error processing your request. Please try again later.',
+      };
+      
+      await supabase.from('messages').insert(errorMessage);
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Error calling OpenAI API',
+        error: openaiError.message
+      });
+    }
   } catch (error) {
-    console.error("Error sending message:", error);
-    res.status(500).json({ success: false, message: "Failed to send message: " + error.message });
+    console.error('Error sending message:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while sending message'
+    });
   }
 });
 
-// Get chat history
-router.get('/chats/history', async (req, res) => {
+// Delete a chat
+router.delete('/:id', async (req, res) => {
   try {
-    const { chat_id } = req.query;
+    const { id } = req.params;
     
-    if (!chat_id) {
-      return res.status(400).json({ success: false, message: "Chat ID is required" });
+    // Delete all messages in this chat first
+    const { error: messagesError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('chat_id', id);
+    
+    if (messagesError) {
+      console.error('Error deleting messages:', messagesError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete messages',
+        error: messagesError.message
+      });
     }
     
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('chat_id', chat_id)
-      .order('created_at', { ascending: true });
+    // Delete the chat
+    const { error } = await supabase
+      .from('chats')
+      .delete()
+      .eq('id', id);
     
     if (error) {
-      throw error;
+      console.error('Error deleting chat:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete chat',
+        error: error.message
+      });
     }
     
-    res.json({
+    return res.json({
       success: true,
-      messages: data.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        created_at: msg.created_at
-      }))
+      message: 'Chat deleted successfully'
     });
   } catch (error) {
-    console.error("Error getting chat history:", error);
-    res.status(500).json({ success: false, message: "Failed to get chat history" });
+    console.error('Error deleting chat:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while deleting chat'
+    });
   }
 });
 

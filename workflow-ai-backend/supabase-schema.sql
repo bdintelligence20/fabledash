@@ -74,7 +74,15 @@ CREATE TABLE IF NOT EXISTS agents (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   description TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  client_id INTEGER,
+  is_parent BOOLEAN DEFAULT FALSE,
+  parent_id INTEGER,
+  task_id INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (client_id) REFERENCES clients (id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id) REFERENCES agents (id) ON DELETE CASCADE,
+  FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE SET NULL
 );
 
 -- Create documents table
@@ -82,7 +90,10 @@ CREATE TABLE IF NOT EXISTS documents (
   id SERIAL PRIMARY KEY,
   agent_id INTEGER NOT NULL,
   file_name VARCHAR(255) NOT NULL,
-  content TEXT,
+  file_type VARCHAR(100),
+  file_path VARCHAR(255),
+  file_url VARCHAR(255),
+  extracted_text TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE CASCADE
 );
@@ -91,7 +102,9 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE TABLE IF NOT EXISTS chats (
   id SERIAL PRIMARY KEY,
   agent_id INTEGER NOT NULL,
+  title VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE CASCADE
 );
 
@@ -127,3 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_documents_agent_id ON documents(agent_id);
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_agent_id ON chunks(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agents_client_id ON agents(client_id);
+CREATE INDEX IF NOT EXISTS idx_agents_parent_id ON agents(parent_id);
+CREATE INDEX IF NOT EXISTS idx_agents_task_id ON agents(task_id);
+CREATE INDEX IF NOT EXISTS idx_chats_agent_id ON chats(agent_id);

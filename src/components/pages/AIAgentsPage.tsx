@@ -1,183 +1,153 @@
 import { useState, useEffect } from 'react';
-import { 
-  Bot, 
-  X, 
-  Plus,
-  Upload,
-  MessageSquare,
-  FileText,
-  Trash2
-} from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
+import { Agent, Message, Document } from '../agents/AgentTypes';
+import { Client } from '../clients/ClientTypes';
+import AgentList from '../agents/AgentList';
+import AgentForm from '../agents/AgentForm';
+import AgentDetails from '../agents/AgentDetails';
+import AgentChat from '../agents/AgentChat';
+import { Card, Modal } from '../ui';
 
-// Define types
-interface Agent {
-  id: number;
-  name: string;
-  description: string;
-  created_at: string;
-}
-
-interface Document {
-  id: number;
-  agent_id: number;
-  file_name: string;
-  created_at: string;
-}
-
-interface Chat {
-  id: number;
-  agent_id: number;
-  created_at: string;
-}
-
-interface Message {
-  id: number;
-  role: string;
-  content: string;
-  created_at: string;
-}
-
-// AI Agents Page Component
-function AIAgentsPage() {
+const AIAgentsPage = () => {
+  // State for agents and related data
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [childAgents, setChildAgents] = useState<Agent[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   
-  // Initialize selectedAgent from localStorage or default to null
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(() => {
-    const savedAgent = localStorage.getItem('selectedAgent');
-    return savedAgent ? JSON.parse(savedAgent) : null;
-  });
-  
-  // Initialize showCreateForm from localStorage or default to false
-  const [showCreateForm, setShowCreateForm] = useState(() => {
-    const savedShowCreateForm = localStorage.getItem('showCreateForm');
-    return savedShowCreateForm === 'true';
-  });
-  
-  const [newAgentName, setNewAgentName] = useState('');
-  const [newAgentDescription, setNewAgentDescription] = useState('');
-  const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  
-  // Initialize currentChatId from localStorage or default to null
-  const [currentChatId, setCurrentChatId] = useState<number | null>(() => {
-    const savedChatId = localStorage.getItem('currentChatId');
-    return savedChatId ? parseInt(savedChatId) : null;
-  });
-  
-  const [messageInput, setMessageInput] = useState('');
+  // UI state
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showChildAgentForm, setShowChildAgentForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(Date.now());
-  const [backendAvailable, setBackendAvailable] = useState(true);
   
-  // Save selectedAgent to localStorage whenever it changes
-  useEffect(() => {
-    if (selectedAgent) {
-      localStorage.setItem('selectedAgent', JSON.stringify(selectedAgent));
-    } else {
-      localStorage.removeItem('selectedAgent');
-    }
-  }, [selectedAgent]);
-  
-  // Save showCreateForm to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('showCreateForm', showCreateForm.toString());
-  }, [showCreateForm]);
-  
-  // Save currentChatId to localStorage whenever it changes
-  useEffect(() => {
-    if (currentChatId) {
-      localStorage.setItem('currentChatId', currentChatId.toString());
-    } else {
-      localStorage.removeItem('currentChatId');
-    }
-  }, [currentChatId]);
+  // Chat state
+  const [currentChatId, setCurrentChatId] = useState<number | null>(null);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
   
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   
-  // Check if backend is available
+  // Fetch agents and clients on component mount
   useEffect(() => {
-    const checkBackendAvailability = async () => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        await fetch(`${apiUrl}/agents/list`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        setBackendAvailable(true);
-      } catch (error) {
-        console.error("Backend connection error:", error);
-        setBackendAvailable(false);
-      }
-    };
-    
-    checkBackendAvailability();
-    const interval = setInterval(checkBackendAvailability, 30000);
-    
-    return () => clearInterval(interval);
-  }, [apiUrl]);
-  
-  // Fetch agents on component mount
-  useEffect(() => {
-    if (backendAvailable) {
-      fetchAgents();
-    }
-  }, [backendAvailable]);
+    fetchAgents();
+    fetchClients();
+  }, []);
   
   // Fetch agents from API
   const fetchAgents = async () => {
     try {
-      const response = await fetch(`${apiUrl}/agents/list`);
+      setIsLoading(true);
+      setError(null);
+      
+      // Only fetch parent agents or standalone agents (no parent_id)
+      const response = await fetch(`${apiUrl}/agents/list?is_parent=true`);
       const data = await response.json();
       
       if (data.success) {
         setAgents(data.agents);
+      } else {
+        setError(data.message || 'Failed to fetch agents');
       }
     } catch (error) {
       console.error("Error fetching agents:", error);
+      setError('Network error while fetching agents');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Fetch clients from API
+  const fetchClients = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/clients/list`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setClients(data.clients);
+      }
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    }
+  };
+  
+  // Fetch child agents for a parent agent
+  const fetchChildAgents = async (parentId: number) => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch(`${apiUrl}/agents/parent/${parentId}/children`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setChildAgents(data.agents);
+      } else {
+        setError(data.message || 'Failed to fetch child agents');
+      }
+    } catch (error) {
+      console.error("Error fetching child agents:", error);
+      setError('Network error while fetching child agents');
+    } finally {
+      setIsLoading(false);
     }
   };
   
   // Fetch documents for a specific agent
   const fetchDocuments = async (agentId: number) => {
     try {
+      setIsLoading(true);
+      
       const response = await fetch(`${apiUrl}/documents/list?agent_id=${agentId}`);
       const data = await response.json();
       
       if (data.success) {
         setDocuments(data.documents);
+      } else {
+        setError(data.message || 'Failed to fetch documents');
       }
     } catch (error) {
       console.error("Error fetching documents:", error);
+      setError('Network error while fetching documents');
+    } finally {
+      setIsLoading(false);
     }
   };
   
   // Create a new agent
-  const createAgent = async () => {
+  const createAgent = async (agentData: any) => {
     try {
       setIsLoading(true);
+      setError(null);
       
       const response = await fetch(`${apiUrl}/agents/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: newAgentName,
-          description: newAgentDescription,
-        }),
+        body: JSON.stringify(agentData),
       });
       
       const data = await response.json();
       
       if (data.success) {
-        setAgents([...agents, data.agent]);
-        setNewAgentName('');
-        setNewAgentDescription('');
+        if (agentData.parent_id) {
+          // If it's a child agent, refresh child agents
+          fetchChildAgents(agentData.parent_id);
+        } else {
+          // If it's a parent agent, refresh all agents
+          fetchAgents();
+        }
+        
         setShowCreateForm(false);
+        setShowChildAgentForm(false);
+      } else {
+        setError(data.message || 'Failed to create agent');
       }
     } catch (error) {
       console.error("Error creating agent:", error);
+      setError('Network error while creating agent');
     } finally {
       setIsLoading(false);
     }
@@ -189,6 +159,7 @@ function AIAgentsPage() {
     
     try {
       setIsLoading(true);
+      setError(null);
       
       const response = await fetch(`${apiUrl}/documents/delete`, {
         method: 'POST',
@@ -205,222 +176,89 @@ function AIAgentsPage() {
       if (data.success) {
         // Refresh documents list
         fetchDocuments(selectedAgent.id);
+      } else {
+        setError(data.message || 'Failed to delete document');
       }
     } catch (error) {
       console.error("Error deleting document:", error);
+      setError('Network error while deleting document');
     } finally {
       setIsLoading(false);
     }
   };
   
   // Upload document to an agent
-  const uploadDocument = async (event: React.ChangeEvent<HTMLInputElement>, agentId: number) => {
+  const uploadDocument = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedAgent) return;
+    
     const file = event.target.files?.[0];
     if (!file) return;
-    
-    // Check file size (1GB limit)
-    if (file.size > 1024 * 1024 * 1024) {
-      setUploadError("File size exceeds 1GB limit");
-      setFileInputKey(Date.now()); // Reset file input
-      return;
-    }
-    
-    // Check file type
-    const allowedTypes = ['application/pdf', 'text/plain', 'text/csv', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt') && !file.name.endsWith('.csv')) {
-      setUploadError("Unsupported file type. Please upload PDF, TXT, CSV, or DOCX files.");
-      setFileInputKey(Date.now()); // Reset file input
-      return;
-    }
     
     try {
       setIsLoading(true);
       setUploadError(null);
       
-      // For larger files, we'll use a different approach with extreme chunking
-      if (file.size > 1 * 1024 * 1024) { // For files larger than 1MB
-        setUploadError("Processing large file... Please wait.");
-        
-        // Create a blob slice function
-        const sliceFile = (file: File, start: number, end: number): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const slice = file.slice(start, end);
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target?.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(slice);
-          });
-        };
-        
-        // Process in very small chunks of 500KB for maximum reliability
-        const chunkSize = 500 * 1024; // 500KB chunks
-        const totalChunks = Math.ceil(file.size / chunkSize);
-        
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
         try {
-          // Extract text from the file first
-          let extractedText = "";
+          const base64Data = e.target?.result as string;
           
-          // For text files, we can read the whole file as text
-          if (file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
-            const textReader = new FileReader();
-            extractedText = await new Promise((resolve, reject) => {
-              textReader.onload = (e) => resolve(e.target?.result as string);
-              textReader.onerror = reject;
-              textReader.readAsText(file);
-            });
-          } else {
-            // For binary files like PDFs, we'll let the server handle it
-            // But we'll still chunk the upload
-            extractedText = "Binary file - text will be extracted on the server";
-          }
-          
-          // Upload the first chunk to create the document
-          const firstChunk = await sliceFile(file, 0, Math.min(chunkSize, file.size));
-          
-          // Set a longer timeout for large files
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 minute timeout
-          
-          // Send to API with timeout handling
+          // Send to API
           const response = await fetch(`${apiUrl}/documents/upload`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              agent_id: agentId,
-              file_data: firstChunk,
+              agent_id: selectedAgent.id,
+              file_data: base64Data,
               file_name: file.name,
-              content_type: file.type,
-              total_size: file.size,
-              is_large_file: true,
-              extracted_text: file.type.includes('text') ? extractedText : null
+              content_type: file.type
             }),
-            signal: controller.signal
           });
-          
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) {
-            if (response.status === 413) {
-              // If we get a 413 Payload Too Large error, try with an even smaller chunk
-              setUploadError("File is too large for direct upload. Please try a smaller file or contact support.");
-              throw new Error("Payload too large (413)");
-            } else {
-              throw new Error(`Server responded with status: ${response.status}`);
-            }
-          }
-          
-          // Check if response is JSON
-          const contentType = response.headers.get("content-type");
-          if (!contentType || !contentType.includes("application/json")) {
-            // Not JSON, likely an HTML error page
-            const text = await response.text();
-            console.error("Server returned non-JSON response:", text.substring(0, 200) + "...");
-            throw new Error("Server returned an HTML error page. The server might be misconfigured or overloaded.");
-          }
           
           const data = await response.json();
           
           if (data.success) {
             // Refresh documents list
-            fetchDocuments(agentId);
-            setUploadError(null);
+            fetchDocuments(selectedAgent.id);
           } else {
-            setUploadError(data.message || "Failed to upload document");
-            console.error("Error uploading document:", data.message);
+            setUploadError(data.message || 'Failed to upload document');
           }
-        } catch (error: any) {
-          if (error.name === 'AbortError') {
-            setUploadError("Upload timed out. The file may be too large or the server is busy.");
-          } else if (error.message.includes('413')) {
-            setUploadError("The file is too large for the server to process. Please try a smaller file (under 10MB).");
-          } else {
-            setUploadError(`Network error: ${error.message}`);
-          }
-          console.error("Error uploading document:", error);
-        }
-      } else {
-        // For smaller files, use the original approach
-        const reader = new FileReader();
-        
-        reader.onload = async (e) => {
-          try {
-            const base64Data = e.target?.result as string;
-            
-            // Send to API
-            const response = await fetch(`${apiUrl}/documents/upload`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                agent_id: agentId,
-                file_data: base64Data,
-                file_name: file.name,
-                content_type: file.type
-              }),
-            });
-            
-            // Check if response is JSON
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-              // Not JSON, likely an HTML error page
-              const text = await response.text();
-              console.error("Server returned non-JSON response:", text.substring(0, 200) + "...");
-              throw new Error("Server returned an HTML error page. The server might be misconfigured or overloaded.");
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
-              // Refresh documents list
-              fetchDocuments(agentId);
-            } else {
-              setUploadError(data.message || "Failed to upload document");
-              console.error("Error uploading document:", data.message);
-            }
-          } catch (error: any) {
-            if (error.toString().includes("too large")) {
-              setUploadError("File is too large for upload. Please try a smaller file or compress this one.");
-            } else {
-              setUploadError("Error processing file: " + error.toString());
-              console.error("Error processing file:", error);
-            }
-          } finally {
-            setIsLoading(false);
-            // Reset the file input
-            setFileInputKey(Date.now());
-          }
-        };
-        
-        reader.onerror = () => {
-          setUploadError("Error reading file");
+        } catch (error) {
+          console.error("Error processing file:", error);
+          setUploadError('Error processing file');
+        } finally {
           setIsLoading(false);
+          // Reset the file input
           setFileInputKey(Date.now());
-        };
-        
-        // Start reading the file
-        reader.readAsDataURL(file);
-      }
-    } catch (error: any) {
-      if (error.toString().includes("too large")) {
-        setUploadError("File is too large for upload. Please try a smaller file or compress this one.");
-      } else {
-        setUploadError("Network error while uploading document: " + error.toString());
-        console.error("Error uploading document:", error);
-      }
+        }
+      };
+      
+      reader.onerror = () => {
+        setUploadError('Error reading file');
+        setIsLoading(false);
+        setFileInputKey(Date.now());
+      };
+      
+      // Start reading the file
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      setUploadError('Error uploading document');
       setIsLoading(false);
       setFileInputKey(Date.now());
-    } finally {
-      setIsLoading(false);
     }
   };
   
   // Create a new chat
-  const createChat = async (agentId: number) => {
+  const createChat = async () => {
+    if (!selectedAgent) return;
+    
     try {
       setIsLoading(true);
+      setError(null);
       
       const response = await fetch(`${apiUrl}/chats/create`, {
         method: 'POST',
@@ -428,7 +266,7 @@ function AIAgentsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          agent_id: agentId,
+          agent_id: selectedAgent.id,
         }),
       });
       
@@ -437,31 +275,35 @@ function AIAgentsPage() {
       if (data.success) {
         setCurrentChatId(data.chat.id);
         setChatMessages([]);
+      } else {
+        setError(data.message || 'Failed to create chat');
       }
     } catch (error) {
       console.error("Error creating chat:", error);
+      setError('Network error while creating chat');
     } finally {
       setIsLoading(false);
     }
   };
   
   // Send a message in a chat
-  const sendMessage = async () => {
-    if (!currentChatId || !messageInput.trim()) return;
+  const sendMessage = async (message: string) => {
+    if (!currentChatId) return;
     
     try {
       setIsLoading(true);
+      setError(null);
       
       // Add user message to UI immediately
       const userMessage: Message = {
-        id: Date.now(), // Temporary ID
+        id: Date.now(),
+        chat_id: currentChatId,
         role: 'user',
-        content: messageInput,
+        content: message,
         created_at: new Date().toISOString(),
       };
       
       setChatMessages([...chatMessages, userMessage]);
-      setMessageInput('');
       
       const response = await fetch(`${apiUrl}/chats/message`, {
         method: 'POST',
@@ -470,7 +312,7 @@ function AIAgentsPage() {
         },
         body: JSON.stringify({
           chat_id: currentChatId,
-          message: userMessage.content,
+          message: message,
         }),
       });
       
@@ -478,9 +320,12 @@ function AIAgentsPage() {
       
       if (data.success) {
         setChatMessages(data.messages);
+      } else {
+        setError(data.message || 'Failed to send message');
       }
     } catch (error) {
       console.error("Error sending message:", error);
+      setError('Network error while sending message');
     } finally {
       setIsLoading(false);
     }
@@ -492,328 +337,146 @@ function AIAgentsPage() {
     fetchDocuments(agent.id);
     setCurrentChatId(null);
     setChatMessages([]);
+    
+    // If this is a parent agent, fetch its child agents
+    if (agent.is_parent) {
+      fetchChildAgents(agent.id);
+    } else {
+      setChildAgents([]);
+    }
   };
   
-  // Handle agent creation form submission
-  const handleCreateAgentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    createAgent();
+  // Handle form cancel
+  const handleFormCancel = () => {
+    setShowCreateForm(false);
+    setShowChildAgentForm(false);
   };
   
-  // Handle message input submission
-  const handleMessageSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage();
-  };
-  
-  // If backend is not available, show connection error
-  if (!backendAvailable) {
+  // If there's an error, show it
+  if (error) {
     return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <Bot className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-medium text-red-700 mb-2">Backend Connection Error</h2>
-          <p className="text-red-600 mb-6">
-            Unable to connect to the AI backend service. Please make sure the backend server is running.
-          </p>
-          <button
-            onClick={() => setBackendAvailable(true)}
-            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg"
+      <Card className="mb-6 bg-red-50 border border-red-200 text-red-700 relative">
+        <div className="flex justify-between items-start">
+          <span>{error}</span>
+          <button 
+            className="text-red-500 hover:text-red-700"
+            onClick={() => setError(null)}
+            aria-label="Close error message"
           >
-            Retry Connection
+            <X className="h-5 w-5" />
           </button>
         </div>
-      </div>
+      </Card>
+    );
+  }
+  
+  // If upload error, show it
+  if (uploadError) {
+    return (
+      <Card className="mb-6 bg-red-50 border border-red-200 text-red-700 relative">
+        <div className="flex justify-between items-start">
+          <span>{uploadError}</span>
+          <button 
+            className="text-red-500 hover:text-red-700"
+            onClick={() => setUploadError(null)}
+            aria-label="Close error message"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </Card>
     );
   }
   
   return (
-    <div className="p-6">
+    <div>
+      {/* Show agent list if no agent is selected and not creating a new agent */}
       {!selectedAgent && !showCreateForm ? (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-semibold">AI Agents</h1>
-            <button 
-              onClick={() => setShowCreateForm(true)}
-              className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center"
-              disabled={isLoading}
+        <AgentList
+          agents={agents}
+          clients={clients}
+          isLoading={isLoading}
+          onSelectAgent={handleSelectAgent}
+          onCreateAgent={() => setShowCreateForm(true)}
+        />
+      ) : showCreateForm || showChildAgentForm ? (
+        /* Show agent form if creating a new agent */
+        <div>
+          <div className="flex items-center mb-8">
+            <button
+              onClick={() => {
+                setShowCreateForm(false);
+                setShowChildAgentForm(false);
+                setSelectedAgent(null);
+              }}
+              className="mr-4 text-gray-500 hover:text-gray-700"
+              aria-label="Go back"
             >
-              <Plus className="h-5 w-5 mr-2" />
-              Create Agent
+              <ArrowLeft className="h-6 w-6" />
             </button>
+            <h1 className="text-2xl font-semibold text-gray-800">
+              {showChildAgentForm ? 'Create Child Agent' : 'Create New Agent'}
+            </h1>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {agents.map((agent) => (
-              <div 
-                key={agent.id}
-                className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => handleSelectAgent(agent)}
-              >
-                <div className="flex items-center mb-4">
-                  <div className="bg-purple-100 p-3 rounded-full mr-4">
-                    <Bot className="h-6 w-6 text-purple-500" />
-                  </div>
-                  <h2 className="text-lg font-medium">{agent.name}</h2>
-                </div>
-                <p className="text-gray-600 mb-4 line-clamp-2">{agent.description || "No description provided."}</p>
-                <p className="text-sm text-gray-500">Created: {new Date(agent.created_at).toLocaleDateString()}</p>
-              </div>
-            ))}
-            
-            {agents.length === 0 && (
-              <div className="col-span-full text-center py-12 bg-gray-50 rounded-lg">
-                <Bot className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-600 mb-2">No AI Agents Yet</h3>
-                <p className="text-gray-500 mb-6">Create your first AI agent to get started</p>
-                <button 
-                  onClick={() => setShowCreateForm(true)}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg inline-flex items-center"
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  Create Agent
-                </button>
-              </div>
-            )}
-          </div>
-        </>
-      ) : showCreateForm ? (
-        <div>
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-2xl font-semibold">Create New AI Agent</h1>
-          </div>
-          <div className="max-w-3xl">
-            <p className="text-gray-600 mb-8">Configure your custom AI agent with the settings below</p>
-            
-            <form onSubmit={handleCreateAgentSubmit} className="bg-white rounded-lg shadow p-6">
-              <div className="mb-6">
-                <label htmlFor="agentName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Agent Name
-                </label>
-                <input
-                  type="text"
-                  id="agentName"
-                  value={newAgentName}
-                  onChange={(e) => setNewAgentName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="e.g., Document Assistant"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              
-              <div className="mb-6">
-                <label htmlFor="agentDescription" className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  id="agentDescription"
-                  value={newAgentDescription}
-                  onChange={(e) => setNewAgentDescription(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Describe what this agent will do..."
-                  rows={4}
-                  disabled={isLoading}
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                  disabled={isLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg flex items-center"
-                  disabled={isLoading || !newAgentName.trim()}
-                >
-                  {isLoading ? 'Creating...' : 'Create Agent'}
-                </button>
-              </div>
-            </form>
-          </div>
+          <AgentForm
+            onSubmit={createAgent}
+            onCancel={handleFormCancel}
+            isLoading={isLoading}
+            clients={clients}
+            parentAgents={agents.filter(a => a.is_parent)}
+            isChildAgent={showChildAgentForm}
+            initialData={showChildAgentForm && selectedAgent ? { parent_id: selectedAgent.id } : undefined}
+          />
         </div>
       ) : selectedAgent && (
+        /* Show agent details and chat if an agent is selected */
         <div>
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center">
-              <button
-                onClick={() => setSelectedAgent(null)}
-                className="mr-4 text-gray-500 hover:text-gray-700"
-                aria-label="Go back"
-                disabled={isLoading}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-semibold">{selectedAgent.name}</h1>
-            </div>
-            
-            <div className="flex space-x-2">
-              <label className={`${isLoading ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-500 hover:bg-purple-600 cursor-pointer'} text-white px-4 py-2 rounded-lg flex items-center`}>
-                <Upload className="h-5 w-5 mr-2" />
-                Upload Document
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => uploadDocument(e, selectedAgent.id)}
-                  accept=".pdf,.txt,.csv,.doc,.docx"
-                  disabled={isLoading}
-                  key={fileInputKey}
-                />
-              </label>
-              
-              <button
-                onClick={() => createChat(selectedAgent.id)}
-                className={`${isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white px-4 py-2 rounded-lg flex items-center`}
-                disabled={isLoading}
-              >
-                <MessageSquare className="h-5 w-5 mr-2" />
-                New Chat
-              </button>
-            </div>
+          <div className="flex items-center mb-6">
+            <button
+              onClick={() => setSelectedAgent(null)}
+              className="mr-4 text-gray-500 hover:text-gray-700"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+            <h1 className="text-2xl font-semibold text-gray-800">{selectedAgent.name}</h1>
           </div>
           
-          {uploadError && (
-            <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-              <span className="block sm:inline">{uploadError}</span>
-              <button 
-                className="absolute top-0 bottom-0 right-0 px-4 py-3"
-                onClick={() => setUploadError(null)}
-                aria-label="Close error message"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          )}
-          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Agent details and documents */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 className="text-lg font-medium mb-4">Agent Details</h2>
-                <p className="text-gray-600 mb-4">{selectedAgent.description || "No description provided."}</p>
-                <p className="text-sm text-gray-500">Created: {new Date(selectedAgent.created_at).toLocaleDateString()}</p>
-              </div>
-              
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-medium mb-4">Documents</h2>
-                
-                {documents.length > 0 ? (
-                  <div className="space-y-4">
-                    {documents.map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <FileText className="h-5 w-5 text-gray-500 mr-3" />
-                          <span className="text-gray-800">{doc.file_name}</span>
-                        </div>
-                        <button 
-                          className="text-red-500 hover:text-red-700"
-                          onClick={() => deleteDocument(doc.id)}
-                          disabled={isLoading}
-                          aria-label={`Delete ${doc.file_name}`}
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <FileText className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">No documents uploaded yet</p>
-                  </div>
-                )}
-              </div>
+              <AgentDetails
+                agent={selectedAgent}
+                documents={documents}
+                childAgents={childAgents}
+                clients={clients}
+                isLoading={isLoading}
+                onUploadDocument={uploadDocument}
+                onDeleteDocument={deleteDocument}
+                onSelectAgent={handleSelectAgent}
+                onCreateChildAgent={() => {
+                  setShowChildAgentForm(true);
+                }}
+              />
             </div>
             
+            {/* Chat with agent */}
             <div className="lg:col-span-2">
-              {currentChatId ? (
-                <div className="bg-white rounded-lg shadow flex flex-col h-[600px]">
-                  <div className="p-4 border-b">
-                    <h2 className="text-lg font-medium">Chat with {selectedAgent.name}</h2>
-                  </div>
-                  
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {chatMessages.length > 0 ? (
-                      chatMessages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${
-                            message.role === 'user' ? 'justify-end' : 'justify-start'
-                          }`}
-                        >
-                          <div
-                            className={`max-w-3/4 rounded-lg p-4 ${
-                              message.role === 'user'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            <p className="whitespace-pre-wrap">{message.content}</p>
-                            <p className="text-xs mt-1 opacity-70">
-                              {new Date(message.created_at).toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="h-full flex items-center justify-center">
-                        <div className="text-center">
-                          <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                          <p className="text-gray-500">Start a conversation with your AI agent</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="p-4 border-t">
-                    <form onSubmit={handleMessageSubmit} className="flex space-x-2">
-                      <input
-                        type="text"
-                        value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Type your message..."
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="submit"
-                        className={`${isLoading || !messageInput.trim() ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white px-4 py-2 rounded-lg`}
-                        disabled={isLoading || !messageInput.trim()}
-                      >
-                        Send
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-white rounded-lg shadow p-6 flex items-center justify-center h-[600px]">
-                  <div className="text-center">
-                    <MessageSquare className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-medium text-gray-700 mb-2">No Active Chat</h3>
-                    <p className="text-gray-500 mb-6">Start a new chat to interact with this agent</p>
-                    <button
-                      onClick={() => createChat(selectedAgent.id)}
-                      className={`${isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white px-6 py-3 rounded-lg flex items-center mx-auto`}
-                      disabled={isLoading}
-                    >
-                      <MessageSquare className="h-5 w-5 mr-2" />
-                      Start New Chat
-                    </button>
-                  </div>
-                </div>
-              )}
+              <AgentChat
+                agent={selectedAgent}
+                currentChatId={currentChatId}
+                messages={chatMessages}
+                isLoading={isLoading}
+                onSendMessage={sendMessage}
+                onCreateChat={createChat}
+              />
             </div>
           </div>
         </div>
       )}
     </div>
   );
-}
+};
 
 export default AIAgentsPage;

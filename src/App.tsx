@@ -6,7 +6,12 @@ import {
   Bot, 
   Menu, 
   X, 
-  UserCircle
+  UserCircle,
+  Search,
+  BarChart2,
+  Clock,
+  Settings,
+  Bell
 } from 'lucide-react';
 
 // Import page components
@@ -53,211 +58,315 @@ function App() {
     }
   };
   
+  // Get page title
+  const getPageTitle = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return 'Dashboard';
+      case 'tasks':
+        return 'Tasks';
+      case 'finances':
+        return 'Finances';
+      case 'agents':
+        return 'AI Agents';
+      case 'clients':
+        return 'Clients';
+      default:
+        return 'Dashboard';
+    }
+  };
+  
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gradient-primary flex">
       {/* Sidebar - Desktop */}
-      <div className="hidden md:flex md:flex-col md:w-64 bg-white shadow">
-        <div className="p-4 border-b">
-          <h1 className="text-xl font-bold text-purple-600">WorkflowAI</h1>
+      <div className="hidden md:flex md:flex-col md:w-64 bg-white rounded-r-2xl shadow-lg">
+        <div className="p-6 border-b">
+          <h1 className="text-xl font-bold text-primary-600">FableDash</h1>
         </div>
         
         <nav className="flex-1 p-4">
-          <ul className="space-y-2">
-            <li>
-              <button
-                onClick={() => setCurrentPage('dashboard')}
-                className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                  currentPage === 'dashboard'
-                    ? 'bg-purple-100 text-purple-600'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Home className="h-5 w-5 mr-3" />
-                Dashboard
-              </button>
-            </li>
-            
-            <li>
-              <button
-                onClick={() => setCurrentPage('tasks')}
-                className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                  currentPage === 'tasks'
-                    ? 'bg-purple-100 text-purple-600'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <CheckSquare className="h-5 w-5 mr-3" />
-                Tasks
-              </button>
-            </li>
-            
-            <li>
-              <button
-                onClick={() => setCurrentPage('finances')}
-                className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                  currentPage === 'finances'
-                    ? 'bg-purple-100 text-purple-600'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <DollarSign className="h-5 w-5 mr-3" />
-                Finances
-              </button>
-            </li>
-            
-            <li>
-              <button
-                onClick={() => setCurrentPage('agents')}
-                className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                  currentPage === 'agents'
-                    ? 'bg-purple-100 text-purple-600'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Bot className="h-5 w-5 mr-3" />
-                AI Agents
-              </button>
-            </li>
-            
-            <li>
-              <button
-                onClick={() => setCurrentPage('clients')}
-                className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                  currentPage === 'clients'
-                    ? 'bg-purple-100 text-purple-600'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <UserCircle className="h-5 w-5 mr-3" />
-                Clients
-              </button>
-            </li>
-          </ul>
+          <div className="mb-8">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4 px-4">Main</p>
+            <ul className="space-y-1">
+              <li>
+                <button
+                  onClick={() => setCurrentPage('dashboard')}
+                  className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                    currentPage === 'dashboard'
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Home className="h-5 w-5 mr-3" />
+                  Dashboard
+                </button>
+              </li>
+              
+              <li>
+                <button
+                  onClick={() => setCurrentPage('tasks')}
+                  className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                    currentPage === 'tasks'
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <CheckSquare className="h-5 w-5 mr-3" />
+                  Tasks
+                </button>
+              </li>
+              
+              <li>
+                <button
+                  onClick={() => setCurrentPage('finances')}
+                  className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                    currentPage === 'finances'
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <DollarSign className="h-5 w-5 mr-3" />
+                  Finances
+                </button>
+              </li>
+              
+              <li>
+                <button
+                  onClick={() => setCurrentPage('clients')}
+                  className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                    currentPage === 'clients'
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <UserCircle className="h-5 w-5 mr-3" />
+                  Clients
+                </button>
+              </li>
+            </ul>
+          </div>
+          
+          <div className="mb-8">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4 px-4">Tools</p>
+            <ul className="space-y-1">
+              <li>
+                <button
+                  onClick={() => setCurrentPage('agents')}
+                  className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                    currentPage === 'agents'
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Bot className="h-5 w-5 mr-3" />
+                  AI Agents
+                </button>
+              </li>
+              
+              <li>
+                <button
+                  className="w-full flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50"
+                >
+                  <BarChart2 className="h-5 w-5 mr-3" />
+                  Analytics
+                </button>
+              </li>
+              
+              <li>
+                <button
+                  className="w-full flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50"
+                >
+                  <Clock className="h-5 w-5 mr-3" />
+                  Time Tracking
+                </button>
+              </li>
+            </ul>
+          </div>
         </nav>
         
         <div className="p-4 border-t">
-          <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-purple-200 flex items-center justify-center text-purple-600 font-semibold mr-3">
+          <div className="flex items-center p-2 rounded-xl hover:bg-gray-50 cursor-pointer">
+            <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-semibold mr-3">
               JD
             </div>
             <div>
-              <p className="font-medium">John Doe</p>
+              <p className="font-medium text-gray-800">John Doe</p>
               <p className="text-xs text-gray-500">john@example.com</p>
             </div>
           </div>
         </div>
       </div>
       
-      {/* Mobile Menu Button and Header */}
+      {/* Main Content Area */}
       <div className="flex flex-col flex-1">
-        <header className="bg-white shadow md:hidden">
-          <div className="flex justify-between items-center p-4">
-            <h1 className="text-xl font-bold text-purple-600">WorkflowAI</h1>
-            <button onClick={toggleMobileMenu} className="text-gray-600">
+        {/* Header */}
+        <header className="bg-white p-4 md:p-6 flex justify-between items-center shadow-sm rounded-bl-2xl">
+          <div className="flex items-center">
+            {/* Mobile Menu Button */}
+            <button onClick={toggleMobileMenu} className="md:hidden text-gray-600 mr-4">
               {isMobileMenuOpen ? (
                 <X className="h-6 w-6" />
               ) : (
                 <Menu className="h-6 w-6" />
               )}
             </button>
+            
+            <h1 className="text-xl font-bold text-gray-800 md:hidden">FableDash</h1>
+            <h1 className="text-xl font-bold text-gray-800 hidden md:block">{getPageTitle()}</h1>
           </div>
           
-          {/* Mobile Menu */}
-          {isMobileMenuOpen && (
-            <nav className="p-4 border-t">
-              <ul className="space-y-2">
-                <li>
-                  <button
-                    onClick={() => {
-                      setCurrentPage('dashboard');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                      currentPage === 'dashboard'
-                        ? 'bg-purple-100 text-purple-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Home className="h-5 w-5 mr-3" />
-                    Dashboard
-                  </button>
-                </li>
-                
-                <li>
-                  <button
-                    onClick={() => {
-                      setCurrentPage('tasks');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                      currentPage === 'tasks'
-                        ? 'bg-purple-100 text-purple-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <CheckSquare className="h-5 w-5 mr-3" />
-                    Tasks
-                  </button>
-                </li>
-                
-                <li>
-                  <button
-                    onClick={() => {
-                      setCurrentPage('finances');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                      currentPage === 'finances'
-                        ? 'bg-purple-100 text-purple-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <DollarSign className="h-5 w-5 mr-3" />
-                    Finances
-                  </button>
-                </li>
-                
-                <li>
-                  <button
-                    onClick={() => {
-                      setCurrentPage('agents');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                      currentPage === 'agents'
-                        ? 'bg-purple-100 text-purple-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Bot className="h-5 w-5 mr-3" />
-                    AI Agents
-                  </button>
-                </li>
-                
-                <li>
-                  <button
-                    onClick={() => {
-                      setCurrentPage('clients');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                      currentPage === 'clients'
-                        ? 'bg-purple-100 text-purple-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <UserCircle className="h-5 w-5 mr-3" />
-                    Clients
-                  </button>
-                </li>
-              </ul>
-            </nav>
-          )}
+          <div className="flex items-center space-x-4">
+            {/* Search Bar - Desktop */}
+            <div className="hidden md:flex items-center bg-gray-100 rounded-lg px-3 py-2">
+              <Search className="h-4 w-4 text-gray-500 mr-2" />
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                className="bg-transparent border-none focus:outline-none text-sm text-gray-700 w-48"
+              />
+            </div>
+            
+            {/* Notification Bell */}
+            <button className="p-2 rounded-full hover:bg-gray-100">
+              <Bell className="h-5 w-5 text-gray-600" />
+            </button>
+            
+            {/* Settings */}
+            <button className="p-2 rounded-full hover:bg-gray-100">
+              <Settings className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
         </header>
         
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-white shadow-lg border-b">
+            <nav className="p-4">
+              <div className="mb-6">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 px-2">Main</p>
+                <ul className="space-y-1">
+                  <li>
+                    <button
+                      onClick={() => {
+                        setCurrentPage('dashboard');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                        currentPage === 'dashboard'
+                          ? 'bg-primary-50 text-primary-600 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Home className="h-5 w-5 mr-3" />
+                      Dashboard
+                    </button>
+                  </li>
+                  
+                  <li>
+                    <button
+                      onClick={() => {
+                        setCurrentPage('tasks');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                        currentPage === 'tasks'
+                          ? 'bg-primary-50 text-primary-600 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <CheckSquare className="h-5 w-5 mr-3" />
+                      Tasks
+                    </button>
+                  </li>
+                  
+                  <li>
+                    <button
+                      onClick={() => {
+                        setCurrentPage('finances');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                        currentPage === 'finances'
+                          ? 'bg-primary-50 text-primary-600 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <DollarSign className="h-5 w-5 mr-3" />
+                      Finances
+                    </button>
+                  </li>
+                  
+                  <li>
+                    <button
+                      onClick={() => {
+                        setCurrentPage('clients');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                        currentPage === 'clients'
+                          ? 'bg-primary-50 text-primary-600 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <UserCircle className="h-5 w-5 mr-3" />
+                      Clients
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 px-2">Tools</p>
+                <ul className="space-y-1">
+                  <li>
+                    <button
+                      onClick={() => {
+                        setCurrentPage('agents');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center px-4 py-3 rounded-xl ${
+                        currentPage === 'agents'
+                          ? 'bg-primary-50 text-primary-600 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Bot className="h-5 w-5 mr-3" />
+                      AI Agents
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              
+              {/* Search Bar - Mobile */}
+              <div className="flex items-center bg-gray-100 rounded-lg px-3 py-2 mb-4">
+                <Search className="h-4 w-4 text-gray-500 mr-2" />
+                <input 
+                  type="text" 
+                  placeholder="Search..." 
+                  className="bg-transparent border-none focus:outline-none text-sm text-gray-700 w-full"
+                />
+              </div>
+              
+              <div className="border-t pt-4">
+                <div className="flex items-center p-2">
+                  <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-semibold mr-3">
+                    JD
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-800">John Doe</p>
+                    <p className="text-xs text-gray-500">john@example.com</p>
+                  </div>
+                </div>
+              </div>
+            </nav>
+          </div>
+        )}
+        
         {/* Main Content */}
-        <main className="flex-1">
-          {renderPage()}
+        <main className="flex-1 p-4 md:p-6 overflow-auto bg-secondary-50 rounded-tl-2xl">
+          <div className="max-w-7xl mx-auto">
+            {renderPage()}
+          </div>
         </main>
       </div>
     </div>

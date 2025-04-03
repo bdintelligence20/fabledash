@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Edit, X } from 'lucide-react';
+import { Edit, X, Bot } from 'lucide-react';
 import { Client } from './ClientTypes';
 import ClientTasks from './ClientTasks';
 import CalendarView from './CalendarView';
 import KanbanView from './KanbanView';
+import ClientAgents from './ClientAgents';
 
 interface ClientDetailPageProps {
   client: Client;
@@ -84,6 +85,8 @@ const ClientDetailPage = ({
         return <CalendarView clientId={client.id} />;
       case 'kanban':
         return <KanbanView clientId={client.id} />;
+      case 'agents':
+        return <ClientAgents client={client} />;
       default:
         return <ClientTasks clientId={client.id} />;
     }
@@ -260,6 +263,13 @@ const ClientDetailPage = ({
             onClick={() => setActiveTab('kanban')}
           >
             Kanban
+          </button>
+          <button
+            className={`px-4 py-2 font-medium flex items-center ${activeTab === 'agents' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setActiveTab('agents')}
+          >
+            <Bot className="h-4 w-4 mr-1" />
+            AI Agents
           </button>
         </div>
       </div>

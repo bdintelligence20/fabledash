@@ -1,9 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Search, Filter, ChevronDown, CheckSquare } from 'lucide-react';
 import { Task, TaskStatus, Client } from '../clients/ClientTypes';
 import TaskForm from '../tasks/TaskForm';
-import TaskList from '../tasks/TaskList';
-import TaskFilterComponent, { TaskFilter } from '../tasks/TaskFilter';
+import { Button, Card, Input, Select, Table, Badge, Modal } from '../ui';
+import { TaskFilter } from '../tasks/TaskFilter';
+
+// Define column type for the task table
+interface TaskColumn {
+  key: string;
+  header: string;
+  render?: (task: Task, index: number) => JSX.Element | null;
+  width?: string;
+  sortable?: boolean;
+  align?: 'left' | 'center' | 'right';
+}
 
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -17,11 +27,8 @@ const TasksPage = () => {
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  
-  // Refs
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const [showTaskModal, setShowTaskModal] = useState(false);
   
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   
@@ -37,19 +44,7 @@ const TasksPage = () => {
     filterTasks();
   }, [tasks, searchQuery, activeFilter]);
   
-  // Close filter dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
-        setShowFilterDropdown(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  // No longer needed since we're using the Select component
   
   // Fetch tasks from API
   const fetchTasks = async () => {
@@ -72,6 +67,92 @@ const TasksPage = () => {
       setIsLoading(false);
     }
   };
+  
+  // Define table columns
+  const taskColumns: TaskColumn[] = [
+    {
+      key: 'title',
+      header: 'Task',
+      sortable: true,
+      render: (task) => (
+        <div>
+          <div className="font-medium text-gray-900">{task.title}</div>
+          {task.description && (
+            <div className="text-sm text-gray-500 line-clamp-1">{task.description}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'client',
+      header: 'Client',
+      sortable: true,
+      render: (task) => {
+        const client = clients.find(c => c.id === task.client_id);
+        return <span className="text-gray-700">{client?.name || 'Unknown'}</span>;
+      },
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      render: (task) => {
+        const status = statuses.find(s => s.id === task.status_id);
+        if (!status) return null;
+        
+        return (
+          <Badge
+            variant={status.name.toLowerCase() === 'completed' ? 'success' : 'primary'}
+            rounded
+          >
+            {status.name}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'due_date',
+      header: 'Due Date',
+      sortable: true,
+      render: (task) => {
+        if (!task.due_date) return <span className="text-gray-400">No date</span>;
+        
+        const dueDate = new Date(task.due_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const isOverdue = dueDate < today;
+        
+        return (
+          <span className={isOverdue ? 'text-red-600 font-medium' : 'text-gray-700'}>
+            {dueDate.toLocaleDateString()}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'priority',
+      header: 'Priority',
+      sortable: true,
+      render: (task) => {
+        const priorityColors = {
+          high: 'danger',
+          medium: 'warning',
+          low: 'success',
+        };
+        
+        return (
+          <Badge
+            variant={priorityColors[task.priority as keyof typeof priorityColors] || 'default'}
+            size="sm"
+            rounded
+          >
+            {task.priority || 'Medium'}
+          </Badge>
+        );
+      },
+    },
+  ];
   
   // Filter tasks based on search query and active filter
   const filterTasks = () => {
@@ -308,56 +389,125 @@ const TasksPage = () => {
   // Handle task edit
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
-    setShowCreateForm(true);
+    setShowTaskModal(true);
   };
   
   // Handle form cancel
   const handleFormCancel = () => {
-    setShowCreateForm(false);
+    setShowTaskModal(false);
     setEditingTask(null);
   };
   
+  // Handle row click
+  const handleRowClick = (task: Task) => {
+    handleEditTask(task);
+  };
+  
+  // Filter options for the dropdown
+  const filterOptions = [
+    { value: 'all', label: 'All Tasks' },
+    { value: 'active', label: 'Active Tasks' },
+    { value: 'completed', label: 'Completed Tasks' },
+    { value: 'overdue', label: 'Overdue Tasks' },
+  ];
+  
   return (
-    <div className="p-6">
+    <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Tasks</h1>
-        <button 
-          onClick={() => setShowCreateForm(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+        <h1 className="text-2xl font-semibold text-gray-800">Tasks</h1>
+        <Button 
+          variant="primary"
+          icon={<Plus className="h-5 w-5" />}
+          onClick={() => {
+            setEditingTask(null);
+            setShowTaskModal(true);
+          }}
           disabled={isLoading}
         >
-          <Plus className="h-5 w-5 mr-2" />
           Add Task
-        </button>
+        </Button>
       </div>
       
       {error && (
-        <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative">
-          <span className="block sm:inline">{error}</span>
-          <button 
-            className="absolute top-0 bottom-0 right-0 px-4 py-3"
-            onClick={() => setError(null)}
-            aria-label="Close error message"
-          >
-            <X className="h-5 w-5" />
-          </button>
+        <Card className="mb-6 bg-red-50 border border-red-200 text-red-700 relative">
+          <div className="flex justify-between items-start">
+            <span>{error}</span>
+            <Button
+              variant="text"
+              size="sm"
+              onClick={() => setError(null)}
+              aria-label="Close error message"
+              className="text-red-500 hover:text-red-700"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </Card>
+      )}
+      
+      <Card className="mb-6">
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+          <Input
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            icon={<Search className="h-5 w-5 text-gray-400" />}
+            className="w-full md:w-64"
+          />
+          
+          <Select
+            options={filterOptions}
+            value={activeFilter}
+            onChange={(e) => setActiveFilter(e.target.value as TaskFilter)}
+            icon={<Filter className="h-5 w-5 text-gray-400" />}
+            className="w-full md:w-48"
+          />
+          
+          <div className="text-sm text-gray-500 ml-auto">
+            {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'} found
+          </div>
         </div>
-      )}
+      </Card>
       
-      {!showCreateForm && (
-        <TaskFilterComponent
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          activeFilter={activeFilter}
-          setActiveFilter={setActiveFilter}
-          showFilterDropdown={showFilterDropdown}
-          setShowFilterDropdown={setShowFilterDropdown}
-          filterDropdownRef={filterDropdownRef}
-          tasksCount={filteredTasks.length}
+      <Card>
+        <Table
+          data={filteredTasks}
+          columns={taskColumns}
+          keyExtractor={(task) => task.id}
+          onRowClick={handleRowClick}
+          isLoading={isLoading && !tasks.length}
+          emptyState={
+            <div className="text-center py-12">
+              <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-600 mb-2">No Tasks Found</h3>
+              <p className="text-gray-500 mb-6">
+                {searchQuery || activeFilter !== 'all' 
+                  ? 'Try adjusting your search or filters'
+                  : 'Create your first task to get started'}
+              </p>
+              <Button 
+                variant="primary"
+                icon={<Plus className="h-5 w-5" />}
+                onClick={() => {
+                  setEditingTask(null);
+                  setShowTaskModal(true);
+                }}
+              >
+                Add Task
+              </Button>
+            </div>
+          }
+          striped
+          hoverable
         />
-      )}
+      </Card>
       
-      {showCreateForm ? (
+      <Modal
+        isOpen={showTaskModal}
+        onClose={handleFormCancel}
+        title={editingTask ? 'Edit Task' : 'Create New Task'}
+        size="lg"
+      >
         <TaskForm
           clients={clients}
           statuses={statuses}
@@ -374,22 +524,7 @@ const TasksPage = () => {
             priority: editingTask.priority || 'medium'
           } : undefined}
         />
-      ) : isLoading && !tasks.length ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-        </div>
-      ) : (
-        <TaskList
-          tasks={filteredTasks}
-          statuses={statuses}
-          clients={clients}
-          isLoading={isLoading}
-          onToggleComplete={toggleTaskCompletion}
-          onDelete={deleteTask}
-          onEdit={handleEditTask}
-          onAddTask={() => setShowCreateForm(true)}
-        />
-      )}
+      </Modal>
     </div>
   );
 };
