@@ -3,7 +3,7 @@ const router = express.Router();
 const { supabase } = require('../../supabase');
 
 // Create a new agent
-router.post('/create', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, description, client_id, parent_id, is_parent = true } = req.body;
     
@@ -50,7 +50,7 @@ router.post('/create', async (req, res) => {
 });
 
 // Get all agents
-router.get('/list', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { is_parent, client_id } = req.query;
     

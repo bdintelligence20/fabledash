@@ -7,7 +7,7 @@ const supabase = require('../../supabase');
 const { formatClient } = require('./helper-functions');
 
 // Create a new client
-router.post('/clients/create', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, contact_email, contact_phone, notes } = req.body;
     
@@ -42,7 +42,7 @@ router.post('/clients/create', async (req, res) => {
 });
 
 // Get all clients
-router.get('/clients/list', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('clients')
@@ -64,7 +64,7 @@ router.get('/clients/list', async (req, res) => {
 });
 
 // Get a specific client
-router.get('/clients/:id', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -92,7 +92,7 @@ router.get('/clients/:id', async (req, res) => {
 });
 
 // Update a client
-router.put('/clients/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, contact_email, contact_phone, notes } = req.body;
@@ -142,7 +142,7 @@ router.put('/clients/:id', async (req, res) => {
 });
 
 // Delete a client
-router.delete('/clients/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
