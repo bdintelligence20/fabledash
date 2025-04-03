@@ -192,6 +192,40 @@ function chunkText(text, maxChunkSize = 1000) {
 }
 
 /**
+ * Calculate cosine similarity between two vectors
+ * @param {number[]} vecA - First vector
+ * @param {number[]} vecB - Second vector
+ * @returns {number} - Cosine similarity (between -1 and 1)
+ */
+function calculateCosineSimilarity(vecA, vecB) {
+  if (!vecA || !vecB || vecA.length !== vecB.length) {
+    return 0;
+  }
+  
+  // Calculate dot product
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  
+  // Calculate magnitude/norm
+  normA = Math.sqrt(normA);
+  normB = Math.sqrt(normB);
+  
+  // Calculate cosine similarity
+  if (normA === 0 || normB === 0) {
+    return 0;
+  }
+  
+  return dotProduct / (normA * normB);
+}
+
+/**
  * Generate an embedding for a text
  * @param {string} text - The text to generate an embedding for
  * @returns {Promise<number[]|null>} - The embedding vector or null if failed
@@ -265,12 +299,24 @@ async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDo
       return [];
     }
     
-    // Sort chunks by relevance (this is a placeholder for actual vector similarity)
-    // In a real implementation, you would use cosine similarity between the query embedding and chunk embeddings
-    const scoredChunks = chunks.map(chunk => ({
-      ...chunk,
-      score: Math.random() // Placeholder for actual similarity score
-    }));
+    // Calculate cosine similarity between query embedding and chunk embeddings
+    const scoredChunks = chunks.map(chunk => {
+      // Check if chunk has an embedding
+      if (!chunk.embedding || !Array.isArray(chunk.embedding)) {
+        return {
+          ...chunk,
+          score: 0 // No embedding, so no similarity
+        };
+      }
+      
+      // Calculate cosine similarity
+      const similarity = calculateCosineSimilarity(queryEmbedding, chunk.embedding);
+      
+      return {
+        ...chunk,
+        score: similarity
+      };
+    });
     
     // Sort by score (descending) and take the top 'limit' chunks
     const topChunks = scoredChunks
