@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Bot, FileText, Trash2, Upload, Plus } from 'lucide-react';
 import { Agent, Document } from './AgentTypes';
 import { Client } from '../clients/ClientTypes';
@@ -28,6 +28,7 @@ const AgentDetails = ({
   onCreateChildAgent,
 }: AgentDetailsProps) => {
   const [fileInputKey, setFileInputKey] = useState(Date.now());
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   // Get client name by ID
   const getClientName = (clientId: number | null | undefined) => {
@@ -114,7 +115,7 @@ const AgentDetails = ({
           <h2 className="text-lg font-medium">Documents</h2>
           <div>
             <input
-              id="file-upload"
+              ref={fileInputRef}
               type="file"
               className="hidden"
               onChange={onUploadDocument}
@@ -122,20 +123,16 @@ const AgentDetails = ({
               disabled={isLoading}
               key={fileInputKey}
             />
-            <label 
-              htmlFor="file-upload" 
-              className={`inline-block ${isLoading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Upload className="h-4 w-4" />}
+              disabled={isLoading}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
             >
-              <Button
-                variant="outline"
-                size="sm"
-                icon={<Upload className="h-4 w-4" />}
-                disabled={isLoading}
-                type="button"
-              >
-                Upload Document
-              </Button>
-            </label>
+              Upload Document
+            </Button>
           </div>
         </div>
         
