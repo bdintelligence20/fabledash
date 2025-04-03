@@ -13,6 +13,33 @@ const openai = new OpenAI({
 });
 
 /**
+ * Extract text from a document URL (especially for PDFs)
+ * @param {string} url - The URL of the document
+ * @param {string} fileType - The MIME type of the document
+ * @param {string} fileName - The name of the document
+ * @returns {Promise<string>} - The extracted text
+ */
+async function extractTextFromDocumentUrl(url, fileType, fileName) {
+  try {
+    if (fileType.includes('pdf')) {
+      // PDF files
+      console.log(`Extracting text from PDF URL: ${url}`);
+      
+      // Use the URL directly with pdf-parse
+      const pdfData = await pdfParse({ url });
+      return pdfData.text;
+    } else {
+      // For other file types, we'll need to download the file first
+      // This is just a fallback, but we should use extractTextFromDocument for non-PDF files
+      throw new Error(`URL-based extraction not supported for file type: ${fileType}`);
+    }
+  } catch (error) {
+    console.error('Error extracting text from document URL:', error);
+    return '';
+  }
+}
+
+/**
  * Extract text from a document based on its type
  * @param {Buffer} buffer - The document buffer
  * @param {string} fileType - The MIME type of the document
@@ -540,6 +567,7 @@ function formatChunksAsContext(chunks) {
 
 module.exports = {
   extractTextFromDocument,
+  extractTextFromDocumentUrl,
   processDocument,
   chunkText,
   generateEmbedding,

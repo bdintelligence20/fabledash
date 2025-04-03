@@ -129,25 +129,51 @@ router.post('/', async (req, res) => {
           // Log the type of fileData for debugging
           console.log(`File data type: ${typeof fileData}, is Buffer: ${Buffer.isBuffer(fileData)}`);
           
-          // Extract text from the file
-          const extractedText = await documentProcessor.extractTextFromDocument(
-            fileData,
-            document.file_type,
-            document.file_name
-          );
-          
-          // Process the document with the extracted text
-          documentProcessor.processDocument(document, extractedText)
-            .then(success => {
-              if (success) {
-                console.log(`Document ${document.id} processed successfully`);
-              } else {
-                console.error(`Failed to process document ${document.id}`);
-              }
-            })
-            .catch(error => {
-              console.error(`Error processing document ${document.id}:`, error);
-            });
+          // For PDF files, try to use the public URL instead of the binary data
+          if (document.file_type.includes('pdf') && document.file_url) {
+            console.log(`Using public URL for PDF: ${document.file_url}`);
+            
+            // Extract text from the file using the URL
+            const extractedText = await documentProcessor.extractTextFromDocumentUrl(
+              document.file_url,
+              document.file_type,
+              document.file_name
+            );
+            
+            // Process the document with the extracted text
+            documentProcessor.processDocument(document, extractedText)
+              .then(success => {
+                if (success) {
+                  console.log(`Document ${document.id} processed successfully`);
+                } else {
+                  console.error(`Failed to process document ${document.id}`);
+                }
+              })
+              .catch(error => {
+                console.error(`Error processing document ${document.id}:`, error);
+              });
+          } else {
+            // For other file types, use the binary data
+            // Extract text from the file
+            const extractedText = await documentProcessor.extractTextFromDocument(
+              fileData,
+              document.file_type,
+              document.file_name
+            );
+            
+            // Process the document with the extracted text
+            documentProcessor.processDocument(document, extractedText)
+              .then(success => {
+                if (success) {
+                  console.log(`Document ${document.id} processed successfully`);
+                } else {
+                  console.error(`Failed to process document ${document.id}`);
+                }
+              })
+              .catch(error => {
+                console.error(`Error processing document ${document.id}:`, error);
+              });
+          }
         }
       } catch (error) {
         console.error('Error extracting text from file:', error);
