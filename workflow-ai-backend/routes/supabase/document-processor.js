@@ -24,18 +24,85 @@ async function extractTextFromDocument(buffer, fileType, fileName) {
     // Handle different file types
     if (fileType.includes('pdf')) {
       // PDF files
-      const pdfData = await pdfParse({ data: buffer });
+      // Ensure buffer is in the correct format for pdf-parse
+      let dataForParse;
+      
+      if (Buffer.isBuffer(buffer)) {
+        // If it's already a Buffer, use it directly
+        dataForParse = buffer;
+      } else if (buffer instanceof Uint8Array) {
+        // If it's a Uint8Array, convert to Buffer
+        dataForParse = Buffer.from(buffer);
+      } else if (typeof buffer === 'string') {
+        // If it's a string, convert to Buffer
+        dataForParse = Buffer.from(buffer);
+      } else if (buffer instanceof ArrayBuffer) {
+        // If it's an ArrayBuffer, convert to Buffer
+        dataForParse = Buffer.from(buffer);
+      } else if (buffer && typeof buffer === 'object') {
+        // If it's some other object, try to use it directly
+        // This might happen if Supabase returns a Blob or other object
+        dataForParse = buffer;
+      } else {
+        // If we can't determine the type, throw an error
+        throw new Error(`Unsupported buffer type: ${typeof buffer}`);
+      }
+      
+      // Log the type of data we're passing to pdf-parse
+      console.log(`Data type for pdf-parse: ${typeof dataForParse}, is Buffer: ${Buffer.isBuffer(dataForParse)}`);
+      
+      const pdfData = await pdfParse({ data: dataForParse });
       return pdfData.text;
     } else if (fileType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') || 
                fileName.endsWith('.docx')) {
       // DOCX files (Word 2007+)
-      const result = await mammoth.extractRawText({ buffer });
+      // Ensure buffer is in the correct format for mammoth
+      let dataForMammoth;
+      
+      if (Buffer.isBuffer(buffer)) {
+        // If it's already a Buffer, use it directly
+        dataForMammoth = { buffer };
+      } else if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
+        // If it's a Uint8Array or ArrayBuffer, convert to Buffer
+        dataForMammoth = { buffer: Buffer.from(buffer) };
+      } else if (typeof buffer === 'string') {
+        // If it's a string, convert to Buffer
+        dataForMammoth = { buffer: Buffer.from(buffer) };
+      } else if (buffer && typeof buffer === 'object') {
+        // If it's some other object, try to use it directly
+        dataForMammoth = { buffer };
+      } else {
+        // If we can't determine the type, throw an error
+        throw new Error(`Unsupported buffer type for DOCX: ${typeof buffer}`);
+      }
+      
+      const result = await mammoth.extractRawText(dataForMammoth);
       return result.value;
     } else if (fileType.includes('application/msword') || fileName.endsWith('.doc')) {
       // DOC files (Word 97-2003)
       // Note: mammoth has limited support for .doc files, but we'll try
       try {
-        const result = await mammoth.extractRawText({ buffer });
+        // Ensure buffer is in the correct format for mammoth
+        let dataForMammoth;
+        
+        if (Buffer.isBuffer(buffer)) {
+          // If it's already a Buffer, use it directly
+          dataForMammoth = { buffer };
+        } else if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
+          // If it's a Uint8Array or ArrayBuffer, convert to Buffer
+          dataForMammoth = { buffer: Buffer.from(buffer) };
+        } else if (typeof buffer === 'string') {
+          // If it's a string, convert to Buffer
+          dataForMammoth = { buffer: Buffer.from(buffer) };
+        } else if (buffer && typeof buffer === 'object') {
+          // If it's some other object, try to use it directly
+          dataForMammoth = { buffer };
+        } else {
+          // If we can't determine the type, throw an error
+          throw new Error(`Unsupported buffer type for DOC: ${typeof buffer}`);
+        }
+        
+        const result = await mammoth.extractRawText(dataForMammoth);
         return result.value;
       } catch (e) {
         console.error('Error extracting text from DOC file:', e);
@@ -43,15 +110,63 @@ async function extractTextFromDocument(buffer, fileType, fileName) {
       }
     } else if (fileType.includes('text/plain') || fileName.endsWith('.txt')) {
       // Plain text files
-      return buffer.toString('utf-8');
+      // Ensure buffer is in the correct format for toString
+      let dataForText;
+      
+      if (Buffer.isBuffer(buffer)) {
+        // If it's already a Buffer, use it directly
+        dataForText = buffer;
+      } else if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
+        // If it's a Uint8Array or ArrayBuffer, convert to Buffer
+        dataForText = Buffer.from(buffer);
+      } else if (typeof buffer === 'string') {
+        // If it's already a string, return it directly
+        return buffer;
+      } else if (buffer && typeof buffer === 'object') {
+        // If it's some other object, try to convert it to string
+        try {
+          return buffer.toString();
+        } catch (e) {
+          throw new Error(`Cannot convert buffer to string: ${e.message}`);
+        }
+      } else {
+        // If we can't determine the type, throw an error
+        throw new Error(`Unsupported buffer type for text: ${typeof buffer}`);
+      }
+      
+      return dataForText.toString('utf-8');
     } else if (fileType.includes('csv') || fileName.endsWith('.csv')) {
       // CSV files
+      // Ensure buffer is in the correct format for CSV parsing
+      let dataForCsv;
+      
+      if (Buffer.isBuffer(buffer)) {
+        // If it's already a Buffer, use it directly
+        dataForCsv = buffer.toString('utf-8');
+      } else if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
+        // If it's a Uint8Array or ArrayBuffer, convert to Buffer then to string
+        dataForCsv = Buffer.from(buffer).toString('utf-8');
+      } else if (typeof buffer === 'string') {
+        // If it's already a string, use it directly
+        dataForCsv = buffer;
+      } else if (buffer && typeof buffer === 'object') {
+        // If it's some other object, try to convert it to string
+        try {
+          dataForCsv = buffer.toString();
+        } catch (e) {
+          throw new Error(`Cannot convert buffer to string for CSV: ${e.message}`);
+        }
+      } else {
+        // If we can't determine the type, throw an error
+        throw new Error(`Unsupported buffer type for CSV: ${typeof buffer}`);
+      }
+      
       let csvText = '';
       const results = [];
       
       // Parse CSV
       await new Promise((resolve, reject) => {
-        const stream = Readable.from(buffer.toString('utf-8'));
+        const stream = Readable.from(dataForCsv);
         stream
           .pipe(csv())
           .on('data', (data) => results.push(data))
@@ -74,22 +189,93 @@ async function extractTextFromDocument(buffer, fileType, fileName) {
       return csvText;
     } else if (fileType.includes('application/json') || fileName.endsWith('.json')) {
       // JSON files
+      // Ensure buffer is in the correct format for JSON parsing
+      let dataForJson;
+      
+      if (Buffer.isBuffer(buffer)) {
+        // If it's already a Buffer, convert to string
+        dataForJson = buffer.toString('utf-8');
+      } else if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
+        // If it's a Uint8Array or ArrayBuffer, convert to Buffer then to string
+        dataForJson = Buffer.from(buffer).toString('utf-8');
+      } else if (typeof buffer === 'string') {
+        // If it's already a string, use it directly
+        dataForJson = buffer;
+      } else if (buffer && typeof buffer === 'object') {
+        // If it's some other object, try to convert it to string
+        try {
+          dataForJson = buffer.toString();
+        } catch (e) {
+          throw new Error(`Cannot convert buffer to string for JSON: ${e.message}`);
+        }
+      } else {
+        // If we can't determine the type, throw an error
+        throw new Error(`Unsupported buffer type for JSON: ${typeof buffer}`);
+      }
+      
       try {
-        const jsonData = JSON.parse(buffer.toString('utf-8'));
+        const jsonData = JSON.parse(dataForJson);
         return JSON.stringify(jsonData, null, 2);
       } catch (e) {
         console.error('Error parsing JSON:', e);
-        return buffer.toString('utf-8');
+        return dataForJson;
       }
-    } else if (fileType.includes('text/html') || fileName.endsWith('.html') || fileName.endsWith('.htm')) {
-      // HTML files - simple text extraction, not parsing HTML structure
-      return buffer.toString('utf-8');
-    } else if (fileType.includes('text/markdown') || fileName.endsWith('.md')) {
-      // Markdown files
-      return buffer.toString('utf-8');
+    } else if (fileType.includes('text/html') || fileName.endsWith('.html') || fileName.endsWith('.htm') ||
+               fileType.includes('text/markdown') || fileName.endsWith('.md') ||
+               fileType.includes('text/plain')) {
+      // HTML, Markdown, and other text files
+      // Ensure buffer is in the correct format for text extraction
+      let dataForText;
+      
+      if (Buffer.isBuffer(buffer)) {
+        // If it's already a Buffer, use it directly
+        dataForText = buffer;
+      } else if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
+        // If it's a Uint8Array or ArrayBuffer, convert to Buffer
+        dataForText = Buffer.from(buffer);
+      } else if (typeof buffer === 'string') {
+        // If it's already a string, return it directly
+        return buffer;
+      } else if (buffer && typeof buffer === 'object') {
+        // If it's some other object, try to convert it to string
+        try {
+          return buffer.toString();
+        } catch (e) {
+          throw new Error(`Cannot convert buffer to string for text: ${e.message}`);
+        }
+      } else {
+        // If we can't determine the type, throw an error
+        throw new Error(`Unsupported buffer type for text: ${typeof buffer}`);
+      }
+      
+      return dataForText.toString('utf-8');
     } else {
       // Default: try to extract as text
-      return buffer.toString('utf-8');
+      // Ensure buffer is in the correct format for text extraction
+      let dataForText;
+      
+      if (Buffer.isBuffer(buffer)) {
+        // If it's already a Buffer, use it directly
+        dataForText = buffer;
+      } else if (buffer instanceof Uint8Array || buffer instanceof ArrayBuffer) {
+        // If it's a Uint8Array or ArrayBuffer, convert to Buffer
+        dataForText = Buffer.from(buffer);
+      } else if (typeof buffer === 'string') {
+        // If it's already a string, return it directly
+        return buffer;
+      } else if (buffer && typeof buffer === 'object') {
+        // If it's some other object, try to convert it to string
+        try {
+          return buffer.toString();
+        } catch (e) {
+          throw new Error(`Cannot convert buffer to string for default: ${e.message}`);
+        }
+      } else {
+        // If we can't determine the type, throw an error
+        throw new Error(`Unsupported buffer type for default: ${typeof buffer}`);
+      }
+      
+      return dataForText.toString('utf-8');
     }
   } catch (error) {
     console.error('Error extracting text from document:', error);

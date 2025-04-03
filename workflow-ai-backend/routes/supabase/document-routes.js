@@ -126,6 +126,9 @@ router.post('/', async (req, res) => {
         if (fileError) {
           console.error('Error downloading file from storage:', fileError);
         } else {
+          // Log the type of fileData for debugging
+          console.log(`File data type: ${typeof fileData}, is Buffer: ${Buffer.isBuffer(fileData)}`);
+          
           // Extract text from the file
           const extractedText = await documentProcessor.extractTextFromDocument(
             fileData,
