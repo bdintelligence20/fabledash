@@ -278,7 +278,10 @@ router.post('/:id/message', async (req, res) => {
       }
     }
     
+    console.log(`Processing message: "${message}" for chat ${chat_id} with agent ${chat.agents.id}`);
+    
     // Retrieve relevant chunks for the query
+    console.log(`Retrieving relevant chunks for query: "${message}"`);
     const relevantChunks = await documentProcessor.retrieveRelevantChunks(
       chat.agents.id,
       message,
@@ -286,24 +289,32 @@ router.post('/:id/message', async (req, res) => {
       includeParentDocs // Include parent documents if this is a child agent
     );
     
+    console.log(`Retrieved ${relevantChunks.length} relevant chunks`);
+    
     // Format chunks as context
     const documentContext = documentProcessor.formatChunksAsContext(relevantChunks);
     
     // If we have relevant chunks, add them to the context
     if (documentContext) {
+      console.log('Adding document context to the prompt');
+      
       // Find the system message
       const systemMessageIndex = openaiMessages.findIndex(msg => msg.role === 'system');
       
       if (systemMessageIndex !== -1) {
         // Add document context to system message
+        console.log('Adding document context to existing system message');
         openaiMessages[systemMessageIndex].content += '\n\n' + documentContext;
       } else {
         // If no system message exists, add one with the document context
+        console.log('Creating new system message with document context');
         openaiMessages.unshift({
           role: 'system',
           content: `You are an AI assistant. ${documentContext}`
         });
       }
+    } else {
+      console.log('No document context to add to the prompt');
     }
     
     // Use the safeApiCall helper to handle API errors gracefully

@@ -318,10 +318,14 @@ async function extractTextFromDocument(buffer, fileType, fileName) {
  */
 async function processDocument(document, extractedText) {
   try {
+    console.log(`Processing document ${document.id} - ${document.file_name}`);
+    
     if (!extractedText || extractedText.trim() === '') {
       console.warn(`No text extracted from document ${document.id}`);
       return false;
     }
+    
+    console.log(`Extracted text length: ${extractedText.length} characters`);
 
     // Update the document with the extracted text
     const { error: updateError } = await supabase
@@ -333,15 +337,21 @@ async function processDocument(document, extractedText) {
       console.error('Error updating document with extracted text:', updateError);
       return false;
     }
+    
+    console.log(`Updated document ${document.id} with extracted text`);
 
     // Chunk the text
     const chunks = chunkText(extractedText, 1000);
+    console.log(`Created ${chunks.length} chunks from document ${document.id}`);
     
     // Generate embeddings and store chunks
+    let successfulChunks = 0;
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
+      console.log(`Processing chunk ${i + 1}/${chunks.length} for document ${document.id}`);
       
       // Generate embedding
+      console.log(`Generating embedding for chunk ${i + 1}/${chunks.length}`);
       const embedding = await generateEmbedding(chunk);
       
       if (!embedding) {
@@ -349,23 +359,36 @@ async function processDocument(document, extractedText) {
         continue;
       }
       
+      console.log(`Successfully generated embedding for chunk ${i + 1}/${chunks.length}`);
+      
       // Store chunk in database
-      const { error: chunkError } = await supabase
+      const chunkData = {
+        document_id: document.id,
+        agent_id: document.agent_id,
+        content: chunk,
+        source: `${document.file_name} (chunk ${i + 1}/${chunks.length})`,
+        embedding: embedding
+      };
+      
+      console.log(`Storing chunk ${i + 1}/${chunks.length} in database with agent_id: ${document.agent_id}`);
+      
+      const { data: insertedChunk, error: chunkError } = await supabase
         .from('chunks')
-        .insert({
-          document_id: document.id,
-          agent_id: document.agent_id,
-          content: chunk,
-          source: `${document.file_name} (chunk ${i + 1}/${chunks.length})`,
-          embedding: embedding
-        });
+        .insert(chunkData)
+        .select()
+        .single();
       
       if (chunkError) {
         console.error(`Error storing chunk ${i} for document ${document.id}:`, chunkError);
+      } else {
+        console.log(`Successfully stored chunk ${i + 1}/${chunks.length} with ID: ${insertedChunk.id}`);
+        successfulChunks++;
       }
     }
     
-    return true;
+    console.log(`Successfully processed ${successfulChunks}/${chunks.length} chunks for document ${document.id}`);
+    
+    return successfulChunks > 0;
   } catch (error) {
     console.error('Error processing document:', error);
     return false;
@@ -467,6 +490,8 @@ async function generateEmbedding(text) {
  */
 async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDocs = false) {
   try {
+    console.log(`Retrieving chunks for agent ${agentId}, query: "${query}", includeParentDocs: ${includeParentDocs}`);
+    
     // Generate embedding for the query
     const queryEmbedding = await generateEmbedding(query);
     
@@ -493,9 +518,10 @@ async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDo
     // If this is a child agent and includeParentDocs is true, include the parent's documents
     if (includeParentDocs && agent.parent_id) {
       agentIds.push(agent.parent_id);
+      console.log(`Including parent agent ${agent.parent_id} documents`);
     }
     
-    // If this is a parent agent, we might want to include only its documents, not its children's
+    console.log(`Searching for chunks with agent_ids: ${agentIds.join(', ')}`);
     
     // Perform the search using the embedding
     // Note: This is a simplified version since we can't use vector similarity search directly
@@ -512,10 +538,37 @@ async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDo
       return [];
     }
     
+    console.log(`Retrieved ${chunks ? chunks.length : 0} chunks from database`);
+    
+    if (!chunks || chunks.length === 0) {
+      console.log('No chunks found for this agent');
+      
+      // Check if there are any documents for this agent
+      const { data: documents, error: documentsError } = await supabase
+        .from('documents')
+        .select('id, file_name')
+        .in('agent_id', agentIds);
+      
+      if (documentsError) {
+        console.error('Error fetching documents:', documentsError);
+      } else {
+        console.log(`Found ${documents ? documents.length : 0} documents for this agent`);
+        if (documents && documents.length > 0) {
+          console.log('Documents found but no chunks. This suggests the documents were not properly processed.');
+          documents.forEach(doc => {
+            console.log(`Document: ${doc.id} - ${doc.file_name}`);
+          });
+        }
+      }
+      
+      return [];
+    }
+    
     // Calculate cosine similarity between query embedding and chunk embeddings
     const scoredChunks = chunks.map(chunk => {
       // Check if chunk has an embedding
       if (!chunk.embedding || !Array.isArray(chunk.embedding)) {
+        console.log(`Chunk ${chunk.id} has no embedding or invalid embedding`);
         return {
           ...chunk,
           score: 0 // No embedding, so no similarity
@@ -536,6 +589,13 @@ async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDo
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
     
+    console.log(`Returning ${topChunks.length} relevant chunks`);
+    
+    // Log the top chunks for debugging
+    topChunks.forEach((chunk, index) => {
+      console.log(`Chunk ${index + 1}: score=${chunk.score}, document=${chunk.documents?.file_name || 'Unknown'}`);
+    });
+    
     return topChunks;
   } catch (error) {
     console.error('Error retrieving relevant chunks:', error);
@@ -549,18 +609,26 @@ async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDo
  * @returns {string} - Formatted context string
  */
 function formatChunksAsContext(chunks) {
+  console.log(`Formatting ${chunks ? chunks.length : 0} chunks as context`);
+  
   if (!chunks || chunks.length === 0) {
+    console.log('No chunks to format, returning empty context');
     return '';
   }
   
   let context = 'Here are some relevant documents that might help you answer the question:\n\n';
   
   chunks.forEach((chunk, index) => {
-    context += `Document ${index + 1}: ${chunk.documents?.file_name || 'Unknown'}\n`;
+    const documentName = chunk.documents?.file_name || 'Unknown';
+    console.log(`Adding chunk ${index + 1} from document "${documentName}" to context`);
+    
+    context += `Document ${index + 1}: ${documentName}\n`;
     context += `Content: ${chunk.content}\n\n`;
   });
   
   context += 'Please use this information to help answer the user\'s question. If the information provided doesn\'t contain the answer, please say so.';
+  
+  console.log(`Formatted context length: ${context.length} characters`);
   
   return context;
 }
