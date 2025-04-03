@@ -311,7 +311,7 @@ async function extractTextFromDocument(buffer, fileType, fileName) {
 }
 
 /**
- * Process a document by extracting text, chunking it, and generating embeddings
+ * Process a document by extracting text and storing it in the database
  * @param {Object} document - The document object from the database
  * @param {string} extractedText - The extracted text from the document
  * @returns {Promise<boolean>} - Whether the processing was successful
@@ -344,82 +344,35 @@ async function processDocument(document, extractedText) {
     const chunks = chunkText(extractedText, 1000);
     console.log(`Created ${chunks.length} chunks from document ${document.id}`);
     
-    // For large documents, process in smaller batches to avoid overwhelming the API
-    const BATCH_SIZE = 5; // Process 5 chunks at a time
+    // Store chunks in database without embeddings (faster approach)
     let successfulChunks = 0;
     
-    // Process chunks in batches
-    for (let batchStart = 0; batchStart < chunks.length; batchStart += BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + BATCH_SIZE, chunks.length);
-      const batch = chunks.slice(batchStart, batchEnd);
-      
-      console.log(`Processing batch of chunks ${batchStart + 1}-${batchEnd} of ${chunks.length}`);
-      
-      // Process each chunk in the batch
-      const batchPromises = batch.map(async (chunk, index) => {
-        const chunkIndex = batchStart + index;
-        console.log(`Processing chunk ${chunkIndex + 1}/${chunks.length} for document ${document.id}`);
-        
-        try {
-          // Generate embedding
-          console.log(`Generating embedding for chunk ${chunkIndex + 1}/${chunks.length}`);
-          const embedding = await generateEmbedding(chunk);
-          
-          if (!embedding) {
-            console.error(`Failed to generate embedding for chunk ${chunkIndex} of document ${document.id}`);
-            return false;
-          }
-          
-          console.log(`Successfully generated embedding for chunk ${chunkIndex + 1}/${chunks.length}`);
-          
-          // Store chunk in database
-          const chunkData = {
-            document_id: document.id,
-            agent_id: document.agent_id,
-            content: chunk,
-            source: `${document.file_name} (chunk ${chunkIndex + 1}/${chunks.length})`,
-            embedding: embedding
-          };
-          
-          console.log(`Storing chunk ${chunkIndex + 1}/${chunks.length} in database with agent_id: ${document.agent_id}`);
-          
-          const { data: insertedChunk, error: chunkError } = await supabase
-            .from('chunks')
-            .insert(chunkData)
-            .select()
-            .single();
-          
-          if (chunkError) {
-            console.error(`Error storing chunk ${chunkIndex} for document ${document.id}:`, chunkError);
-            return false;
-          } else {
-            console.log(`Successfully stored chunk ${chunkIndex + 1}/${chunks.length} with ID: ${insertedChunk.id}`);
-            return true;
-          }
-        } catch (error) {
-          console.error(`Error processing chunk ${chunkIndex + 1}:`, error);
-          return false;
-        }
-      });
-      
-      // Wait for all chunks in the batch to be processed
-      const batchResults = await Promise.all(batchPromises);
-      const batchSuccessCount = batchResults.filter(result => result).length;
-      successfulChunks += batchSuccessCount;
-      
-      console.log(`Batch ${batchStart + 1}-${batchEnd} completed: ${batchSuccessCount}/${batch.length} chunks successful`);
-      
-      // If we're not at the end yet, add a small delay between batches to avoid rate limiting
-      if (batchEnd < chunks.length) {
-        const delay = 1000; // 1 second delay between batches
-        console.log(`Waiting ${delay}ms before processing next batch...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+    // Prepare all chunks for insertion
+    const chunksToInsert = chunks.map((chunk, index) => ({
+      document_id: document.id,
+      agent_id: document.agent_id,
+      content: chunk,
+      source: `${document.file_name} (chunk ${index + 1}/${chunks.length})`,
+      // Store null for embedding - we'll use keyword search instead
+      embedding: null
+    }));
+    
+    console.log(`Inserting ${chunksToInsert.length} chunks into database...`);
+    
+    // Insert all chunks at once
+    const { data: insertedChunks, error: insertError } = await supabase
+      .from('chunks')
+      .insert(chunksToInsert)
+      .select();
+    
+    if (insertError) {
+      console.error('Error inserting chunks:', insertError);
+      return false;
     }
     
-    console.log(`Successfully processed ${successfulChunks}/${chunks.length} chunks for document ${document.id}`);
+    console.log(`Successfully inserted ${insertedChunks.length} chunks for document ${document.id}`);
     
-    return successfulChunks > 0;
+    return insertedChunks.length > 0;
   } catch (error) {
     console.error('Error processing document:', error);
     return false;
@@ -535,7 +488,7 @@ async function generateEmbedding(text, retries = 3) {
 }
 
 /**
- * Retrieve relevant chunks for a query
+ * Retrieve relevant chunks for a query using keyword search
  * @param {number} agentId - The ID of the agent
  * @param {string} query - The query text
  * @param {number} limit - The maximum number of chunks to retrieve
@@ -545,14 +498,6 @@ async function generateEmbedding(text, retries = 3) {
 async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDocs = false) {
   try {
     console.log(`Retrieving chunks for agent ${agentId}, query: "${query}", includeParentDocs: ${includeParentDocs}`);
-    
-    // Generate embedding for the query
-    const queryEmbedding = await generateEmbedding(query);
-    
-    if (!queryEmbedding) {
-      console.error('Failed to generate embedding for query');
-      return [];
-    }
     
     // Get the agent to check if it has a parent
     const { data: agent, error: agentError } = await supabase
@@ -577,11 +522,7 @@ async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDo
     
     console.log(`Searching for chunks with agent_ids: ${agentIds.join(', ')}`);
     
-    // Perform the search using the embedding
-    // Note: This is a simplified version since we can't use vector similarity search directly
-    // In a real implementation, you would use a vector database or Supabase's pgvector extension
-    
-    // For now, we'll just retrieve all chunks for the agent(s) and sort them client-side
+    // Get all chunks for the agent(s)
     const { data: chunks, error: chunksError } = await supabase
       .from('chunks')
       .select('*, documents(file_name)')
@@ -618,23 +559,34 @@ async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDo
       return [];
     }
     
-    // Calculate cosine similarity between query embedding and chunk embeddings
+    // Simple keyword search
+    // Extract keywords from the query (words with 3+ characters)
+    const keywords = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(word => word.length >= 3)
+      .map(word => word.replace(/[^\w]/g, '')); // Remove non-word characters
+    
+    console.log(`Keywords extracted from query: ${keywords.join(', ')}`);
+    
+    // Score chunks based on keyword matches
     const scoredChunks = chunks.map(chunk => {
-      // Check if chunk has an embedding
-      if (!chunk.embedding || !Array.isArray(chunk.embedding)) {
-        console.log(`Chunk ${chunk.id} has no embedding or invalid embedding`);
-        return {
-          ...chunk,
-          score: 0 // No embedding, so no similarity
-        };
-      }
+      const content = chunk.content.toLowerCase();
+      let score = 0;
       
-      // Calculate cosine similarity
-      const similarity = calculateCosineSimilarity(queryEmbedding, chunk.embedding);
+      // Count keyword occurrences
+      keywords.forEach(keyword => {
+        // Use a regular expression to count occurrences
+        const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+        const matches = content.match(regex);
+        if (matches) {
+          score += matches.length;
+        }
+      });
       
       return {
         ...chunk,
-        score: similarity
+        score
       };
     });
     
