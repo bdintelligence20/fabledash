@@ -118,13 +118,13 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (chat_id) REFERENCES chats (id) ON DELETE CASCADE
 );
 
--- Create chunks table
+-- Create chunks table (without vector embeddings for compatibility)
 CREATE TABLE IF NOT EXISTS chunks (
   id SERIAL PRIMARY KEY,
   document_id INTEGER NOT NULL,
   agent_id INTEGER NOT NULL,
   content TEXT NOT NULL,
-  embedding VECTOR(1536), -- OpenAI embeddings are 1536 dimensions
+  -- embedding VECTOR(1536), -- Commented out for compatibility
   source VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE,

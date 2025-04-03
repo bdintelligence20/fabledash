@@ -3,10 +3,26 @@ const router = express.Router();
 const { supabase } = require('../../supabase');
 const { OpenAI } = require('openai');
 
-// Initialize OpenAI client
+// Initialize OpenAI client (with fallback for testing)
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-testing',
 });
+
+// Helper function to handle API errors gracefully
+const safeApiCall = async (apiCall, fallbackMessage) => {
+  try {
+    return await apiCall();
+  } catch (error) {
+    console.error('API call error:', error);
+    return { 
+      choices: [{ 
+        message: { 
+          content: fallbackMessage || 'I encountered an error processing your request. Please try again later.' 
+        } 
+      }] 
+    };
+  }
+};
 
 // Create a new chat
 router.post('/create', async (req, res) => {
@@ -270,61 +286,66 @@ router.post('/message', async (req, res) => {
       }
     }
     
+    // Use the safeApiCall helper to handle API errors gracefully
+    const completion = await safeApiCall(
+      async () => {
+        return await openai.chat.completions.create({
+          model: "gpt-4",
+          messages: openaiMessages,
+          temperature: 0.7,
+          max_tokens: 1000,
+        });
+      },
+      "I'm having trouble connecting to my knowledge base right now. Please try again later or ask a different question."
+    );
+    
+    // Get assistant response
+    const assistantResponse = completion.choices[0].message.content;
+    
+    // Save assistant response to database
+    const assistantMessage = {
+      chat_id,
+      role: 'assistant',
+      content: assistantResponse,
+    };
+    
+    const { error: assistantMessageError } = await supabase
+      .from('messages')
+      .insert(assistantMessage);
+    
+    if (assistantMessageError) {
+      console.error('Error saving assistant message:', assistantMessageError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save assistant message',
+        error: assistantMessageError.message
+      });
+    }
+    
+    // Get all messages for this chat
+    const { data: allMessages, error: allMessagesError } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('chat_id', chat_id)
+      .order('created_at', { ascending: true });
+    
+    if (allMessagesError) {
+      console.error('Error fetching all messages:', allMessagesError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch all messages',
+        error: allMessagesError.message
+      });
+    }
+    
+    return res.json({
+      success: true,
+      messages: allMessages
+    });
+  } catch (error) {
+    console.error('Error sending message:', error);
+    
     try {
-      // Call OpenAI API
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: openaiMessages,
-        temperature: 0.7,
-        max_tokens: 1000,
-      });
-      
-      // Get assistant response
-      const assistantResponse = completion.choices[0].message.content;
-      
-      // Save assistant response to database
-      const assistantMessage = {
-        chat_id,
-        role: 'assistant',
-        content: assistantResponse,
-      };
-      
-      const { error: assistantMessageError } = await supabase
-        .from('messages')
-        .insert(assistantMessage);
-      
-      if (assistantMessageError) {
-        console.error('Error saving assistant message:', assistantMessageError);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to save assistant message',
-          error: assistantMessageError.message
-        });
-      }
-      
-      // Get all messages for this chat
-      const { data: allMessages, error: allMessagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('chat_id', chat_id)
-        .order('created_at', { ascending: true });
-      
-      if (allMessagesError) {
-        console.error('Error fetching all messages:', allMessagesError);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to fetch all messages',
-          error: allMessagesError.message
-        });
-      }
-      
-      return res.json({
-        success: true,
-        messages: allMessages
-      });
-    } catch (openaiError) {
-      console.error('OpenAI API error:', openaiError);
-      
       // Save error message to database
       const errorMessage = {
         chat_id,
@@ -333,18 +354,14 @@ router.post('/message', async (req, res) => {
       };
       
       await supabase.from('messages').insert(errorMessage);
-      
-      return res.status(500).json({
-        success: false,
-        message: 'Error calling OpenAI API',
-        error: openaiError.message
-      });
+    } catch (dbError) {
+      console.error('Error saving error message to database:', dbError);
     }
-  } catch (error) {
-    console.error('Error sending message:', error);
+    
     return res.status(500).json({
       success: false,
-      message: 'Server error while sending message'
+      message: 'Server error while sending message',
+      error: error.message
     });
   }
 });

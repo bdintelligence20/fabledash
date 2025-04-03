@@ -1,7 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../../supabase');
-const { v4: uuidv4 } = require('uuid');
+// Try to import uuid, but provide a fallback if it fails
+let uuidv4;
+try {
+  const { v4 } = require('uuid');
+  uuidv4 = v4;
+} catch (error) {
+  console.warn('UUID package not available, using fallback');
+  // Simple fallback implementation of UUID v4
+  uuidv4 = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+}
 
 // Upload a document
 router.post('/upload', async (req, res) => {
