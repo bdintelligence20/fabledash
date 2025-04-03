@@ -344,45 +344,76 @@ async function processDocument(document, extractedText) {
     const chunks = chunkText(extractedText, 1000);
     console.log(`Created ${chunks.length} chunks from document ${document.id}`);
     
-    // Generate embeddings and store chunks
+    // For large documents, process in smaller batches to avoid overwhelming the API
+    const BATCH_SIZE = 5; // Process 5 chunks at a time
     let successfulChunks = 0;
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      console.log(`Processing chunk ${i + 1}/${chunks.length} for document ${document.id}`);
+    
+    // Process chunks in batches
+    for (let batchStart = 0; batchStart < chunks.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, chunks.length);
+      const batch = chunks.slice(batchStart, batchEnd);
       
-      // Generate embedding
-      console.log(`Generating embedding for chunk ${i + 1}/${chunks.length}`);
-      const embedding = await generateEmbedding(chunk);
+      console.log(`Processing batch of chunks ${batchStart + 1}-${batchEnd} of ${chunks.length}`);
       
-      if (!embedding) {
-        console.error(`Failed to generate embedding for chunk ${i} of document ${document.id}`);
-        continue;
-      }
+      // Process each chunk in the batch
+      const batchPromises = batch.map(async (chunk, index) => {
+        const chunkIndex = batchStart + index;
+        console.log(`Processing chunk ${chunkIndex + 1}/${chunks.length} for document ${document.id}`);
+        
+        try {
+          // Generate embedding
+          console.log(`Generating embedding for chunk ${chunkIndex + 1}/${chunks.length}`);
+          const embedding = await generateEmbedding(chunk);
+          
+          if (!embedding) {
+            console.error(`Failed to generate embedding for chunk ${chunkIndex} of document ${document.id}`);
+            return false;
+          }
+          
+          console.log(`Successfully generated embedding for chunk ${chunkIndex + 1}/${chunks.length}`);
+          
+          // Store chunk in database
+          const chunkData = {
+            document_id: document.id,
+            agent_id: document.agent_id,
+            content: chunk,
+            source: `${document.file_name} (chunk ${chunkIndex + 1}/${chunks.length})`,
+            embedding: embedding
+          };
+          
+          console.log(`Storing chunk ${chunkIndex + 1}/${chunks.length} in database with agent_id: ${document.agent_id}`);
+          
+          const { data: insertedChunk, error: chunkError } = await supabase
+            .from('chunks')
+            .insert(chunkData)
+            .select()
+            .single();
+          
+          if (chunkError) {
+            console.error(`Error storing chunk ${chunkIndex} for document ${document.id}:`, chunkError);
+            return false;
+          } else {
+            console.log(`Successfully stored chunk ${chunkIndex + 1}/${chunks.length} with ID: ${insertedChunk.id}`);
+            return true;
+          }
+        } catch (error) {
+          console.error(`Error processing chunk ${chunkIndex + 1}:`, error);
+          return false;
+        }
+      });
       
-      console.log(`Successfully generated embedding for chunk ${i + 1}/${chunks.length}`);
+      // Wait for all chunks in the batch to be processed
+      const batchResults = await Promise.all(batchPromises);
+      const batchSuccessCount = batchResults.filter(result => result).length;
+      successfulChunks += batchSuccessCount;
       
-      // Store chunk in database
-      const chunkData = {
-        document_id: document.id,
-        agent_id: document.agent_id,
-        content: chunk,
-        source: `${document.file_name} (chunk ${i + 1}/${chunks.length})`,
-        embedding: embedding
-      };
+      console.log(`Batch ${batchStart + 1}-${batchEnd} completed: ${batchSuccessCount}/${batch.length} chunks successful`);
       
-      console.log(`Storing chunk ${i + 1}/${chunks.length} in database with agent_id: ${document.agent_id}`);
-      
-      const { data: insertedChunk, error: chunkError } = await supabase
-        .from('chunks')
-        .insert(chunkData)
-        .select()
-        .single();
-      
-      if (chunkError) {
-        console.error(`Error storing chunk ${i} for document ${document.id}:`, chunkError);
-      } else {
-        console.log(`Successfully stored chunk ${i + 1}/${chunks.length} with ID: ${insertedChunk.id}`);
-        successfulChunks++;
+      // If we're not at the end yet, add a small delay between batches to avoid rate limiting
+      if (batchEnd < chunks.length) {
+        const delay = 1000; // 1 second delay between batches
+        console.log(`Waiting ${delay}ms before processing next batch...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
     
@@ -464,20 +495,43 @@ function calculateCosineSimilarity(vecA, vecB) {
 /**
  * Generate an embedding for a text
  * @param {string} text - The text to generate an embedding for
+ * @param {number} retries - Number of retries (default: 3)
  * @returns {Promise<number[]|null>} - The embedding vector or null if failed
  */
-async function generateEmbedding(text) {
-  try {
-    const response = await openai.embeddings.create({
-      model: "text-embedding-ada-002",
-      input: text,
-    });
-    
-    return response.data[0].embedding;
-  } catch (error) {
-    console.error('Error generating embedding:', error);
-    return null;
+async function generateEmbedding(text, retries = 3) {
+  let attempt = 0;
+  
+  while (attempt < retries) {
+    try {
+      console.log(`Generating embedding attempt ${attempt + 1}/${retries}`);
+      
+      // Truncate text if it's too long (OpenAI has a token limit)
+      const truncatedText = text.length > 8000 ? text.substring(0, 8000) : text;
+      
+      const response = await openai.embeddings.create({
+        model: "text-embedding-ada-002",
+        input: truncatedText,
+      });
+      
+      console.log('Successfully generated embedding');
+      return response.data[0].embedding;
+    } catch (error) {
+      attempt++;
+      console.error(`Error generating embedding (attempt ${attempt}/${retries}):`, error);
+      
+      if (attempt >= retries) {
+        console.error('Max retries reached, returning null embedding');
+        return null;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      const delay = Math.pow(2, attempt) * 1000;
+      console.log(`Waiting ${delay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
+  
+  return null;
 }
 
 /**
