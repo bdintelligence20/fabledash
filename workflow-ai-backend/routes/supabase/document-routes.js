@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../../supabase');
+const supabase = require('../../supabase');
 // Try to import uuid, but provide a fallback if it fails
 let uuidv4;
 try {
@@ -18,7 +18,7 @@ try {
 }
 
 // Upload a document
-router.post('/upload', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { agent_id, file_data, file_name, content_type, extracted_text } = req.body;
     
@@ -113,7 +113,7 @@ router.post('/upload', async (req, res) => {
 });
 
 // Get all documents for an agent
-router.get('/list', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { agent_id } = req.query;
     
@@ -193,11 +193,11 @@ router.get('/:id', async (req, res) => {
 });
 
 // Delete a document
-router.post('/delete', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const { document_id } = req.body;
+    const { id } = req.params;
     
-    if (!document_id) {
+    if (!id) {
       return res.status(400).json({
         success: false,
         message: 'Document ID is required'
@@ -208,7 +208,7 @@ router.post('/delete', async (req, res) => {
     const { data: document, error: fetchError } = await supabase
       .from('documents')
       .select('*')
-      .eq('id', document_id)
+      .eq('id', id)
       .single();
     
     if (fetchError || !document) {
@@ -235,7 +235,7 @@ router.post('/delete', async (req, res) => {
     const { error: deleteError } = await supabase
       .from('documents')
       .delete()
-      .eq('id', document_id);
+      .eq('id', id);
     
     if (deleteError) {
       console.error('Error deleting document record:', deleteError);

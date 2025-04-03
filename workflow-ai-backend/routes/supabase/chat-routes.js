@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../../supabase');
+const supabase = require('../../supabase');
 const { OpenAI } = require('openai');
 
 // Initialize OpenAI client (with fallback for testing)

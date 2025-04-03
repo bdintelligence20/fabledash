@@ -85,7 +85,7 @@ const ClientsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/clients/list`);
+      const response = await fetch(`${apiUrl}/clients`);
       const data = await response.json();
       
       if (data.success) {
@@ -180,7 +180,7 @@ const ClientsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/clients/create`, {
+      const response = await fetch(`${apiUrl}/clients`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

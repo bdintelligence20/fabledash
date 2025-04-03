@@ -165,10 +165,7 @@ const AIAgentsPage = () => {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          document_id: documentId,
-        }),
+        }
       });
       
       const data = await response.json();

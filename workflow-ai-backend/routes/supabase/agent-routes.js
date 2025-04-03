@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../../supabase');
+const supabase = require('../../supabase');
 
 // Create a new agent
 router.post('/', async (req, res) => {
