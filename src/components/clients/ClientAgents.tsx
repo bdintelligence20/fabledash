@@ -25,7 +25,7 @@ const ClientAgents = ({ client }: ClientAgentsProps) => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/agents/list?client_id=${client.id}&is_parent=true`);
+      const response = await fetch(`${apiUrl}/agents?client_id=${client.id}&is_parent=true`);
       const data = await response.json();
       
       if (data.success) {
