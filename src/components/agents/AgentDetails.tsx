@@ -112,16 +112,9 @@ const AgentDetails = ({
       <Card>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium">Documents</h2>
-          <label className={`${isLoading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<Upload className="h-4 w-4" />}
-              disabled={isLoading}
-            >
-              Upload Document
-            </Button>
+          <div>
             <input
+              id="file-upload"
               type="file"
               className="hidden"
               onChange={onUploadDocument}
@@ -129,7 +122,21 @@ const AgentDetails = ({
               disabled={isLoading}
               key={fileInputKey}
             />
-          </label>
+            <label 
+              htmlFor="file-upload" 
+              className={`inline-block ${isLoading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<Upload className="h-4 w-4" />}
+                disabled={isLoading}
+                type="button"
+              >
+                Upload Document
+              </Button>
+            </label>
+          </div>
         </div>
         
         {documents.length > 0 ? (

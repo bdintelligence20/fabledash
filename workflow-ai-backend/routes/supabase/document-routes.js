@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../../supabase');
+const documentProcessor = require('./document-processor');
 // Try to import uuid, but provide a fallback if it fails
 let uuidv4;
 try {
@@ -97,6 +98,57 @@ router.post('/', async (req, res) => {
         message: 'Failed to create document record',
         error: documentError.message
       });
+    }
+    
+    // Process the document in the background
+    // This will extract text, chunk it, and generate embeddings
+    if (extracted_text) {
+      // If extracted text was provided, process it directly
+      documentProcessor.processDocument(document, extracted_text)
+        .then(success => {
+          if (success) {
+            console.log(`Document ${document.id} processed successfully`);
+          } else {
+            console.error(`Failed to process document ${document.id}`);
+          }
+        })
+        .catch(error => {
+          console.error(`Error processing document ${document.id}:`, error);
+        });
+    } else {
+      // Try to extract text from the file based on its type
+      try {
+        // Get the file from storage
+        const { data: fileData, error: fileError } = await supabase.storage
+          .from('documents')
+          .download(document.file_path);
+        
+        if (fileError) {
+          console.error('Error downloading file from storage:', fileError);
+        } else {
+          // Extract text from the file
+          const extractedText = await documentProcessor.extractTextFromDocument(
+            fileData,
+            document.file_type,
+            document.file_name
+          );
+          
+          // Process the document with the extracted text
+          documentProcessor.processDocument(document, extractedText)
+            .then(success => {
+              if (success) {
+                console.log(`Document ${document.id} processed successfully`);
+              } else {
+                console.error(`Failed to process document ${document.id}`);
+              }
+            })
+            .catch(error => {
+              console.error(`Error processing document ${document.id}:`, error);
+            });
+        }
+      } catch (error) {
+        console.error('Error extracting text from file:', error);
+      }
     }
     
     return res.json({

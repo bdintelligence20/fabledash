@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../../supabase');
 const { OpenAI } = require('openai');
+const documentProcessor = require('./document-processor');
 
 // Initialize OpenAI client (with fallback for testing)
 const openai = new OpenAI({
@@ -262,29 +263,45 @@ router.post('/:id/message', async (req, res) => {
       content: message
     });
     
-    // Get agent documents for context if needed
-    let documents = [];
-    if (chat.agents && chat.agents.id) {
-      const { data: agentDocs, error: docsError } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('agent_id', chat.agents.id);
+    // Determine if this is a child agent and if we should include parent documents
+    let includeParentDocs = false;
+    if (chat.agents) {
+      const { data: agent, error: agentError } = await supabase
+        .from('agents')
+        .select('parent_id, is_parent')
+        .eq('id', chat.agents.id)
+        .single();
       
-      if (!docsError && agentDocs) {
-        documents = agentDocs;
+      if (!agentError && agent && agent.parent_id) {
+        // This is a child agent, so we'll include parent documents
+        includeParentDocs = true;
       }
     }
     
-    // If there are documents, add their content to the system message
-    if (documents.length > 0) {
+    // Retrieve relevant chunks for the query
+    const relevantChunks = await documentProcessor.retrieveRelevantChunks(
+      chat.agents.id,
+      message,
+      5, // Limit to 5 most relevant chunks
+      includeParentDocs // Include parent documents if this is a child agent
+    );
+    
+    // Format chunks as context
+    const documentContext = documentProcessor.formatChunksAsContext(relevantChunks);
+    
+    // If we have relevant chunks, add them to the context
+    if (documentContext) {
       // Find the system message
       const systemMessageIndex = openaiMessages.findIndex(msg => msg.role === 'system');
       
       if (systemMessageIndex !== -1) {
         // Add document context to system message
-        openaiMessages[systemMessageIndex].content += '\n\nYou have access to the following documents:';
-        documents.forEach(doc => {
-          openaiMessages[systemMessageIndex].content += `\n- ${doc.file_name}`;
+        openaiMessages[systemMessageIndex].content += '\n\n' + documentContext;
+      } else {
+        // If no system message exists, add one with the document context
+        openaiMessages.unshift({
+          role: 'system',
+          content: `You are an AI assistant. ${documentContext}`
         });
       }
     }
