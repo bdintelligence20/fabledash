@@ -321,10 +321,10 @@ router.post('/:id/message', async (req, res) => {
     const completion = await safeApiCall(
       async () => {
         return await openai.chat.completions.create({
-          model: "gpt-4",
+          model: "gpt-4o",
           messages: openaiMessages,
           temperature: 0.7,
-          max_tokens: 1000,
+          max_tokens: 4000,
         });
       },
       "I'm having trouble connecting to my knowledge base right now. Please try again later or ask a different question."
