@@ -1,0 +1,88 @@
+# Frontend Cloud Build Configuration (React)
+steps:
+  # Install dependencies
+  - name: 'node:18'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Update npm to latest version
+        npm install -g npm@latest
+        
+        # Install dependencies
+        npm install
+    id: 'install-dependencies'
+
+  # Build the React app
+  - name: 'node:18'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Create .env file with environment variables
+        echo "VITE_API_URL=${_API_URL}" > .env
+        echo "VITE_SUPABASE_URL=${_SUPABASE_URL}" >> .env
+        echo "VITE_SUPABASE_ANON_KEY=${_SUPABASE_KEY}" >> .env
+        
+        # Build the app
+        npm run build
+    env:
+      - 'VITE_API_URL=${_API_URL}'
+      - 'VITE_SUPABASE_URL=${_SUPABASE_URL}'
+      - 'VITE_SUPABASE_ANON_KEY=${_SUPABASE_KEY}'
+    id: 'build-frontend'
+    waitFor: ['install-dependencies']
+
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/fabledash-frontend:$COMMIT_SHA', '-f', 'Dockerfile.frontend', '.']
+    id: 'build-container'
+    waitFor: ['build-frontend']
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/fabledash-frontend:$COMMIT_SHA']
+    id: 'push-container'
+    waitFor: ['build-container']
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'fabledash-frontend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/fabledash-frontend:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '5'
+    id: 'deploy-frontend'
+    waitFor: ['push-container']
+
+# Store images in Google Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/fabledash-frontend:$COMMIT_SHA'
+
+# Substitution variables to be set in the Cloud Build trigger
+substitutions:
+  _API_URL: 'https://fabledash-backend-xxxxxxxx-uc.a.run.app'
+  _SUPABASE_URL: 'https://your-supabase-project.supabase.co'
+  _SUPABASE_KEY: 'your-supabase-anon-key'
+
+# Timeout for the build
+timeout: '1800s'
+
+# Only trigger builds on the main branch
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,6 +1,6 @@
 # Google Cloud Platform (GCP) Trigger Setup
 
-This document explains how to set up Cloud Build triggers in Google Cloud Platform for deploying both the frontend and backend of the FableDash application.
+This document explains how to set up Cloud Build triggers in Google Cloud Platform for deploying both the frontend and backend of the FableDash application to Cloud Run.
 
 ## Prerequisites
 
@@ -9,7 +9,6 @@ This document explains how to set up Cloud Build triggers in Google Cloud Platfo
 3. The following APIs enabled:
    - Cloud Build API
    - Cloud Run API
-   - App Engine API
    - Container Registry API
    - Cloud Storage API
 
@@ -44,7 +43,7 @@ Click "Add variable" to add the following substitution variables:
 | `_SUPABASE_URL` | Your Supabase project URL | `https://your-project.supabase.co` |
 | `_SUPABASE_KEY` | Your Supabase anon key | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
 | `_OPENAI_API_KEY` | Your OpenAI API key | `sk-...` |
-| `_CORS_ORIGINS` | Comma-separated list of allowed origins | `https://fabledash-frontend-dot-your-project-id.uc.r.appspot.com` |
+| `_CORS_ORIGINS` | Comma-separated list of allowed origins | `https://fabledash-frontend-xxxxxxxx-uc.a.run.app` |
 
 ### 4. Set Service Account Permissions
 
@@ -60,14 +59,14 @@ Ensure the service account used by Cloud Build has the following roles:
 1. Click "Create Trigger"
 2. Fill in the following details:
    - **Name**: `fabledash-frontend-deploy`
-   - **Description**: `Deploy FableDash React frontend to App Engine`
+   - **Description**: `Deploy FableDash React frontend to Cloud Run`
    - **Event**: Choose "Push to a branch"
    - **Repository**: Same repository as the backend
    - **Branch**: `^main$` (or your preferred branch using regex)
    - **Included files filter**: `src/**` or `public/**` or `package.json` or `vite.config.ts` (only trigger when frontend files change)
    - **Excluded files filter**: `python-backend/**` (don't trigger on backend changes)
    - **Build configuration**: "Cloud Build configuration file (yaml or json)"
-   - **Cloud Build configuration file location**: `cloudbuild.yaml` (root directory)
+   - **Cloud Build configuration file location**: `frontend-cloudbuild.yaml` (root directory)
    - **Service account**: Use the default Cloud Build service account or a custom one with appropriate permissions
 
 ### 2. Set Substitution Variables
@@ -83,7 +82,7 @@ Click "Add variable" to add the following substitution variables:
 ### 3. Set Service Account Permissions
 
 Ensure the service account used by Cloud Build has the following roles:
-- App Engine Admin
+- Cloud Run Admin
 - Service Account User
 - Storage Admin
 
@@ -142,9 +141,11 @@ If a deployment fails, you can set up automatic rollbacks:
 3. Under "Rollbacks", enable "Automatic rollbacks"
 4. Click "Deploy"
 
-Do the same for the App Engine service.
+Do the same for the fabledash-frontend Cloud Run service.
 
-## Important Note About Backend Deployment
+## Important Notes About Deployment
+
+### Backend Deployment
 
 The backend deployment uses a special configuration:
 
@@ -159,3 +160,25 @@ If you encounter build errors like "Could not find Dockerfile" or "Context direc
 1. The `backend-cloudbuild.yaml` file is in the root directory
 2. The Docker build command uses `./python-backend` as the context
 3. The trigger is configured to use `backend-cloudbuild.yaml` (not `python-backend/cloudbuild.yaml`)
+
+### Frontend Deployment
+
+The frontend deployment also uses Cloud Run instead of App Engine:
+
+1. We build the React app with Vite and then serve it using Nginx in a Docker container
+2. The `frontend-cloudbuild.yaml` file handles:
+   - Installing dependencies
+   - Building the React app
+   - Building a Docker image with Nginx to serve the static files
+   - Deploying to Cloud Run
+3. This approach has several advantages:
+   - No need to enable the App Engine API
+   - Consistent deployment platform for both frontend and backend
+   - Better scalability and cost control with Cloud Run's scale-to-zero capability
+   - Simplified configuration and deployment process
+
+The frontend Docker setup includes:
+1. `Dockerfile.frontend` - Configures the Nginx container to serve the static files
+2. `nginx.conf` - Configures Nginx to handle SPA routing and static file serving
+
+This setup ensures that both the frontend and backend are deployed to Cloud Run, making it easier to manage and monitor the entire application.
