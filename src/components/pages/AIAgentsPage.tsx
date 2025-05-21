@@ -211,60 +211,33 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       setUploadError(null);
       
-      const reader = new FileReader();
+      // Use FormData instead of JSON for file uploads
+      const formData = new FormData();
+      formData.append('agent_id', selectedAgent.id.toString());
+      formData.append('file', file);
       
-      reader.onload = async (e) => {
-        try {
-          const base64Data = e.target?.result as string;
-          
-          // Use the dedicated simplified upload-document endpoint for large files
-          const uploadUrl = `${apiUrl.replace('/api', '')}/api/upload-document-simple`;
-          console.log('Using simplified upload endpoint:', uploadUrl);
-          
-          // Send to API
-          const response = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              agent_id: selectedAgent.id,
-              file_data: base64Data,
-              file_name: file.name,
-              content_type: file.type
-            }),
-          });
-          
-          const data = await response.json();
-          
-          if (data.success) {
-            // Refresh documents list
-            fetchDocuments(selectedAgent.id);
-          } else {
-            setUploadError(data.message || 'Failed to upload document');
-          }
-        } catch (error) {
-          console.error("Error processing file:", error);
-          setUploadError('Error processing file');
-        } finally {
-          setIsLoading(false);
-          // Reset the file input
-          setFileInputKey(Date.now());
-        }
-      };
+      console.log('Uploading file using FormData:', file.name);
       
-      reader.onerror = () => {
-        setUploadError('Error reading file');
-        setIsLoading(false);
-        setFileInputKey(Date.now());
-      };
+      // Use the documents/formdata endpoint for FormData uploads
+      const response = await fetch(`${apiUrl}/documents/formdata`, {
+        method: 'POST',
+        body: formData,
+      });
       
-      // Start reading the file
-      reader.readAsDataURL(file);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh documents list
+        fetchDocuments(selectedAgent.id);
+      } else {
+        setUploadError(data.message || 'Failed to upload document');
+      }
     } catch (error) {
       console.error("Error uploading document:", error);
-      setUploadError('Error uploading document');
+      setUploadError('Error processing file');
+    } finally {
       setIsLoading(false);
+      // Reset the file input
       setFileInputKey(Date.now());
     }
   };

@@ -174,7 +174,97 @@ Access to fetch at 'https://fabledash-backend1.vercel.app/api/documents' from or
 
 ### Large File Upload Configuration
 
-To support uploading large documents (up to 1GB) to agents, we've implemented a dedicated serverless function approach:
+To support uploading large documents (up to 1GB) to agents, we've implemented multiple approaches:
+
+#### 1. FormData Approach (Recommended)
+
+This approach uses the standard `FormData` API to upload files, which is more efficient and reliable:
+
+1. **Backend Implementation**:
+   ```javascript
+   // document-routes-formdata.js - Express route for handling FormData uploads
+   const express = require('express');
+   const router = express.Router();
+   const multer = require('multer');
+   const { v4: uuidv4 } = require('uuid');
+
+   // Configure multer for file uploads
+   const storage = multer.diskStorage({
+     destination: function (req, file, cb) {
+       // Use /tmp directory for Vercel or uploads directory for local development
+       const uploadsDir = process.env.NODE_ENV === 'production' 
+         ? '/tmp' 
+         : path.join(__dirname, '../../uploads');
+       
+       // Create directory if it doesn't exist
+       if (!fs.existsSync(uploadsDir)) {
+         fs.mkdirSync(uploadsDir, { recursive: true });
+       }
+       
+       cb(null, uploadsDir);
+     },
+     filename: function (req, file, cb) {
+       // Generate a unique filename
+       const uniqueFileName = `${uuidv4()}-${file.originalname}`;
+       cb(null, uniqueFileName);
+     }
+   });
+
+   const upload = multer({ 
+     storage: storage,
+     limits: { fileSize: 1024 * 1024 * 1024 } // 1GB limit
+   });
+
+   // Upload a document using FormData
+   router.post('/formdata', upload.single('file'), async (req, res) => {
+     // Set CORS headers
+     res.header('Access-Control-Allow-Origin', '*');
+     // ... rest of the function
+   });
+   ```
+
+2. **Frontend Integration**:
+   ```typescript
+   // Upload document to an agent
+   const uploadDocument = async (event: React.ChangeEvent<HTMLInputElement>) => {
+     if (!selectedAgent) return;
+     
+     const file = event.target.files?.[0];
+     if (!file) return;
+     
+     try {
+       setIsLoading(true);
+       setUploadError(null);
+       
+       // Use FormData instead of JSON for file uploads
+       const formData = new FormData();
+       formData.append('agent_id', selectedAgent.id.toString());
+       formData.append('file', file);
+       
+       console.log('Uploading file using FormData:', file.name);
+       
+       // Use the documents/formdata endpoint for FormData uploads
+       const response = await fetch(`${apiUrl}/documents/formdata`, {
+         method: 'POST',
+         body: formData,
+       });
+       
+       // ... process response
+     } catch (error) {
+       // ... handle error
+     }
+   };
+   ```
+
+3. **Route Registration**:
+   ```javascript
+   // Add FormData support for document uploads
+   router.use('/documents', documentFormDataRoutes);
+   ```
+
+#### 2. Serverless Function Approach (Alternative)
+
+For environments where the FormData approach isn't suitable, we also provide a serverless function approach:
 
 1. **Dedicated Serverless Function**:
    ```javascript
@@ -188,76 +278,18 @@ To support uploading large documents (up to 1GB) to agents, we've implemented a 
 
    // Helper function to parse JSON with size limit
    const parseJSON = async (req) => {
-     return new Promise((resolve, reject) => {
-       let body = '';
-       let size = 0;
-       
-       req.on('data', (chunk) => {
-         size += chunk.length;
-         if (size > MAX_SIZE) {
-           reject(new Error('Request body too large'));
-           req.destroy();
-           return;
-         }
-         body += chunk.toString();
-       });
-       
-       req.on('end', () => {
-         try {
-           const data = JSON.parse(body);
-           resolve(data);
-         } catch (error) {
-           reject(new Error('Invalid JSON'));
-         }
-       });
-       
-       req.on('error', reject);
-     });
+     // ... implementation
    };
 
    // Main handler function
    module.exports = async (req, res) => {
      // Set CORS headers
-     res.setHeader('Access-Control-Allow-Origin', 'https://fabledash.vercel.app');
+     res.setHeader('Access-Control-Allow-Origin', '*');
      // ... rest of the function
    };
    ```
 
-2. **Frontend Integration**:
-   ```typescript
-   // Upload document to an agent
-   const uploadDocument = async (event: React.ChangeEvent<HTMLInputElement>) => {
-     // ...
-     
-     reader.onload = async (e) => {
-       try {
-         const base64Data = e.target?.result as string;
-         
-         // Use the dedicated upload-document endpoint for large files
-         const uploadUrl = `${apiUrl.replace('/api', '')}/api/upload-document`;
-         console.log('Using upload endpoint:', uploadUrl);
-         
-         // Send to API
-         const response = await fetch(uploadUrl, {
-           method: 'POST',
-           headers: {
-             'Content-Type': 'application/json',
-           },
-           body: JSON.stringify({
-             agent_id: selectedAgent.id,
-             file_data: base64Data,
-             file_name: file.name,
-             content_type: file.type
-           }),
-         });
-         
-         // ...
-       }
-     };
-   };
-   ```
-
-3. **Vercel Configuration**:
+2. **Vercel Configuration**:
    ```json
    {
      "version": 2,
@@ -282,12 +314,11 @@ To support uploading large documents (up to 1GB) to agents, we've implemented a 
    }
    ```
 
-This serverless function approach provides several advantages:
-1. **Direct Handling**: The function directly handles the HTTP request without going through Express middleware
-2. **Custom Size Limits**: Implements custom streaming JSON parsing with size limits
-3. **Explicit CORS Headers**: Sets CORS headers directly on the response
-4. **Dedicated Resource Allocation**: Gets its own memory and execution time allocation in Vercel
-5. **Simplified Deployment**: Can be deployed independently of the main application
+These approaches provide several advantages:
+1. **Efficient File Handling**: The FormData approach is more efficient for file uploads
+2. **Large File Support**: Both approaches support files up to 1GB
+3. **Proper CORS Handling**: Both approaches include explicit CORS headers
+4. **Flexibility**: Multiple implementation options for different deployment scenarios
 
 Without these configurations, you may encounter errors like:
 ```

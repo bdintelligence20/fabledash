@@ -14,6 +14,7 @@ const taskAttachmentRoutes = require('./supabase/task-attachment-routes');
 const taskCalendarRoutes = require('./supabase/task-calendar-routes');
 const agentRoutes = require('./supabase/agent-routes');
 const documentRoutes = require('./supabase/document-routes');
+const documentFormDataRoutes = require('./supabase/document-routes-formdata');
 const chatRoutes = require('./supabase/chat-routes');
 
 // Simple health check endpoint
@@ -50,6 +51,7 @@ router.use('/task-attachments', taskAttachmentRoutes);
 router.use('/task-calendar', taskCalendarRoutes);
 router.use('/agents', agentRoutes);
 router.use('/documents', documentRoutes);
+router.use('/documents', documentFormDataRoutes); // Add FormData support for document uploads
 router.use('/chats', chatRoutes);
 
 // Export the router
