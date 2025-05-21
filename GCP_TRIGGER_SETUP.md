@@ -116,12 +116,29 @@ After setting up the triggers:
 2. **Build failing**: Check the Cloud Build logs for error messages
 3. **Deployment failing**: Ensure the service account has the necessary permissions
 4. **Environment variables not working**: Verify the substitution variables are correctly set in the trigger
+5. **"Forbidden" error when accessing the service**: Check the IAM permissions for the Cloud Run service
 
 ### Viewing Logs
 
 1. Go to Cloud Build > History
 2. Click on the build that failed
 3. Click on the step that failed to see the logs
+
+### Fixing "Forbidden" Errors
+
+The cloudbuild.yaml files have been updated to automatically set the IAM permissions to allow public access to the Cloud Run services. This is done using the `gcloud run services add-iam-policy-binding` command in the deployment step.
+
+If you still encounter a "Forbidden" error when accessing your Cloud Run service, you can manually set the permissions:
+
+1. Go to the Cloud Run service in the Google Cloud Console
+2. Click on the service name (e.g., `fabledash-frontend` or `fabledash-backend`)
+3. Go to the "Permissions" tab
+4. Click "Add Principal" and add the following:
+   - **New Principal**: `allUsers`
+   - **Role**: `Cloud Run Invoker`
+5. Click "Save"
+
+This will make your Cloud Run service publicly accessible. If you need more restricted access, you can use Identity-Aware Proxy (IAP) or other authentication methods.
 
 ## Updating Trigger Settings
 
@@ -151,7 +168,8 @@ The backend deployment uses a special configuration:
 
 1. We use `backend-cloudbuild.yaml` in the root directory (not inside python-backend)
 2. This file is configured to build the Docker image using the correct context: `./python-backend`
-3. This approach solves common issues with Cloud Build triggers:
+3. The backend application must listen on port 8080, which is the default port for Cloud Run
+4. This approach solves common issues with Cloud Build triggers:
    - It ensures the Docker build has the correct context
    - It avoids path confusion when running from the repository root
    - It prevents "file not found" errors during the build process
@@ -160,6 +178,11 @@ If you encounter build errors like "Could not find Dockerfile" or "Context direc
 1. The `backend-cloudbuild.yaml` file is in the root directory
 2. The Docker build command uses `./python-backend` as the context
 3. The trigger is configured to use `backend-cloudbuild.yaml` (not `python-backend/cloudbuild.yaml`)
+
+If you encounter runtime errors or the service fails to start, check:
+1. The application is listening on port 8080 (Cloud Run's default port)
+2. The environment variables are correctly set in the Cloud Run service
+3. The Supabase credentials are valid and properly formatted
 
 ### Frontend Deployment
 

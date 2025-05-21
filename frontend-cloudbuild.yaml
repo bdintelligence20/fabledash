@@ -47,26 +47,26 @@ steps:
 
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - 'run'
-      - 'deploy'
-      - 'fabledash-frontend'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/fabledash-frontend:$COMMIT_SHA'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--memory'
-      - '512Mi'
-      - '--cpu'
-      - '1'
-      - '--min-instances'
-      - '0'
-      - '--max-instances'
-      - '5'
+      - '-c'
+      - |
+        # Deploy to Cloud Run
+        gcloud run deploy fabledash-frontend \
+          --image gcr.io/$PROJECT_ID/fabledash-frontend:$COMMIT_SHA \
+          --region us-central1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 512Mi \
+          --cpu 1 \
+          --min-instances 0 \
+          --max-instances 5
+        
+        # Set IAM policy to allow public access
+        gcloud run services add-iam-policy-binding fabledash-frontend \
+          --region=us-central1 \
+          --member="allUsers" \
+          --role="roles/run.invoker"
     id: 'deploy-frontend'
     waitFor: ['push-container']
 

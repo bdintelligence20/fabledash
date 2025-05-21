@@ -13,28 +13,27 @@ steps:
 
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - 'run'
-      - 'deploy'
-      - 'fabledash-backend'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/fabledash-backend:$COMMIT_SHA'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--memory'
-      - '1Gi'
-      - '--cpu'
-      - '1'
-      - '--min-instances'
-      - '1'
-      - '--max-instances'
-      - '10'
-      - '--set-env-vars'
-      - 'SUPABASE_URL=${_SUPABASE_URL},SUPABASE_KEY=${_SUPABASE_KEY},OPENAI_API_KEY=${_OPENAI_API_KEY},CORS_ORIGINS=${_CORS_ORIGINS}'
+      - '-c'
+      - |
+        # Deploy to Cloud Run
+        gcloud run deploy fabledash-backend \
+          --image gcr.io/$PROJECT_ID/fabledash-backend:$COMMIT_SHA \
+          --region us-central1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 1Gi \
+          --cpu 1 \
+          --min-instances 1 \
+          --max-instances 10 \
+          --set-env-vars SUPABASE_URL=${_SUPABASE_URL},SUPABASE_KEY=${_SUPABASE_KEY},OPENAI_API_KEY=${_OPENAI_API_KEY},CORS_ORIGINS=${_CORS_ORIGINS}
+        
+        # Set IAM policy to allow public access
+        gcloud run services add-iam-policy-binding fabledash-backend \
+          --region=us-central1 \
+          --member="allUsers" \
+          --role="roles/run.invoker"
     id: 'deploy-backend'
     waitFor: ['push-container']
 
