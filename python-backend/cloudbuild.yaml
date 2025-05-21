@@ -1,11 +1,16 @@
+# Backend Cloud Build Configuration (Python FastAPI)
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/fabledash-backend:$COMMIT_SHA', '.']
+    dir: '.'
+    id: 'build-container'
 
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/fabledash-backend:$COMMIT_SHA']
+    id: 'push-container'
+    waitFor: ['build-container']
 
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -31,6 +36,8 @@ steps:
       - '10'
       - '--set-env-vars'
       - 'SUPABASE_URL=${_SUPABASE_URL},SUPABASE_KEY=${_SUPABASE_KEY},OPENAI_API_KEY=${_OPENAI_API_KEY},CORS_ORIGINS=${_CORS_ORIGINS}'
+    id: 'deploy-backend'
+    waitFor: ['push-container']
 
 # Store images in Google Container Registry
 images:
@@ -41,7 +48,11 @@ substitutions:
   _SUPABASE_URL: 'https://your-supabase-project.supabase.co'
   _SUPABASE_KEY: 'your-supabase-anon-key'
   _OPENAI_API_KEY: 'your-openai-api-key'
-  _CORS_ORIGINS: 'https://fabledash.vercel.app'
+  _CORS_ORIGINS: 'https://fabledash-frontend-dot-your-project-id.uc.r.appspot.com'
 
 # Timeout for the build
 timeout: '1800s'
+
+# Only trigger builds on the main branch
+options:
+  logging: CLOUD_LOGGING_ONLY

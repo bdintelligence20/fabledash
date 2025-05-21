@@ -1,8 +1,11 @@
+# Frontend Cloud Build Configuration
 steps:
   # Install dependencies
   - name: 'node:18'
     entrypoint: 'npm'
     args: ['install']
+    dir: '.'
+    id: 'install-dependencies'
 
   # Build the React app
   - name: 'node:18'
@@ -12,14 +15,27 @@ steps:
       - 'VITE_API_URL=${_API_URL}'
       - 'VITE_SUPABASE_URL=${_SUPABASE_URL}'
       - 'VITE_SUPABASE_ANON_KEY=${_SUPABASE_KEY}'
+    dir: '.'
+    id: 'build-frontend'
+    waitFor: ['install-dependencies']
 
-  # Deploy to Firebase Hosting
-  - name: 'gcr.io/cloud-builders/gcloud'
+  # Deploy to Google App Engine
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
     args:
-      - 'app'
-      - 'deploy'
-      - '--version=$COMMIT_SHA'
-      - '--quiet'
+      - '-c'
+      - |
+        # Exclude backend directories from deployment
+        echo "python-backend/" >> .gcloudignore
+        echo "workflow-ai-backend/" >> .gcloudignore
+        
+        # Deploy to App Engine
+        gcloud app deploy app.yaml \
+          --version=$COMMIT_SHA \
+          --quiet
+    dir: '.'
+    id: 'deploy-frontend'
+    waitFor: ['build-frontend']
 
 # Substitution variables to be set in the Cloud Build trigger
 substitutions:
@@ -29,3 +45,7 @@ substitutions:
 
 # Timeout for the build
 timeout: '1800s'
+
+# Only trigger builds on the main branch
+options:
+  logging: CLOUD_LOGGING_ONLY
