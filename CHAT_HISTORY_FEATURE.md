@@ -1,332 +1,162 @@
 # Chat History Feature
 
-This document describes the chat history feature for parent and child agents in the FableDash application.
+This document explains the implementation of the chat history feature in the FableDash application, focusing on the parent-child agent relationship and how chat history is managed between them.
 
 ## Overview
 
 The chat history feature allows users to:
 
-1. View chat history for both parent and child agents
-2. Create new chats for any agent
-3. Create child chats linked to parent chats
-4. Navigate between parent and child chats
+1. View the chat history of a specific agent
+2. View the chat history of child agents for a parent agent
+3. View the chat history of the parent agent for a child agent
+4. Link chats together in a parent-child relationship
 
-## Database Schema
+This enables a comprehensive view of all related conversations and facilitates knowledge sharing between agents.
 
-The feature uses a parent-child relationship between chats, implemented with a `parent_chat_id` column in the `chats` table:
+## Implementation
 
-```sql
-ALTER TABLE chats ADD COLUMN parent_chat_id INTEGER REFERENCES chats(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS idx_chats_parent_chat_id ON chats(parent_chat_id);
+### Backend (Python FastAPI)
+
+The backend implementation is detailed in [python-backend/CHAT_HISTORY_FEATURE.md](python-backend/CHAT_HISTORY_FEATURE.md).
+
+Key components:
+- Database schema with parent-child relationships for agents and chats
+- API endpoints for retrieving chat history across agents
+- Logic for combining and presenting related chats
+
+### Frontend (React)
+
+The frontend implementation includes:
+
+#### Components
+
+- `AgentChat.tsx`: Main chat interface for interacting with an agent
+- `ChatHistory.tsx`: Component for displaying chat history with filtering options
+- `AgentDetails.tsx`: Shows agent details including parent-child relationships
+
+#### Chat History Display
+
+The `ChatHistory.tsx` component organizes chats into three sections:
+
+1. **Agent's Own Chats**: Chats directly associated with the current agent
+2. **Child Agent Chats**: If the current agent is a parent, shows chats from all child agents
+3. **Parent Agent Chats**: If the current agent is a child, shows chats from the parent agent
+
+```tsx
+// Example structure from ChatHistory.tsx
+<div className="chat-history">
+  {/* Agent's own chats */}
+  <section>
+    <h3>Agent Chats</h3>
+    {agentChats.map(chat => (
+      <ChatItem key={chat.id} chat={chat} />
+    ))}
+  </section>
+
+  {/* Child agent chats (if this is a parent agent) */}
+  {isParentAgent && childAgentChats.length > 0 && (
+    <section>
+      <h3>Child Agent Chats</h3>
+      {childAgentChats.map(chat => (
+        <ChatItem key={chat.id} chat={chat} />
+      ))}
+    </section>
+  )}
+
+  {/* Parent agent chats (if this is a child agent) */}
+  {hasParentAgent && parentAgentChats.length > 0 && (
+    <section>
+      <h3>Parent Agent Chats</h3>
+      {parentAgentChats.map(chat => (
+        <ChatItem key={chat.id} chat={chat} />
+      ))}
+    </section>
+  )}
+</div>
 ```
 
-## API Endpoints
+#### Data Fetching
 
-The following API endpoints support the chat history feature:
+Chat history data is fetched from the backend API:
 
-### Create a Chat
-
-```
-POST /api/chats
-```
-
-**Request Body:**
-```json
-{
-  "agent_id": 123,
-  "title": "Optional chat title",
-  "parent_chat_id": 456  // Optional, links this chat to a parent chat
-}
-```
-
-### Get Linked Chats
-
-```
-GET /api/chats/:id/linked-chats
-```
-
-Returns the specified chat along with its parent chat (if any) and child chats.
-
-### Get Agent Chat History
-
-```
-GET /api/chats/agent/:agentId/chat-history
-```
-
-Returns all chats for the specified agent, along with related chats from parent or child agents.
-
-## Frontend Components
-
-### ChatHistory Component
-
-The `ChatHistory` component displays:
-- The agent's own chats
-- Parent agent chats (if this is a child agent)
-- Child agent chats (if this is a parent agent)
-
-It also provides buttons to:
-- Create a new chat for the current agent
-- Create a child chat linked to an existing chat (for parent agents)
-
-### Usage in AIAgentsPage
-
-The `AIAgentsPage` component integrates the chat history feature by:
-1. Fetching chat history when an agent is selected
-2. Passing the chat history data to the `ChatHistory` component
-3. Handling chat selection and creation
-
-## How to Use
-
-1. **View Chat History**: Select an agent to view its chat history
-2. **Create a New Chat**: Click the "New Chat" button in the chat history panel
-3. **Create a Child Chat**: For parent agents, click the "Create Child Chat" button next to a chat
-4. **Navigate Between Chats**: Click on any chat in the history to view its messages
-
-## Implementation Details
-
-- Parent-child relationships between agents are mirrored in the chat structure
-- Child chats can access context from parent chats
-- Parent agents can access context from all their child agents
-- The UI visually distinguishes between an agent's own chats, parent chats, and child chats
-
-## Context Sharing
-
-The system implements bidirectional context sharing between parent and child agents:
-
-1. **Child to Parent**: 
-   - Parent agents can access and recall information that was worked through on child agents
-   - Parent agents can view the complete chat history of all their child agents
-   - Parent agents can use context from child agent conversations when responding to queries
-   - This allows the parent agent to have an overarching view of all work done by its child agents
-
-2. **Parent to Child**: 
-   - Child agents can access context from their parent agent
-   - Child agents can view the chat history of their parent agent
-   - This ensures child agents have the necessary background information
-
-This bidirectional context sharing ensures that:
-- Parent agents serve as coordinators with full visibility into all child agent activities
-- Child agents benefit from the broader context established by the parent agent
-- Knowledge flows seamlessly between parent and child agents
-
-## Implementation Notes
-
-### Avoiding Circular References
-
-When creating child chats from parent chats, care must be taken to avoid circular references in the data being sent to the server:
-
-1. In the `ChatHistory` component, the event object from button clicks should not be passed directly to the `onCreateChat` function.
-2. In the `AIAgentsPage` component, the `createChat` function should use a properly typed object with only primitive values to avoid serialization issues.
-
-```typescript
-// Example of proper chat data structure
-const chatData: { agent_id: number; parent_chat_id?: number } = {
-  agent_id: selectedAgent.id,
-};
-
-// Safely add parent_chat_id only if it's a valid number
-if (parentChatId && typeof parentChatId === 'number') {
-  chatData.parent_chat_id = parentChatId;
-}
-```
-
-This prevents the "Converting circular structure to JSON" error that can occur when DOM elements or React components are accidentally included in the data being sent to the server.
-
-### CORS Configuration
-
-To ensure proper communication between the frontend and backend, especially when deployed to production environments like Vercel, the backend server must be configured with appropriate CORS (Cross-Origin Resource Sharing) settings:
-
-```javascript
-// CORS configuration
-app.use(cors({
-  origin: ['https://fabledash.vercel.app', 'http://localhost:3000', 'http://localhost:5173'], // Allow specific origins
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-
-// Add CORS headers to all responses as a fallback
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://fabledash.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+```tsx
+// Example from AgentChat.tsx
+const fetchChatHistory = async (agentId: number) => {
+  try {
+    setLoading(true);
+    const response = await fetch(`${API_URL}/api/chats/agent/${agentId}/chat-history`);
+    const data = await response.json();
+    
+    if (data.success) {
+      setAgentChats(data.agentChats || []);
+      setChildAgentChats(data.childAgentChats || []);
+      setParentAgentChats(data.parentAgentChats || []);
+    } else {
+      console.error('Error fetching chat history:', data.error);
+    }
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+  } finally {
+    setLoading(false);
   }
-  
-  next();
-});
+};
 ```
 
-This configuration:
-1. Explicitly allows requests from the frontend domain (`https://fabledash.vercel.app`)
-2. Handles preflight OPTIONS requests properly
-3. Includes necessary headers for cross-origin requests with credentials
-4. Provides a fallback mechanism for browsers that don't fully support the CORS specification
+## User Experience
 
-Without proper CORS configuration, you may encounter errors like:
-```
-Access to fetch at 'https://fabledash-backend1.vercel.app/api/documents' from origin 'https://fabledash.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-```
+### Viewing Chat History
 
-### Large File Upload Configuration
+1. Navigate to the AI Agents page
+2. Select an agent to view its details
+3. Click on the "Chat History" tab
+4. Browse through the agent's chats, organized by:
+   - Direct chats with this agent
+   - Chats from child agents (if applicable)
+   - Chats from the parent agent (if applicable)
 
-To support uploading large documents (up to 1GB) to agents, we've implemented multiple approaches:
+### Creating New Chats
 
-#### 1. FormData Approach (Recommended)
+1. Navigate to an agent's details page
+2. Click "New Chat"
+3. If this is a child agent, you'll have the option to link this chat to a parent agent chat
+4. Start the conversation
 
-This approach uses the standard `FormData` API to upload files, which is more efficient and reliable:
+### Linking Chats
 
-1. **Backend Implementation**:
-   ```javascript
-   // document-routes-formdata.js - Express route for handling FormData uploads
-   const express = require('express');
-   const router = express.Router();
-   const multer = require('multer');
-   const { v4: uuidv4 } = require('uuid');
+When creating a new chat with a child agent, you can link it to a parent agent chat:
 
-   // Configure multer for file uploads
-   const storage = multer.diskStorage({
-     destination: function (req, file, cb) {
-       // Use /tmp directory for Vercel or uploads directory for local development
-       const uploadsDir = process.env.NODE_ENV === 'production' 
-         ? '/tmp' 
-         : path.join(__dirname, '../../uploads');
-       
-       // Create directory if it doesn't exist
-       if (!fs.existsSync(uploadsDir)) {
-         fs.mkdirSync(uploadsDir, { recursive: true });
-       }
-       
-       cb(null, uploadsDir);
-     },
-     filename: function (req, file, cb) {
-       // Generate a unique filename
-       const uniqueFileName = `${uuidv4()}-${file.originalname}`;
-       cb(null, uniqueFileName);
-     }
-   });
+1. Select the child agent
+2. Click "New Chat"
+3. In the chat creation dialog, select a parent chat from the dropdown
+4. The new chat will be linked to the selected parent chat
 
-   const upload = multer({ 
-     storage: storage,
-     limits: { fileSize: 1024 * 1024 * 1024 } // 1GB limit
-   });
+## Benefits
 
-   // Upload a document using FormData
-   router.post('/formdata', upload.single('file'), async (req, res) => {
-     // Set CORS headers
-     res.header('Access-Control-Allow-Origin', '*');
-     // ... rest of the function
-   });
-   ```
+### Knowledge Sharing
 
-2. **Frontend Integration**:
-   ```typescript
-   // Upload document to an agent
-   const uploadDocument = async (event: React.ChangeEvent<HTMLInputElement>) => {
-     if (!selectedAgent) return;
-     
-     const file = event.target.files?.[0];
-     if (!file) return;
-     
-     try {
-       setIsLoading(true);
-       setUploadError(null);
-       
-       // Use FormData instead of JSON for file uploads
-       const formData = new FormData();
-       formData.append('agent_id', selectedAgent.id.toString());
-       formData.append('file', file);
-       
-       console.log('Uploading file using FormData:', file.name);
-       
-       // Use the documents/formdata endpoint for FormData uploads
-       const response = await fetch(`${apiUrl}/documents/formdata`, {
-         method: 'POST',
-         body: formData,
-       });
-       
-       // ... process response
-     } catch (error) {
-       // ... handle error
-     }
-   };
-   ```
+Parent agents can access the chat history of their child agents, allowing them to:
+- Learn from child agent interactions
+- Provide context for their own responses
+- Ensure consistency across child agents
 
-3. **Route Registration**:
-   ```javascript
-   // Add FormData support for document uploads
-   router.use('/documents', documentFormDataRoutes);
-   ```
+### Specialized Agents
 
-#### 2. Serverless Function Approach (Alternative)
+Child agents can be specialized for specific tasks while still having access to the parent agent's knowledge:
+- Parent agent handles general queries
+- Child agents handle specialized domains
+- All agents share a common knowledge base
 
-For environments where the FormData approach isn't suitable, we also provide a serverless function approach:
+### Hierarchical Organization
 
-1. **Dedicated Serverless Function**:
-   ```javascript
-   // api/upload-document.js - Serverless function for handling large document uploads
-   const supabase = require('../supabase');
-   const documentProcessor = require('../routes/supabase/document-processor');
-   const { v4: uuidv4 } = require('uuid');
+Organizations can structure their agents in a hierarchical manner:
+- Top-level parent agents for company-wide knowledge
+- Mid-level parent agents for department-specific knowledge
+- Child agents for individual roles or tasks
 
-   // Maximum request size (1GB)
-   const MAX_SIZE = 1024 * 1024 * 1024;
+## Future Enhancements
 
-   // Helper function to parse JSON with size limit
-   const parseJSON = async (req) => {
-     // ... implementation
-   };
-
-   // Main handler function
-   module.exports = async (req, res) => {
-     // Set CORS headers
-     res.setHeader('Access-Control-Allow-Origin', '*');
-     // ... rest of the function
-   };
-   ```
-
-2. **Vercel Configuration**:
-   ```json
-   {
-     "version": 2,
-     "builds": [
-       {
-         "src": "server.js",
-         "use": "@vercel/node"
-       }
-     ],
-     "routes": [
-       {
-         "src": "/(.*)",
-         "dest": "/server.js"
-       }
-     ],
-     "functions": {
-       "server.js": {
-         "memory": 1024,
-         "maxDuration": 60
-       }
-     }
-   }
-   ```
-
-These approaches provide several advantages:
-1. **Efficient File Handling**: The FormData approach is more efficient for file uploads
-2. **Large File Support**: Both approaches support files up to 1GB
-3. **Proper CORS Handling**: Both approaches include explicit CORS headers
-4. **Flexibility**: Multiple implementation options for different deployment scenarios
-
-Without these configurations, you may encounter errors like:
-```
-POST https://fabledash-backend1.vercel.app/api/documents net::ERR_FAILED 413 (Request Entity Too Large)
-```
-
-This setup allows for:
-1. Uploading large documents (up to 1GB) to both parent and child agents
-2. Increased memory allocation for processing large files
-3. Extended function duration to handle time-consuming file processing
-4. Proper CORS handling for cross-origin requests
+1. **Multi-level Hierarchies**: Support for grandparent-parent-child relationships
+2. **Cross-agent Chat References**: Allow chats to reference chats from other agents
+3. **Chat Merging**: Ability to merge related chats into a single conversation
+4. **Chat Forking**: Create new child chats from specific points in a parent chat
+5. **Selective Sharing**: Control which chats are shared between parent and child agents

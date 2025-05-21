@@ -1,0 +1,19 @@
+runtime: nodejs18
+
+handlers:
+  - url: /static
+    static_dir: dist/static
+    secure: always
+
+  - url: /(.*\.(js|css|ico|png|jpg|jpeg|svg|webp|json|txt|html))$
+    static_files: dist/\1
+    upload: dist/.*\.(js|css|ico|png|jpg|jpeg|svg|webp|json|txt|html)$
+    secure: always
+
+  - url: /.*
+    static_files: dist/index.html
+    upload: dist/index.html
+    secure: always
+
+env_variables:
+  NODE_ENV: "production"

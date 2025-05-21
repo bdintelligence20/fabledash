@@ -1,0 +1,31 @@
+steps:
+  # Install dependencies
+  - name: 'node:18'
+    entrypoint: 'npm'
+    args: ['install']
+
+  # Build the React app
+  - name: 'node:18'
+    entrypoint: 'npm'
+    args: ['run', 'build']
+    env:
+      - 'VITE_API_URL=${_API_URL}'
+      - 'VITE_SUPABASE_URL=${_SUPABASE_URL}'
+      - 'VITE_SUPABASE_ANON_KEY=${_SUPABASE_KEY}'
+
+  # Deploy to Firebase Hosting
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'app'
+      - 'deploy'
+      - '--version=$COMMIT_SHA'
+      - '--quiet'
+
+# Substitution variables to be set in the Cloud Build trigger
+substitutions:
+  _API_URL: 'https://fabledash-backend-xxxxxxxx-uc.a.run.app'
+  _SUPABASE_URL: 'https://your-supabase-project.supabase.co'
+  _SUPABASE_KEY: 'your-supabase-anon-key'
+
+# Timeout for the build
+timeout: '1800s'
