@@ -20,27 +20,29 @@
       "dest": "/server.js"
     }
   ],
-  "functions": {
-    "server.js": {
-      "memory": 1024,
-      "maxDuration": 60
-    },
-    "api/**/*.js": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  },
   "env": {
-    "BUILD_TIMESTAMP": "2025-05-21T15:10:00Z"
+    "BUILD_TIMESTAMP": "2025-05-21T13:16:32.134Z"
   },
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "https://fabledash.vercel.app" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" },
-        { "key": "Access-Control-Allow-Credentials", "value": "true" }
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://fabledash.vercel.app"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        },
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        }
       ]
     }
   ]
