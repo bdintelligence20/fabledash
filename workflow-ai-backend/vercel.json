@@ -10,18 +10,18 @@
       "use": "@vercel/node"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     },
     {
-      "src": "/(.*)",
-      "dest": "/server.js"
+      "source": "/(.*)",
+      "destination": "/server.js"
     }
   ],
   "env": {
-    "BUILD_TIMESTAMP": "2025-05-21T13:16:32.134Z"
+    "BUILD_TIMESTAMP": "2025-05-21T15:18:00Z"
   },
   "headers": [
     {
