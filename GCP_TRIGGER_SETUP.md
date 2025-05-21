@@ -32,7 +32,7 @@ This document explains how to set up Cloud Build triggers in Google Cloud Platfo
    - **Branch**: `^main$` (or your preferred branch using regex)
    - **Included files filter**: `python-backend/**` (only trigger when files in the python-backend directory change)
    - **Build configuration**: "Cloud Build configuration file (yaml or json)"
-   - **Cloud Build configuration file location**: `python-backend/cloudbuild.yaml`
+   - **Cloud Build configuration file location**: `backend-cloudbuild.yaml` (in the root directory)
    - **Service account**: Use the default Cloud Build service account or a custom one with appropriate permissions
 
 ### 3. Set Substitution Variables
@@ -143,3 +143,19 @@ If a deployment fails, you can set up automatic rollbacks:
 4. Click "Deploy"
 
 Do the same for the App Engine service.
+
+## Important Note About Backend Deployment
+
+The backend deployment uses a special configuration:
+
+1. We use `backend-cloudbuild.yaml` in the root directory (not inside python-backend)
+2. This file is configured to build the Docker image using the correct context: `./python-backend`
+3. This approach solves common issues with Cloud Build triggers:
+   - It ensures the Docker build has the correct context
+   - It avoids path confusion when running from the repository root
+   - It prevents "file not found" errors during the build process
+
+If you encounter build errors like "Could not find Dockerfile" or "Context directory does not exist", make sure:
+1. The `backend-cloudbuild.yaml` file is in the root directory
+2. The Docker build command uses `./python-backend` as the context
+3. The trigger is configured to use `backend-cloudbuild.yaml` (not `python-backend/cloudbuild.yaml`)
