@@ -9,10 +9,26 @@ const port = process.env.PORT || 3001;
 
 // CORS configuration
 app.use(cors({
-  origin: '*', // Allow all origins for development
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: ['https://fabledash.vercel.app', 'http://localhost:3000', 'http://localhost:5173'], // Allow specific origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
+
+// Add CORS headers to all responses as a fallback
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://fabledash.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 
 // Middleware
 app.use(express.json({ limit: '1gb' }));

@@ -93,9 +93,16 @@ The `AIAgentsPage` component integrates the chat history feature by:
 
 The system implements bidirectional context sharing between parent and child agents:
 
-1. **Child to Parent**: Parent agents can access and recall information that was worked through on child agents. This allows the parent agent to have an overarching view of all work done by its child agents.
+1. **Child to Parent**: 
+   - Parent agents can access and recall information that was worked through on child agents
+   - Parent agents can view the complete chat history of all their child agents
+   - Parent agents can use context from child agent conversations when responding to queries
+   - This allows the parent agent to have an overarching view of all work done by its child agents
 
-2. **Parent to Child**: Child agents can access context from their parent agent, ensuring they have the necessary background information.
+2. **Parent to Child**: 
+   - Child agents can access context from their parent agent
+   - Child agents can view the chat history of their parent agent
+   - This ensures child agents have the necessary background information
 
 This bidirectional context sharing ensures that:
 - Parent agents serve as coordinators with full visibility into all child agent activities
@@ -124,3 +131,43 @@ if (parentChatId && typeof parentChatId === 'number') {
 ```
 
 This prevents the "Converting circular structure to JSON" error that can occur when DOM elements or React components are accidentally included in the data being sent to the server.
+
+### CORS Configuration
+
+To ensure proper communication between the frontend and backend, especially when deployed to production environments like Vercel, the backend server must be configured with appropriate CORS (Cross-Origin Resource Sharing) settings:
+
+```javascript
+// CORS configuration
+app.use(cors({
+  origin: ['https://fabledash.vercel.app', 'http://localhost:3000', 'http://localhost:5173'], // Allow specific origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+// Add CORS headers to all responses as a fallback
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://fabledash.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+```
+
+This configuration:
+1. Explicitly allows requests from the frontend domain (`https://fabledash.vercel.app`)
+2. Handles preflight OPTIONS requests properly
+3. Includes necessary headers for cross-origin requests with credentials
+4. Provides a fallback mechanism for browsers that don't fully support the CORS specification
+
+Without proper CORS configuration, you may encounter errors like:
+```
+Access to fetch at 'https://fabledash-backend1.vercel.app/api/documents' from origin 'https://fabledash.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
