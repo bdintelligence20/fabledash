@@ -405,6 +405,9 @@ router.post('/:id/message', async (req, res) => {
     console.error('Error sending message:', error);
     
     try {
+      // Make sure chat_id is defined in this scope
+      const chat_id = id;
+      
       // Save error message to database
       const errorMessage = {
         chat_id,

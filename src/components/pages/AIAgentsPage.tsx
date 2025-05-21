@@ -306,7 +306,11 @@ const AIAgentsPage = () => {
       
       setChatMessages([...chatMessages, userMessage]);
       
-      const response = await fetch(`${apiUrl}/chats/${currentChatId}/message`, {
+      // Use the serverless function for better timeout handling
+      const chatMessageUrl = `${apiUrl.replace('/api', '')}/api/chat-message?id=${currentChatId}`;
+      console.log('Using chat message endpoint:', chatMessageUrl);
+      
+      const response = await fetch(chatMessageUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
