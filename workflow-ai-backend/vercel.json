@@ -4,9 +4,17 @@
     {
       "src": "server.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "/server.js"
@@ -16,7 +24,14 @@
     "server.js": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 60
     }
+  },
+  "env": {
+    "BUILD_TIMESTAMP": "2025-05-21T15:10:00Z"
   },
   "headers": [
     {
