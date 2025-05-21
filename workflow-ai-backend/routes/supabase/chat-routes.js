@@ -28,7 +28,7 @@ const safeApiCall = async (apiCall, fallbackMessage) => {
 // Create a new chat
 router.post('/', async (req, res) => {
   try {
-    const { agent_id, title } = req.body;
+    const { agent_id, title, parent_chat_id } = req.body;
     
     if (!agent_id) {
       return res.status(400).json({
@@ -52,12 +52,30 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // If parent_chat_id is provided, verify it exists
+    if (parent_chat_id) {
+      const { data: parentChat, error: parentChatError } = await supabase
+        .from('chats')
+        .select('id')
+        .eq('id', parent_chat_id)
+        .single();
+      
+      if (parentChatError || !parentChat) {
+        console.error('Error fetching parent chat:', parentChatError);
+        return res.status(404).json({
+          success: false,
+          message: 'Parent chat not found'
+        });
+      }
+    }
+    
     // Create chat in database
     const { data, error } = await supabase
       .from('chats')
       .insert({
         agent_id,
         title: title || `Chat with ${agent.name}`,
+        parent_chat_id: parent_chat_id || null,
       })
       .select()
       .single();
@@ -265,6 +283,8 @@ router.post('/:id/message', async (req, res) => {
     
     // Determine if this is a child agent and if we should include parent documents
     let includeParentDocs = false;
+    let includeChildAgentContext = false;
+    
     if (chat.agents) {
       const { data: agent, error: agentError } = await supabase
         .from('agents')
@@ -272,9 +292,16 @@ router.post('/:id/message', async (req, res) => {
         .eq('id', chat.agents.id)
         .single();
       
-      if (!agentError && agent && agent.parent_id) {
-        // This is a child agent, so we'll include parent documents
-        includeParentDocs = true;
+      if (!agentError && agent) {
+        if (agent.parent_id) {
+          // This is a child agent, so we'll include parent documents
+          includeParentDocs = true;
+        }
+        
+        if (agent.is_parent) {
+          // This is a parent agent, so we'll include context from child agents
+          includeChildAgentContext = true;
+        }
       }
     }
     
@@ -286,7 +313,8 @@ router.post('/:id/message', async (req, res) => {
       chat.agents.id,
       message,
       5, // Limit to 5 most relevant chunks
-      includeParentDocs // Include parent documents if this is a child agent
+      includeParentDocs, // Include parent documents if this is a child agent
+      includeChildAgentContext // Include child agent context if this is a parent agent
     );
     
     console.log(`Retrieved ${relevantChunks.length} relevant chunks`);
@@ -393,6 +421,161 @@ router.post('/:id/message', async (req, res) => {
       success: false,
       message: 'Server error while sending message',
       error: error.message
+    });
+  }
+});
+
+// Get linked chats (parent and child chats)
+router.get('/:id/linked-chats', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get the chat
+    const { data: chat, error: chatError } = await supabase
+      .from('chats')
+      .select('*, agents(*)')
+      .eq('id', id)
+      .single();
+    
+    if (chatError || !chat) {
+      console.error('Error fetching chat:', chatError);
+      return res.status(404).json({
+        success: false,
+        message: 'Chat not found'
+      });
+    }
+    
+    // Get parent chat if this chat has a parent
+    let parentChat = null;
+    if (chat.parent_chat_id) {
+      const { data: parent, error: parentError } = await supabase
+        .from('chats')
+        .select('*, agents(*)')
+        .eq('id', chat.parent_chat_id)
+        .single();
+      
+      if (!parentError && parent) {
+        parentChat = parent;
+      }
+    }
+    
+    // Get child chats
+    const { data: childChats, error: childChatsError } = await supabase
+      .from('chats')
+      .select('*, agents(*)')
+      .eq('parent_chat_id', id);
+    
+    if (childChatsError) {
+      console.error('Error fetching child chats:', childChatsError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch child chats',
+        error: childChatsError.message
+      });
+    }
+    
+    return res.json({
+      success: true,
+      chat,
+      parentChat,
+      childChats: childChats || []
+    });
+  } catch (error) {
+    console.error('Error fetching linked chats:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching linked chats'
+    });
+  }
+});
+
+// Get full chat history for an agent including child agent chats
+router.get('/agent/:agentId/chat-history', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    
+    // Check if agent exists
+    const { data: agent, error: agentError } = await supabase
+      .from('agents')
+      .select('*')
+      .eq('id', agentId)
+      .single();
+    
+    if (agentError || !agent) {
+      console.error('Error fetching agent:', agentError);
+      return res.status(404).json({
+        success: false,
+        message: 'Agent not found'
+      });
+    }
+    
+    // Get all chats for this agent
+    const { data: agentChats, error: agentChatsError } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('agent_id', agentId)
+      .order('created_at', { ascending: false });
+    
+    if (agentChatsError) {
+      console.error('Error fetching agent chats:', agentChatsError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch agent chats',
+        error: agentChatsError.message
+      });
+    }
+    
+    // If this is a parent agent, get all child agents
+    let childAgentChats = [];
+    if (agent.is_parent) {
+      // Get all child agents
+      const { data: childAgents, error: childAgentsError } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('parent_id', agentId);
+      
+      if (!childAgentsError && childAgents && childAgents.length > 0) {
+        // Get chats for all child agents
+        const childAgentIds = childAgents.map(a => a.id);
+        
+        const { data: childChats, error: childChatsError } = await supabase
+          .from('chats')
+          .select('*')
+          .in('agent_id', childAgentIds)
+          .order('created_at', { ascending: false });
+        
+        if (!childChatsError && childChats) {
+          childAgentChats = childChats;
+        }
+      }
+    }
+    
+    // If this is a child agent, get the parent agent's chats
+    let parentAgentChats = [];
+    if (agent.parent_id) {
+      const { data: parentChats, error: parentChatsError } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('agent_id', agent.parent_id)
+        .order('created_at', { ascending: false });
+      
+      if (!parentChatsError && parentChats) {
+        parentAgentChats = parentChats;
+      }
+    }
+    
+    return res.json({
+      success: true,
+      agent,
+      agentChats: agentChats || [],
+      childAgentChats,
+      parentAgentChats
+    });
+  } catch (error) {
+    console.error('Error fetching agent chat history:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching agent chat history'
     });
   }
 });

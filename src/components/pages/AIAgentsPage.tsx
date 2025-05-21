@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { X, ArrowLeft } from 'lucide-react';
-import { Agent, Message, Document } from '../agents/AgentTypes';
+import { Agent, Message, Document, Chat } from '../agents/AgentTypes';
 import { Client } from '../clients/ClientTypes';
 import AgentList from '../agents/AgentList';
 import AgentForm from '../agents/AgentForm';
 import AgentDetails from '../agents/AgentDetails';
 import AgentChat from '../agents/AgentChat';
+import ChatHistory from '../agents/ChatHistory';
 import { Card, Modal } from '../ui';
 
 const AIAgentsPage = () => {
@@ -27,6 +28,9 @@ const AIAgentsPage = () => {
   // Chat state
   const [currentChatId, setCurrentChatId] = useState<number | null>(null);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [agentChats, setAgentChats] = useState<Chat[]>([]);
+  const [childAgentChats, setChildAgentChats] = useState<Chat[]>([]);
+  const [parentAgentChats, setParentAgentChats] = useState<Chat[]>([]);
   
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   
@@ -262,21 +266,28 @@ const AIAgentsPage = () => {
   };
   
   // Create a new chat
-  const createChat = async () => {
+  const createChat = async (parentChatId?: number) => {
     if (!selectedAgent) return;
     
     try {
       setIsLoading(true);
       setError(null);
       
+      const chatData: any = {
+        agent_id: selectedAgent.id,
+      };
+      
+      // If parent_chat_id is provided, add it to the request
+      if (parentChatId) {
+        chatData.parent_chat_id = parentChatId;
+      }
+      
       const response = await fetch(`${apiUrl}/chats`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          agent_id: selectedAgent.id,
-        }),
+        body: JSON.stringify(chatData),
       });
       
       const data = await response.json();
@@ -339,11 +350,68 @@ const AIAgentsPage = () => {
     }
   };
   
-  // Select an agent and fetch its documents
+  // Fetch chat history for an agent
+  const fetchAgentChatHistory = async (agentId: number) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log(`Fetching chat history for agent ID: ${agentId}`);
+      const response = await fetch(`${apiUrl}/chats/agent/${agentId}/chat-history`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setAgentChats(data.agentChats || []);
+        setChildAgentChats(data.childAgentChats || []);
+        setParentAgentChats(data.parentAgentChats || []);
+      } else {
+        console.error('Failed to fetch chat history:', data.message);
+        setError(data.message || 'Failed to fetch chat history');
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+      setError('Network error while fetching chat history');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Fetch chat by ID with messages
+  const fetchChatMessages = async (chatId: number) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log(`Fetching messages for chat ID: ${chatId}`);
+      const response = await fetch(`${apiUrl}/chats/${chatId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setCurrentChatId(chatId);
+        setChatMessages(data.messages || []);
+      } else {
+        console.error('Failed to fetch chat messages:', data.message);
+        setError(data.message || 'Failed to fetch chat messages');
+      }
+    } catch (error) {
+      console.error("Error fetching chat messages:", error);
+      setError('Network error while fetching chat messages');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Handle selecting a chat from the chat history
+  const handleSelectChat = (chat: Chat) => {
+    fetchChatMessages(chat.id);
+  };
+  
+  // Select an agent and fetch its documents and chat history
   const handleSelectAgent = (agent: Agent) => {
     console.log('Agent selected:', agent);
     setSelectedAgent(agent);
     fetchDocuments(agent.id);
+    fetchAgentChatHistory(agent.id);
     setCurrentChatId(null);
     setChatMessages([]);
     
@@ -480,6 +548,20 @@ const AIAgentsPage = () => {
                   setShowChildAgentForm(true);
                 }}
               />
+              
+              {/* Chat History */}
+              <div className="mt-6">
+                <ChatHistory
+                  agent={selectedAgent}
+                  chats={agentChats}
+                  childAgentChats={childAgentChats}
+                  parentAgentChats={parentAgentChats}
+                  isLoading={isLoading}
+                  onSelectChat={handleSelectChat}
+                  onCreateChat={createChat}
+                  currentChatId={currentChatId}
+                />
+              </div>
             </div>
             
             {/* Chat with agent */}

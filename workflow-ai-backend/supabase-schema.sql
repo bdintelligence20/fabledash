@@ -103,9 +103,11 @@ CREATE TABLE IF NOT EXISTS chats (
   id SERIAL PRIMARY KEY,
   agent_id INTEGER NOT NULL,
   title VARCHAR(255),
+  parent_chat_id INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE CASCADE
+  FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_chat_id) REFERENCES chats (id) ON DELETE SET NULL
 );
 
 -- Create messages table
@@ -144,3 +146,4 @@ CREATE INDEX IF NOT EXISTS idx_agents_client_id ON agents(client_id);
 CREATE INDEX IF NOT EXISTS idx_agents_parent_id ON agents(parent_id);
 CREATE INDEX IF NOT EXISTS idx_agents_task_id ON agents(task_id);
 CREATE INDEX IF NOT EXISTS idx_chats_agent_id ON chats(agent_id);
+CREATE INDEX IF NOT EXISTS idx_chats_parent_chat_id ON chats(parent_chat_id);

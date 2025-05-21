@@ -39,6 +39,7 @@ export interface Chat {
   id: number;
   agent_id: number;
   title?: string;
+  parent_chat_id?: number;
   created_at: string;
   updated_at?: string;
 }

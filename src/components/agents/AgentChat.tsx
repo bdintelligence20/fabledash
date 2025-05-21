@@ -9,7 +9,7 @@ interface AgentChatProps {
   messages: Message[];
   isLoading: boolean;
   onSendMessage: (message: string) => Promise<void>;
-  onCreateChat: () => Promise<void>;
+  onCreateChat: (parentChatId?: number) => Promise<void>;
 }
 
 const AgentChat = ({

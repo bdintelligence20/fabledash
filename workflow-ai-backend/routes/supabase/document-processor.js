@@ -493,16 +493,17 @@ async function generateEmbedding(text, retries = 3) {
  * @param {string} query - The query text
  * @param {number} limit - The maximum number of chunks to retrieve
  * @param {boolean} includeParentDocs - Whether to include documents from the parent agent
+ * @param {boolean} includeChildAgentContext - Whether to include context from child agents
  * @returns {Promise<Object[]>} - Array of relevant chunks with their documents
  */
-async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDocs = false) {
+async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDocs = false, includeChildAgentContext = false) {
   try {
     console.log(`Retrieving chunks for agent ${agentId}, query: "${query}", includeParentDocs: ${includeParentDocs}`);
     
-    // Get the agent to check if it has a parent
+    // Get the agent to check if it has a parent or is a parent
     const { data: agent, error: agentError } = await supabase
       .from('agents')
-      .select('parent_id')
+      .select('parent_id, is_parent')
       .eq('id', agentId)
       .single();
     
@@ -518,6 +519,21 @@ async function retrieveRelevantChunks(agentId, query, limit = 5, includeParentDo
     if (includeParentDocs && agent.parent_id) {
       agentIds.push(agent.parent_id);
       console.log(`Including parent agent ${agent.parent_id} documents`);
+    }
+    
+    // If this is a parent agent and includeChildAgentContext is true, include child agents' documents
+    if (includeChildAgentContext && agent.is_parent) {
+      // Get all child agents for this parent
+      const { data: childAgents, error: childAgentsError } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('parent_id', agentId);
+      
+      if (!childAgentsError && childAgents && childAgents.length > 0) {
+        const childAgentIds = childAgents.map(a => a.id);
+        agentIds.push(...childAgentIds);
+        console.log(`Including child agents: ${childAgentIds.join(', ')}`);
+      }
     }
     
     console.log(`Searching for chunks with agent_ids: ${agentIds.join(', ')}`);
