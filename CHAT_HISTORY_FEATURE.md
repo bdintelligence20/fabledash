@@ -101,3 +101,26 @@ This bidirectional context sharing ensures that:
 - Parent agents serve as coordinators with full visibility into all child agent activities
 - Child agents benefit from the broader context established by the parent agent
 - Knowledge flows seamlessly between parent and child agents
+
+## Implementation Notes
+
+### Avoiding Circular References
+
+When creating child chats from parent chats, care must be taken to avoid circular references in the data being sent to the server:
+
+1. In the `ChatHistory` component, the event object from button clicks should not be passed directly to the `onCreateChat` function.
+2. In the `AIAgentsPage` component, the `createChat` function should use a properly typed object with only primitive values to avoid serialization issues.
+
+```typescript
+// Example of proper chat data structure
+const chatData: { agent_id: number; parent_chat_id?: number } = {
+  agent_id: selectedAgent.id,
+};
+
+// Safely add parent_chat_id only if it's a valid number
+if (parentChatId && typeof parentChatId === 'number') {
+  chatData.parent_chat_id = parentChatId;
+}
+```
+
+This prevents the "Converting circular structure to JSON" error that can occur when DOM elements or React components are accidentally included in the data being sent to the server.

@@ -273,14 +273,18 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const chatData: any = {
+      // Ensure we're only using primitive values to avoid circular references
+      const chatData: { agent_id: number; parent_chat_id?: number } = {
         agent_id: selectedAgent.id,
       };
       
       // If parent_chat_id is provided, add it to the request
-      if (parentChatId) {
+      // Make sure it's a number to avoid any circular reference issues
+      if (parentChatId && typeof parentChatId === 'number') {
         chatData.parent_chat_id = parentChatId;
       }
+      
+      console.log('Creating chat with data:', chatData);
       
       const response = await fetch(`${apiUrl}/chats`, {
         method: 'POST',

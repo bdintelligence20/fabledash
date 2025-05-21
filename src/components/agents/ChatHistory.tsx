@@ -76,7 +76,9 @@ const ChatHistory = ({
                         size="xs"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onCreateChat(chat.id);
+                          // Pass only the chat ID, not the event object
+                          const chatId = chat.id;
+                          onCreateChat(chatId);
                         }}
                         disabled={isLoading}
                       >
