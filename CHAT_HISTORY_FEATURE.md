@@ -171,3 +171,63 @@ Without proper CORS configuration, you may encounter errors like:
 ```
 Access to fetch at 'https://fabledash-backend1.vercel.app/api/documents' from origin 'https://fabledash.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
 ```
+
+### Large File Upload Configuration
+
+To support uploading large documents (up to 1GB) to agents, the server needs special configuration to handle large request bodies:
+
+1. **Custom Server Setup**:
+   ```javascript
+   // server.js - Custom server for handling large file uploads
+   const express = require('express');
+   const cors = require('cors');
+   const bodyParser = require('body-parser');
+   const app = require('./vercel-app-supabase');
+
+   // Create a new Express app for the custom server
+   const server = express();
+
+   // Configure body parser with increased limits
+   server.use(bodyParser.json({ limit: '1gb' }));
+   server.use(bodyParser.urlencoded({ extended: true, limit: '1gb' }));
+
+   // Use the Vercel app as middleware
+   server.use(app);
+
+   module.exports = server;
+   ```
+
+2. **Vercel Configuration**:
+   ```json
+   {
+     "version": 2,
+     "builds": [
+       {
+         "src": "server.js",
+         "use": "@vercel/node"
+       }
+     ],
+     "routes": [
+       {
+         "src": "/(.*)",
+         "dest": "/server.js"
+       }
+     ],
+     "functions": {
+       "server.js": {
+         "memory": 1024,
+         "maxDuration": 60
+       }
+     }
+   }
+   ```
+
+Without these configurations, you may encounter errors like:
+```
+POST https://fabledash-backend1.vercel.app/api/documents net::ERR_FAILED 413 (Request Entity Too Large)
+```
+
+This setup allows for:
+1. Uploading large documents (up to 1GB) to both parent and child agents
+2. Increased memory allocation for processing large files
+3. Extended function duration to handle time-consuming file processing
