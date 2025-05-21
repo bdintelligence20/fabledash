@@ -217,9 +217,9 @@ const AIAgentsPage = () => {
         try {
           const base64Data = e.target?.result as string;
           
-          // Use the dedicated upload-document endpoint for large files
-          const uploadUrl = `${apiUrl.replace('/api', '')}/api/upload-document`;
-          console.log('Using upload endpoint:', uploadUrl);
+          // Use the dedicated simplified upload-document endpoint for large files
+          const uploadUrl = `${apiUrl.replace('/api', '')}/api/upload-document-simple`;
+          console.log('Using simplified upload endpoint:', uploadUrl);
           
           // Send to API
           const response = await fetch(uploadUrl, {

@@ -37,17 +37,27 @@ const parseJSON = async (req) => {
 
 // Main handler function
 module.exports = async (req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', 'https://fabledash.vercel.app');
+  // Set CORS headers - allow all origins in development
+  const allowedOrigins = ['https://fabledash.vercel.app', 'http://localhost:3000', 'http://localhost:5173'];
+  const origin = req.headers.origin;
+  
+  // Always include CORS headers regardless of origin
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
+  
+  // Log request information for debugging
+  console.log('Upload document request received');
+  console.log('Request headers:', req.headers);
+  console.log('Request method:', req.method);
   
   // Only allow POST requests
   if (req.method !== 'POST') {
