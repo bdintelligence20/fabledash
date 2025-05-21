@@ -174,30 +174,90 @@ Access to fetch at 'https://fabledash-backend1.vercel.app/api/documents' from or
 
 ### Large File Upload Configuration
 
-To support uploading large documents (up to 1GB) to agents, the server needs special configuration to handle large request bodies:
+To support uploading large documents (up to 1GB) to agents, we've implemented a dedicated serverless function approach:
 
-1. **Custom Server Setup**:
+1. **Dedicated Serverless Function**:
    ```javascript
-   // server.js - Custom server for handling large file uploads
-   const express = require('express');
-   const cors = require('cors');
-   const bodyParser = require('body-parser');
-   const app = require('./vercel-app-supabase');
+   // api/upload-document.js - Serverless function for handling large document uploads
+   const supabase = require('../supabase');
+   const documentProcessor = require('../routes/supabase/document-processor');
+   const { v4: uuidv4 } = require('uuid');
 
-   // Create a new Express app for the custom server
-   const server = express();
+   // Maximum request size (1GB)
+   const MAX_SIZE = 1024 * 1024 * 1024;
 
-   // Configure body parser with increased limits
-   server.use(bodyParser.json({ limit: '1gb' }));
-   server.use(bodyParser.urlencoded({ extended: true, limit: '1gb' }));
+   // Helper function to parse JSON with size limit
+   const parseJSON = async (req) => {
+     return new Promise((resolve, reject) => {
+       let body = '';
+       let size = 0;
+       
+       req.on('data', (chunk) => {
+         size += chunk.length;
+         if (size > MAX_SIZE) {
+           reject(new Error('Request body too large'));
+           req.destroy();
+           return;
+         }
+         body += chunk.toString();
+       });
+       
+       req.on('end', () => {
+         try {
+           const data = JSON.parse(body);
+           resolve(data);
+         } catch (error) {
+           reject(new Error('Invalid JSON'));
+         }
+       });
+       
+       req.on('error', reject);
+     });
+   };
 
-   // Use the Vercel app as middleware
-   server.use(app);
-
-   module.exports = server;
+   // Main handler function
+   module.exports = async (req, res) => {
+     // Set CORS headers
+     res.setHeader('Access-Control-Allow-Origin', 'https://fabledash.vercel.app');
+     // ... rest of the function
+   };
    ```
 
-2. **Vercel Configuration**:
+2. **Frontend Integration**:
+   ```typescript
+   // Upload document to an agent
+   const uploadDocument = async (event: React.ChangeEvent<HTMLInputElement>) => {
+     // ...
+     
+     reader.onload = async (e) => {
+       try {
+         const base64Data = e.target?.result as string;
+         
+         // Use the dedicated upload-document endpoint for large files
+         const uploadUrl = `${apiUrl.replace('/api', '')}/api/upload-document`;
+         console.log('Using upload endpoint:', uploadUrl);
+         
+         // Send to API
+         const response = await fetch(uploadUrl, {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({
+             agent_id: selectedAgent.id,
+             file_data: base64Data,
+             file_name: file.name,
+             content_type: file.type
+           }),
+         });
+         
+         // ...
+       }
+     };
+   };
+   ```
+
+3. **Vercel Configuration**:
    ```json
    {
      "version": 2,
@@ -222,6 +282,13 @@ To support uploading large documents (up to 1GB) to agents, the server needs spe
    }
    ```
 
+This serverless function approach provides several advantages:
+1. **Direct Handling**: The function directly handles the HTTP request without going through Express middleware
+2. **Custom Size Limits**: Implements custom streaming JSON parsing with size limits
+3. **Explicit CORS Headers**: Sets CORS headers directly on the response
+4. **Dedicated Resource Allocation**: Gets its own memory and execution time allocation in Vercel
+5. **Simplified Deployment**: Can be deployed independently of the main application
+
 Without these configurations, you may encounter errors like:
 ```
 POST https://fabledash-backend1.vercel.app/api/documents net::ERR_FAILED 413 (Request Entity Too Large)
@@ -231,3 +298,4 @@ This setup allows for:
 1. Uploading large documents (up to 1GB) to both parent and child agents
 2. Increased memory allocation for processing large files
 3. Extended function duration to handle time-consuming file processing
+4. Proper CORS handling for cross-origin requests
