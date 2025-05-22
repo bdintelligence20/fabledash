@@ -18,6 +18,9 @@ export interface Task {
   status_id: number;
   client_id: number;
   created_at: string;
+  // Additional properties from API
+  status_color?: string;
+  client_name?: string;
 }
 
 export interface TaskStatus {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Task, TaskStatus } from './ClientTypes';
+import { apiGet } from '../../utils/api';
 
 interface KanbanViewProps {
   clientId: number;
@@ -10,8 +11,6 @@ const KanbanView = ({ clientId }: KanbanViewProps) => {
   const [kanbanData, setKanbanData] = useState<{ status: TaskStatus; tasks: Task[] }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   
   // Fetch kanban data
   useEffect(() => {
@@ -23,12 +22,12 @@ const KanbanView = ({ clientId }: KanbanViewProps) => {
       setIsLoading(true);
       setError(null);
       
-      const url = clientId 
-        ? `${apiUrl}/tasks/kanban?client_id=${clientId}` 
-        : `${apiUrl}/tasks/kanban`;
+      const endpoint = clientId 
+        ? `/tasks/kanban?client_id=${clientId}` 
+        : `/tasks/kanban`;
       
-      const response = await fetch(url);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet(endpoint);
       
       if (data.success) {
         setKanbanData(data.kanban);

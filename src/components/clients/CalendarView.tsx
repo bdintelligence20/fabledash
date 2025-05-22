@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Task } from './ClientTypes';
+import { apiGet } from '../../utils/api';
 
 interface CalendarViewProps {
   clientId: number;
@@ -11,8 +12,6 @@ const CalendarView = ({ clientId }: CalendarViewProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   
   // Fetch tasks for the calendar view
   useEffect(() => {
@@ -31,11 +30,10 @@ const CalendarView = ({ clientId }: CalendarViewProps) => {
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
       
-      const response = await fetch(
-        `${apiUrl}/tasks/calendar?start_date=${startDateStr}&end_date=${endDateStr}&client_id=${clientId}`
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet(
+        `/tasks/calendar?start_date=${startDateStr}&end_date=${endDateStr}&client_id=${clientId}`
       );
-      
-      const data = await response.json();
       
       if (data.success) {
         setTasks(data.tasks);

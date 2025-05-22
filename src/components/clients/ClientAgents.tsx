@@ -3,6 +3,7 @@ import { Bot, Plus, MessageSquare } from 'lucide-react';
 import { Client } from './ClientTypes';
 import { Agent } from '../agents/AgentTypes';
 import { Button, Card } from '../ui';
+import { apiGet } from '../../utils/api';
 
 interface ClientAgentsProps {
   client: Client;
@@ -12,8 +13,6 @@ const ClientAgents = ({ client }: ClientAgentsProps) => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   
   // Fetch agents for this client
   useEffect(() => {
@@ -25,8 +24,8 @@ const ClientAgents = ({ client }: ClientAgentsProps) => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/agents?client_id=${client.id}&is_parent=true`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet(`/agents?client_id=${client.id}&is_parent=true`);
       
       if (data.success) {
         setAgents(data.agents);

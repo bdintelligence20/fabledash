@@ -88,10 +88,8 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       
       console.log(`Fetching child agents for parent ID: ${parentId}`);
-      const response = await fetch(`${apiUrl}/agents/parent/${parentId}/children`);
-      console.log('Child agents response:', response);
-      
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet(`/agents/parent/${parentId}/children`);
       console.log('Child agents data:', data);
       
       if (data.success) {
@@ -113,8 +111,8 @@ const AIAgentsPage = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch(`${apiUrl}/documents?agent_id=${agentId}`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet(`/documents?agent_id=${agentId}`);
       
       if (data.success) {
         setDocuments(data.documents);
@@ -135,15 +133,8 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/agents`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(agentData),
-      });
-      
-      const data = await response.json();
+      // Use apiPost utility instead of direct fetch
+      const data = await apiPost('/agents', agentData);
       
       if (data.success) {
         if (agentData.parent_id) {
@@ -175,14 +166,8 @@ const AIAgentsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/documents/${documentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
+      // Use apiDelete utility instead of direct fetch
+      const data = await apiDelete(`/documents/${documentId}`);
       
       if (data.success) {
         // Refresh documents list
@@ -216,13 +201,8 @@ const AIAgentsPage = () => {
       
       console.log('Uploading file using FormData:', file.name);
       
-      // Use the documents/formdata endpoint for FormData uploads
-      const response = await fetch(`${apiUrl}/documents/formdata`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const data = await response.json();
+      // Use apiUploadFile utility instead of direct fetch
+      const data = await apiUploadFile('/documents/formdata', formData);
       
       if (data.success) {
         // Refresh documents list
@@ -261,15 +241,8 @@ const AIAgentsPage = () => {
       
       console.log('Creating chat with data:', chatData);
       
-      const response = await fetch(`${apiUrl}/chats`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(chatData),
-      });
-      
-      const data = await response.json();
+      // Use apiPost utility instead of direct fetch
+      const data = await apiPost('/chats', chatData);
       
       if (data.success) {
         setCurrentChatId(data.chat.id);
@@ -305,9 +278,11 @@ const AIAgentsPage = () => {
       setChatMessages([...chatMessages, userMessage]);
       
       // Use the serverless function for better timeout handling
+      // This is a special case where we need to use the full URL
       const chatMessageUrl = `${apiUrl.replace('/api', '')}/api/chat-message?id=${currentChatId}`;
       console.log('Using chat message endpoint:', chatMessageUrl);
       
+      // Special case for the serverless function
       const response = await fetch(chatMessageUrl, {
         method: 'POST',
         headers: {
@@ -340,8 +315,8 @@ const AIAgentsPage = () => {
       setError(null);
       
       console.log(`Fetching chat history for agent ID: ${agentId}`);
-      const response = await fetch(`${apiUrl}/chats/agent/${agentId}/chat-history`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet(`/chats/agent/${agentId}/chat-history`);
       
       if (data.success) {
         setAgentChats(data.agentChats || []);
@@ -366,8 +341,8 @@ const AIAgentsPage = () => {
       setError(null);
       
       console.log(`Fetching messages for chat ID: ${chatId}`);
-      const response = await fetch(`${apiUrl}/chats/${chatId}`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet(`/chats/${chatId}`);
       
       if (data.success) {
         setCurrentChatId(chatId);
