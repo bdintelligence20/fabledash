@@ -76,7 +76,7 @@ images:
 
 # Substitution variables to be set in the Cloud Build trigger
 substitutions:
-  _API_URL: 'https://fabledash-backend-xxxxxxxx-uc.a.run.app'
+  _API_URL: 'https://fabledash-backend-73351471156.us-central1.run.app'
   _SUPABASE_URL: 'https://your-supabase-project.supabase.co'
   _SUPABASE_KEY: 'your-supabase-anon-key'
 

@@ -5,6 +5,7 @@ import ClientTasks from './ClientTasks';
 import CalendarView from './CalendarView';
 import KanbanView from './KanbanView';
 import ClientAgents from './ClientAgents';
+import { apiUrl, apiGet, apiPost, apiPut, apiDelete } from '../../utils/api';
 
 interface ClientDetailPageProps {
   client: Client;
@@ -32,7 +33,7 @@ const ClientDetailPage = ({
     localStorage.setItem(`client_${client.id}_activeTab`, activeTab);
   }, [activeTab, client.id]);
   
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  // We'll use the apiUrl from our utility instead
   
   // Update client
   const updateClient = async (e: React.FormEvent) => {
@@ -47,20 +48,13 @@ const ClientDetailPage = ({
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/clients/${client.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: editedClient.name,
-          contact_email: editedClient.contact_email || null,
-          contact_phone: editedClient.contact_phone || null,
-          notes: editedClient.notes || null,
-        }),
+      // Use apiPut utility instead of direct fetch
+      const data = await apiPut(`/clients/${client.id}`, {
+        name: editedClient.name,
+        contact_email: editedClient.contact_email || null,
+        contact_phone: editedClient.contact_phone || null,
+        notes: editedClient.notes || null,
       });
-      
-      const data = await response.json();
       
       if (data.success) {
         setIsEditing(false);

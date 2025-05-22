@@ -3,7 +3,10 @@ import { Plus, X, Search, Filter, ChevronDown, CheckSquare } from 'lucide-react'
 import { Task, TaskStatus, Client } from '../clients/ClientTypes';
 import TaskForm from '../tasks/TaskForm';
 import { Button, Card, Input, Select, Table, Badge, Modal } from '../ui';
+// Define BadgeVariant type locally
+type BadgeVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'default';
 import { TaskFilter } from '../tasks/TaskFilter';
+import { apiUrl, apiGet, apiPost, apiPut, apiDelete } from '../../utils/api';
 
 // Define column type for the task table
 interface TaskColumn {
@@ -30,7 +33,7 @@ const TasksPage = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  // We'll use the apiUrl from our utility instead
   
   // Fetch tasks, statuses, and clients on component mount
   useEffect(() => {
@@ -52,8 +55,8 @@ const TasksPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/tasks`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet('/tasks');
       
       if (data.success) {
         setTasks(data.tasks);
@@ -135,7 +138,7 @@ const TasksPage = () => {
       header: 'Priority',
       sortable: true,
       render: (task) => {
-        const priorityColors = {
+        const priorityColors: Record<string, BadgeVariant> = {
           high: 'danger',
           medium: 'warning',
           low: 'success',
@@ -205,8 +208,8 @@ const TasksPage = () => {
   // Fetch task statuses from API
   const fetchStatuses = async () => {
     try {
-      const response = await fetch(`${apiUrl}/task-statuses`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet('/task-statuses');
       
       if (data.success) {
         setStatuses(data.statuses);
@@ -219,8 +222,8 @@ const TasksPage = () => {
   // Fetch clients from API
   const fetchClients = async () => {
     try {
-      const response = await fetch(`${apiUrl}/clients`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet('/clients');
       
       if (data.success) {
         setClients(data.clients);
@@ -236,15 +239,8 @@ const TasksPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(taskData),
-      });
-      
-      const data = await response.json();
+      // Use apiPost utility instead of direct fetch
+      const data = await apiPost('/tasks', taskData);
       
       if (data.success) {
         // Reset form
@@ -272,15 +268,8 @@ const TasksPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/tasks/${editingTask.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(taskData),
-      });
-      
-      const data = await response.json();
+      // Use apiPut utility instead of direct fetch
+      const data = await apiPut(`/tasks/${editingTask.id}`, taskData);
       
       if (data.success) {
         // Reset form
@@ -318,17 +307,10 @@ const TasksPage = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch(`${apiUrl}/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status_id: newStatusId,
-        }),
+      // Use apiPut utility instead of direct fetch
+      const data = await apiPut(`/tasks/${taskId}`, {
+        status_id: newStatusId,
       });
-      
-      const data = await response.json();
       
       if (data.success) {
         // Update the task in the local state
@@ -357,11 +339,8 @@ const TasksPage = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch(`${apiUrl}/tasks/${taskId}`, {
-        method: 'DELETE',
-      });
-      
-      const data = await response.json();
+      // Use apiDelete utility instead of direct fetch
+      const data = await apiDelete(`/tasks/${taskId}`);
       
       if (data.success) {
         // Remove the task from the local state

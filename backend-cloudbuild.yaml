@@ -46,7 +46,7 @@ substitutions:
   _SUPABASE_URL: 'https://your-supabase-project.supabase.co'
   _SUPABASE_KEY: 'your-supabase-anon-key'
   _OPENAI_API_KEY: 'your-openai-api-key'
-  _CORS_ORIGINS: 'https://fabledash-frontend-dot-your-project-id.uc.r.appspot.com'
+  _CORS_ORIGINS: 'https://fabledash-frontend-73351471156.us-central1.run.app'
 
 # Timeout for the build
 timeout: '1800s'

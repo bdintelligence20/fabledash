@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Plus, X, Trash2, UserCircle, Search, Mail, Phone, FileText, Calendar, Filter, ChevronDown } from 'lucide-react';
 import { Client } from '../clients/ClientTypes';
 import ClientDetailPage from '../clients/ClientDetailPage';
+import { apiUrl, apiGet, apiPost, apiPut, apiDelete } from '../../utils/api';
 
 // Define client categories for organization
 type ClientCategory = 'all' | 'active' | 'inactive' | 'new';
@@ -53,7 +54,7 @@ const ClientsPage = () => {
     localStorage.setItem('showCreateForm', showCreateForm.toString());
   }, [showCreateForm]);
   
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  // We'll use the apiUrl from our utility instead
   
   // Fetch clients on component mount
   useEffect(() => {
@@ -85,8 +86,8 @@ const ClientsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/clients`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet('/clients');
       
       if (data.success) {
         setClients(data.clients);
@@ -180,20 +181,13 @@ const ClientsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/clients`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newClientName,
-          contact_email: newClientEmail || null,
-          contact_phone: newClientPhone || null,
-          notes: newClientNotes || null,
-        }),
+      // Use apiPost utility instead of direct fetch
+      const data = await apiPost('/clients', {
+        name: newClientName,
+        contact_email: newClientEmail || null,
+        contact_phone: newClientPhone || null,
+        notes: newClientNotes || null,
       });
-      
-      const data = await response.json();
       
       if (data.success) {
         // Reset form
@@ -227,11 +221,8 @@ const ClientsPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/clients/${clientId}`, {
-        method: 'DELETE',
-      });
-      
-      const data = await response.json();
+      // Use apiDelete utility instead of direct fetch
+      const data = await apiDelete(`/clients/${clientId}`);
       
       if (data.success) {
         // If the deleted client was selected, deselect it

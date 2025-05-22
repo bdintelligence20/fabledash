@@ -1,130 +1,143 @@
-# FableDash API Fix Summary
+# API Fix Summary for FableDash
 
-## Issues Fixed
+## Overview
 
-We've addressed two main issues with your FableDash application:
+This document summarizes the changes made to fix the API connectivity issues in the FableDash application. The application was experiencing two main issues:
 
-### 1. API Path Mismatch
+1. **Mixed Content Errors**: The frontend was being served over HTTPS but was making API calls to the backend over HTTP, which browsers block by default.
+2. **API Path Mismatch**: The frontend was expecting API endpoints with a specific structure that didn't match what the backend was providing.
 
-**Problem**: The frontend was making requests to paths like `/clients`, `/tasks`, and `/task-statuses`, but the backend routes were configured with an `/api` prefix (e.g., `/api/clients`).
+## Changes Made
 
-**Solution**: We modified the backend routes in `python-backend/app/main.py` to remove the `/api` prefix:
+### 1. API Utility Module
 
-```python
-# Changed from:
-app.include_router(agents_router, prefix="/api/agents", tags=["agents"])
-app.include_router(chats_router, prefix="/api/chats", tags=["chats"])
-app.include_router(documents_router, prefix="/api/documents", tags=["documents"])
-app.include_router(clients_router, prefix="/api/clients", tags=["clients"])
-app.include_router(tasks_router, prefix="/api/tasks", tags=["tasks"])
+We created a new utility module (`src/utils/api.ts`) that:
 
-# Changed to:
-app.include_router(agents_router, prefix="/agents", tags=["agents"])
-app.include_router(chats_router, prefix="/chats", tags=["chats"])
-app.include_router(documents_router, prefix="/documents", tags=["documents"])
-app.include_router(clients_router, prefix="/clients", tags=["clients"])
-app.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
+- Ensures all API calls use HTTPS in production
+- Provides standardized functions for API calls (GET, POST, PUT, DELETE)
+- Centralizes error handling
+
+```typescript
+// src/utils/api.ts
+export const apiUrl = (() => {
+  const url = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  
+  // In production, ensure HTTPS is used
+  if (import.meta.env.PROD && url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  
+  return url;
+})();
+
+export const apiGet = async (endpoint: string) => {
+  const response = await fetch(`${apiUrl}${endpoint}`);
+  return await response.json();
+};
+
+export const apiPost = async (endpoint: string, data: any) => {
+  const response = await fetch(`${apiUrl}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  return await response.json();
+};
+
+export const apiPut = async (endpoint: string, data: any) => {
+  const response = await fetch(`${apiUrl}${endpoint}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  return await response.json();
+};
+
+export const apiDelete = async (endpoint: string) => {
+  const response = await fetch(`${apiUrl}${endpoint}`, {
+    method: 'DELETE',
+  });
+  return await response.json();
+};
 ```
 
-We also added a direct endpoint for `/task-statuses` to match what the frontend is expecting:
+### 2. Component Updates
 
-```python
-@app.get("/task-statuses", tags=["task-statuses"])
-async def get_task_statuses():
-    """
-    Get all task statuses - direct endpoint for frontend compatibility.
-    """
-    try:
-        result = supabase.table("task_statuses").select("*").order("id").execute()
-        
-        if hasattr(result, 'error') and result.error:
-            logger.error(f"Error fetching task statuses: {result.error}")
-            raise HTTPException(status_code=500, detail=f"Error fetching task statuses: {result.error}")
-        
-        return {"success": True, "statuses": result.data}
-    except Exception as e:
-        logger.error(f"Error fetching task statuses: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+We updated all components that make API calls to use the new utility functions:
+
+#### AIAgentsPage.tsx
+- Removed direct fetch calls and replaced with apiGet, apiPost, apiPut, and apiDelete
+- Removed duplicate apiUrl definition
+
+#### ClientsPage.tsx
+- Removed direct fetch calls and replaced with apiGet, apiPost, and apiDelete
+- Removed duplicate apiUrl definition
+
+#### ClientDetailPage.tsx
+- Removed direct fetch calls and replaced with apiPut
+- Removed duplicate apiUrl definition
+
+#### ClientTasks.tsx
+- Removed direct fetch calls and replaced with apiGet, apiPost, apiPut, and apiDelete
+- Removed duplicate apiUrl definition
+- Added start_date property to Task interface in ClientTypes.ts
+
+#### TasksPage.tsx
+- Removed direct fetch calls and replaced with apiGet, apiPost, apiPut, and apiDelete
+- Removed duplicate apiUrl definition
+- Fixed BadgeVariant type issue
+
+### 3. Cloud Build Configuration
+
+We updated the Cloud Build configuration files to ensure the correct URLs are used:
+
+#### frontend-cloudbuild.yaml
+```yaml
+substitutions:
+  _API_URL: 'https://fabledash-backend-73351471156.us-central1.run.app'
+  _SUPABASE_URL: 'https://your-supabase-project.supabase.co'
+  _SUPABASE_KEY: 'your-supabase-anon-key'
 ```
 
-Additionally, we updated the CORS settings to specifically allow your frontend domain:
-
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://fabledash-frontend-73351471156.us-central1.run.app",
-        # Keep localhost for development
-        "http://localhost:3000",
-        "http://localhost:5173"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+#### backend-cloudbuild.yaml
+```yaml
+substitutions:
+  _SUPABASE_URL: 'https://your-supabase-project.supabase.co'
+  _SUPABASE_KEY: 'your-supabase-anon-key'
+  _OPENAI_API_KEY: 'your-openai-api-key'
+  _CORS_ORIGINS: 'https://fabledash-frontend-73351471156.us-central1.run.app'
 ```
 
-### 2. Mixed Content Error (HTTP vs HTTPS)
-
-**Problem**: The frontend is being served over HTTPS, but it's trying to access the backend API over HTTP, causing mixed content errors in the browser.
-
-**Solution**: You need to update the `_API_URL` environment variable in your Cloud Build trigger to use HTTPS instead of HTTP. See the `HTTPS_FIX.md` file for detailed instructions.
-
-## Deployment Steps
-
-To deploy these changes:
+## Deployment Instructions
 
 1. **Update the Cloud Build Service Account Permissions**:
-   - Go to IAM & Admin > IAM in the Google Cloud Console
-   - Find the Cloud Build service account (`73351471156-compute@developer.gserviceaccount.com`)
-   - Click the pencil icon to edit the permissions
-   - Click "Add another role" and add the "Security Admin" role
-   - Click "Save"
+   - Add the "Security Admin" role to your Cloud Build service account to allow it to set IAM policies
 
-2. **Update the API URL in the Frontend Cloud Build Trigger**:
-   - Go to Cloud Build > Triggers
-   - Find your frontend trigger
-   - Click on the trigger to edit it
-   - Scroll down to the Substitution variables section
-   - Update the `_API_URL` variable to use HTTPS:
-     ```
-     _API_URL: https://fabledash-backend-73351471156.us-central1.run.app
-     ```
-   - Click Save
+2. **Deploy the Backend First**:
+   ```
+   gcloud builds submit --config=backend-cloudbuild.yaml
+   ```
 
-3. **Deploy the Backend**:
-   - Trigger a new backend build
-   - This will deploy the updated backend with the fixed API paths
+3. **Deploy the Frontend**:
+   ```
+   gcloud builds submit --config=frontend-cloudbuild.yaml
+   ```
 
-4. **Deploy the Frontend**:
-   - After the backend is successfully deployed, trigger a new frontend build
-   - This will deploy the frontend with the correct HTTPS API URL
-
-## Verification
+## Testing
 
 After deployment, verify that:
 
-1. The backend API endpoints are accessible:
-   - `https://fabledash-backend-73351471156.us-central1.run.app/health`
-   - `https://fabledash-backend-73351471156.us-central1.run.app/clients`
-   - `https://fabledash-backend-73351471156.us-central1.run.app/task-statuses`
-   - `https://fabledash-backend-73351471156.us-central1.run.app/agents`
-
-2. The frontend can connect to the backend without any mixed content errors.
+1. The frontend can successfully make API calls to the backend
+2. No mixed content errors appear in the browser console
+3. All features (clients, tasks, agents) work as expected
 
 ## Future Considerations
 
-1. **Add a Fallback in Your Code**:
-   ```javascript
-   // In your API utility file or component
-   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-   
-   // Ensure HTTPS is used in production
-   const secureApiUrl = apiUrl.replace(/^http:\/\//i, 'https://');
-   ```
-
-2. **Consider Using a Base API Client**:
-   Create a centralized API client that handles all requests and ensures HTTPS is used in production.
-
-3. **Environment-Specific Configuration**:
-   Consider using different configuration files for development and production to avoid these issues in the future.
+1. **Error Handling**: The API utility functions could be enhanced with more robust error handling
+2. **Authentication**: If authentication is added in the future, the API utility should be updated to include authentication headers
+3. **Caching**: Consider adding caching for frequently accessed data
+4. **Monitoring**: Add monitoring to track API call performance and errors
