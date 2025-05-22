@@ -2,11 +2,25 @@
  * API utility functions for making HTTP requests to the backend
  */
 
-// Get the API URL from environment variables or use localhost for development
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Add type definition for window.ENV
+declare global {
+  interface Window {
+    ENV?: {
+      API_URL: string;
+      SUPABASE_URL: string;
+      SUPABASE_KEY: string;
+    };
+  }
+}
+
+// Get the API URL from window.ENV, environment variables, or use localhost for development
+const rawApiUrl = window.ENV?.API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Ensure HTTPS is used in production
 export const apiUrl = rawApiUrl.replace(/^http:\/\//i, 'https://');
+
+// Log the API URL for debugging
+console.log('Using API URL:', apiUrl);
 
 /**
  * Make a GET request to the API

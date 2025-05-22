@@ -34,14 +34,19 @@ app = FastAPI(
 )
 
 # Configure CORS
+# Get CORS origins from environment variable or use default
+cors_origins_str = os.getenv("CORS_ORIGINS", "https://fabledash-frontend-73351471156.us-central1.run.app")
+cors_origins = cors_origins_str.split(",")
+
+# Add development origins
+cors_origins.extend(["http://localhost:3000", "http://localhost:5173"])
+
+# Log the CORS origins for debugging
+logger.info(f"CORS origins: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://fabledash-frontend-73351471156.us-central1.run.app",
-        # Keep localhost for development
-        "http://localhost:3000",
-        "http://localhost:5173"
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers

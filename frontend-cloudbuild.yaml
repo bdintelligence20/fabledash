@@ -60,7 +60,8 @@ steps:
           --memory 512Mi \
           --cpu 1 \
           --min-instances 0 \
-          --max-instances 5
+          --max-instances 5 \
+          --set-env-vars API_URL=${_API_URL},SUPABASE_URL=${_SUPABASE_URL},SUPABASE_KEY=${_SUPABASE_KEY}
         
         # Set IAM policy to allow public access (using beta command as suggested)
         gcloud beta run services add-iam-policy-binding fabledash-frontend \
