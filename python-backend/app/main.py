@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware # Import ProxyHeadersMiddleware
 from fastapi.responses import JSONResponse
 import os
 import logging
@@ -51,6 +52,10 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Add ProxyHeadersMiddleware to handle X-Forwarded-Proto
+# This should help FastAPI understand it's behind an HTTPS proxy
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Include routers
 app.include_router(agents_router, prefix="/agents", tags=["agents"])
