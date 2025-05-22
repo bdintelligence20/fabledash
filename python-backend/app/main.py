@@ -39,7 +39,17 @@ app = FastAPI(
 # This should help FastAPI understand it's behind an HTTPS proxy
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
-# Configure CORS
+# Custom middleware to log request scheme details
+@app.middleware("http")
+async def log_request_details(request: Request, call_next):
+    logger.info(f"Incoming request URL: {request.url}")
+    logger.info(f"Request scheme from scope: {request.scope.get('scheme')}")
+    logger.info(f"X-Forwarded-Proto header: {request.headers.get('x-forwarded-proto')}")
+    logger.info(f"X-Forwarded-For header: {request.headers.get('x-forwarded-for')}")
+    response = await call_next(request)
+    return response
+
+# Configure CORS (AFTER ProxyHeaders and custom logger)
 # Get CORS origins from environment variable or use default
 cors_origins_str = os.getenv("CORS_ORIGINS", "https://fabledash-frontend-73351471156.us-central1.run.app")
 cors_origins = cors_origins_str.split(",")
