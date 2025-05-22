@@ -7,7 +7,7 @@ class Document(BaseModel):
     """Document model."""
     id: int
     agent_id: int
-    filename: str
+    filename: str = Field(..., alias='file_name') # Added alias for file_name from DB
     file_type: str
     file_size: int
     content_type: str
