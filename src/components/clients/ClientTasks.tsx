@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, X, Trash2, Edit, CheckSquare, Calendar, AlertCircle } from 'lucide-react';
 import { Task, TaskStatus } from './ClientTypes';
+import { apiUrl, apiGet, apiPost, apiPut, apiDelete } from '../../utils/api';
 
 interface ClientTasksProps {
   clientId: number;
@@ -22,7 +23,7 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
   
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  // We'll use the apiUrl from our utility instead
   
   // Fetch tasks and statuses on component mount
   useEffect(() => {
@@ -36,8 +37,8 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiUrl}/tasks/client/${clientId}`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet(`/tasks/client/${clientId}`);
       
       if (data.success) {
         setTasks(data.tasks);
@@ -55,8 +56,8 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
   // Fetch task statuses from API
   const fetchStatuses = async () => {
     try {
-      const response = await fetch(`${apiUrl}/task-statuses/list`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet('/task-statuses/list');
       
       if (data.success) {
         setStatuses(data.statuses);
@@ -93,11 +94,8 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
     try {
       setIsLoading(true);
       
-      const response = await fetch(`${apiUrl}/tasks/${taskId}`, {
-        method: 'DELETE',
-      });
-      
-      const data = await response.json();
+      // Use apiDelete utility instead of direct fetch
+      const data = await apiDelete(`/tasks/${taskId}`);
       
       if (data.success) {
         // Remove the task from the local state
@@ -156,24 +154,14 @@ const ClientTasks = ({ clientId }: ClientTasksProps) => {
         priority: newTaskPriority
       };
       
-      let url = `${apiUrl}/tasks/create`;
-      let method = 'POST';
+      let data;
       
-      // If we're editing an existing task, use PUT method and the task's ID
+      // If we're editing an existing task, use apiPut, otherwise use apiPost
       if (editingTaskId) {
-        url = `${apiUrl}/tasks/${editingTaskId}`;
-        method = 'PUT';
+        data = await apiPut(`/tasks/${editingTaskId}`, taskData);
+      } else {
+        data = await apiPost('/tasks/create', taskData);
       }
-      
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(taskData),
-      });
-      
-      const data = await response.json();
       
       if (data.success) {
         // Reset form

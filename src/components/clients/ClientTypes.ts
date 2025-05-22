@@ -12,6 +12,7 @@ export interface Task {
   id: number;
   title: string;
   description: string | null;
+  start_date: string | null;
   due_date: string | null;
   priority: string;
   status_id: number;

@@ -8,6 +8,7 @@ import AgentDetails from '../agents/AgentDetails';
 import AgentChat from '../agents/AgentChat';
 import ChatHistory from '../agents/ChatHistory';
 import { Card, Modal } from '../ui';
+import { apiUrl, apiGet, apiPost, apiDelete, apiUploadFile } from '../../utils/api';
 
 const AIAgentsPage = () => {
   // State for agents and related data
@@ -32,7 +33,7 @@ const AIAgentsPage = () => {
   const [childAgentChats, setChildAgentChats] = useState<Chat[]>([]);
   const [parentAgentChats, setParentAgentChats] = useState<Chat[]>([]);
   
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  // We'll use the apiUrl from our utility instead
   
   // Fetch agents and clients on component mount
   useEffect(() => {
@@ -47,11 +48,8 @@ const AIAgentsPage = () => {
       setError(null);
       
       console.log('Fetching all agents');
-      // Fetch all agents
-      const response = await fetch(`${apiUrl}/agents`);
-      console.log('All agents response:', response);
-      
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet('/agents');
       console.log('All agents data:', data);
       
       if (data.success) {
@@ -73,8 +71,8 @@ const AIAgentsPage = () => {
   // Fetch clients from API
   const fetchClients = async () => {
     try {
-      const response = await fetch(`${apiUrl}/clients`);
-      const data = await response.json();
+      // Use apiGet utility instead of direct fetch
+      const data = await apiGet('/clients');
       
       if (data.success) {
         setClients(data.clients);
