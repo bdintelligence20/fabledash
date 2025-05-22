@@ -26,8 +26,10 @@ console.log('Final API URL being used:', apiUrl);
  * @returns Promise with the JSON response
  */
 export const apiGet = async (endpoint: string) => {
+  const fullUrl = `${apiUrl}${endpoint}`;
+  console.log(`apiGet: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
-    const response = await fetch(`${apiUrl}${endpoint}`);
+    const response = await fetch(fullUrl);
     return await response.json();
   } catch (error) {
     console.error(`Error fetching ${endpoint}:`, error);
@@ -42,8 +44,10 @@ export const apiGet = async (endpoint: string) => {
  * @returns Promise with the JSON response
  */
 export const apiPost = async (endpoint: string, data: any) => {
+  const fullUrl = `${apiUrl}${endpoint}`;
+  console.log(`apiPost: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
-    const response = await fetch(`${apiUrl}${endpoint}`, {
+    const response = await fetch(fullUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -64,8 +68,10 @@ export const apiPost = async (endpoint: string, data: any) => {
  * @returns Promise with the JSON response
  */
 export const apiPut = async (endpoint: string, data: any) => {
+  const fullUrl = `${apiUrl}${endpoint}`;
+  console.log(`apiPut: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
-    const response = await fetch(`${apiUrl}${endpoint}`, {
+    const response = await fetch(fullUrl, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -85,8 +91,10 @@ export const apiPut = async (endpoint: string, data: any) => {
  * @returns Promise with the JSON response
  */
 export const apiDelete = async (endpoint: string) => {
+  const fullUrl = `${apiUrl}${endpoint}`;
+  console.log(`apiDelete: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
-    const response = await fetch(`${apiUrl}${endpoint}`, {
+    const response = await fetch(fullUrl, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -106,8 +114,10 @@ export const apiDelete = async (endpoint: string) => {
  * @returns Promise with the JSON response
  */
 export const apiUploadFile = async (endpoint: string, formData: FormData) => {
+  const fullUrl = `${apiUrl}${endpoint}`;
+  console.log(`apiUploadFile: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
-    const response = await fetch(`${apiUrl}${endpoint}`, {
+    const response = await fetch(fullUrl, {
       method: 'POST',
       body: formData,
     });
