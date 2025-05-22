@@ -277,12 +277,15 @@ const AIAgentsPage = () => {
       
       setChatMessages([...chatMessages, userMessage]);
       
-      // Use the serverless function for better timeout handling
-      // This is a special case where we need to use the full URL
-      const chatMessageUrl = `${apiUrl.replace('/api', '')}/api/chat-message?id=${currentChatId}`;
+      // Construct the correct endpoint using apiUrl and the path defined in chats.py router
+      const chatMessageUrl = `${apiUrl}/chats/${currentChatId}/message`;
       console.log('Using chat message endpoint:', chatMessageUrl);
       
-      // Special case for the serverless function
+      // Use the centralized apiPost or a direct fetch with the correct URL
+      // For consistency, let's use a direct fetch here as the original code did,
+      // but ensure it uses the correctly constructed chatMessageUrl.
+      // Note: The original comment about "serverless function" might be outdated
+      // if this is now a regular FastAPI endpoint.
       const response = await fetch(chatMessageUrl, {
         method: 'POST',
         headers: {
