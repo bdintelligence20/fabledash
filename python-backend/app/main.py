@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
 import logging
 from dotenv import load_dotenv
+from app.utils.supabase_client import get_supabase_client
 
 # Import routers
 from app.api.agents import router as agents_router
@@ -14,6 +15,9 @@ from app.api.tasks import router as tasks_router
 
 # Load environment variables
 load_dotenv()
+
+# Initialize Supabase client
+supabase = get_supabase_client()
 
 # Configure logging
 logging.basicConfig(
@@ -32,18 +36,40 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=[
+        "https://fabledash-frontend-73351471156.us-central1.run.app",
+        # Keep localhost for development
+        "http://localhost:3000",
+        "http://localhost:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
 
 # Include routers
-app.include_router(agents_router, prefix="/api/agents", tags=["agents"])
-app.include_router(chats_router, prefix="/api/chats", tags=["chats"])
-app.include_router(documents_router, prefix="/api/documents", tags=["documents"])
-app.include_router(clients_router, prefix="/api/clients", tags=["clients"])
-app.include_router(tasks_router, prefix="/api/tasks", tags=["tasks"])
+app.include_router(agents_router, prefix="/agents", tags=["agents"])
+app.include_router(chats_router, prefix="/chats", tags=["chats"])
+app.include_router(documents_router, prefix="/documents", tags=["documents"])
+app.include_router(clients_router, prefix="/clients", tags=["clients"])
+app.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
+# Add direct route for task-statuses that the frontend is trying to access
+@app.get("/task-statuses", tags=["task-statuses"])
+async def get_task_statuses():
+    """
+    Get all task statuses - direct endpoint for frontend compatibility.
+    """
+    try:
+        result = supabase.table("task_statuses").select("*").order("id").execute()
+        
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Error fetching task statuses: {result.error}")
+            raise HTTPException(status_code=500, detail=f"Error fetching task statuses: {result.error}")
+        
+        return {"success": True, "statuses": result.data}
+    except Exception as e:
+        logger.error(f"Error fetching task statuses: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Root endpoint
 @app.get("/", tags=["root"])

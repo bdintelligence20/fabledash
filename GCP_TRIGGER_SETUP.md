@@ -51,6 +51,17 @@ Ensure the service account used by Cloud Build has the following roles:
 - Cloud Run Admin
 - Service Account User
 - Storage Admin
+- Security Admin (needed to set IAM policies)
+
+To add these roles to your Cloud Build service account:
+
+1. Go to IAM & Admin > IAM in the Google Cloud Console
+2. Find the Cloud Build service account (usually named `[PROJECT_NUMBER]@cloudbuild.gserviceaccount.com`)
+3. Click the pencil icon to edit the permissions
+4. Click "Add another role" and add each of the roles listed above
+5. Click "Save"
+
+Without the Security Admin role, the automatic IAM policy binding in the cloudbuild.yaml files will fail, but the deployment will still succeed with a warning.
 
 ## Setting Up the Frontend Trigger
 

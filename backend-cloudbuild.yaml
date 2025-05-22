@@ -29,11 +29,11 @@ steps:
           --max-instances 10 \
           --set-env-vars SUPABASE_URL=${_SUPABASE_URL},SUPABASE_KEY=${_SUPABASE_KEY},OPENAI_API_KEY=${_OPENAI_API_KEY},CORS_ORIGINS=${_CORS_ORIGINS}
         
-        # Set IAM policy to allow public access
-        gcloud run services add-iam-policy-binding fabledash-backend \
+        # Set IAM policy to allow public access (using beta command as suggested)
+        gcloud beta run services add-iam-policy-binding fabledash-backend \
           --region=us-central1 \
           --member="allUsers" \
-          --role="roles/run.invoker"
+          --role="roles/run.invoker" || echo "Warning: Could not set IAM policy. Please set it manually."
     id: 'deploy-backend'
     waitFor: ['push-container']
 
