@@ -32,7 +32,12 @@ app = FastAPI(
     title="FableDash API",
     description="API for FableDash AI Agent System",
     version="1.0.0",
+    root_path_in_servers=False,  # Ensure OpenAPI server URLs are correct behind proxy
 )
+
+# Add ProxyHeadersMiddleware FIRST to handle X-Forwarded-Proto
+# This should help FastAPI understand it's behind an HTTPS proxy
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Configure CORS
 # Get CORS origins from environment variable or use default
@@ -52,10 +57,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
-
-# Add ProxyHeadersMiddleware to handle X-Forwarded-Proto
-# This should help FastAPI understand it's behind an HTTPS proxy
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Include routers
 app.include_router(agents_router, prefix="/agents", tags=["agents"])
