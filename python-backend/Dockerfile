@@ -36,4 +36,4 @@ ENV PORT=8080
 # This allows Uvicorn to trust X-Forwarded-Proto and X-Forwarded-For headers
 # from any proxy (like Google Cloud Run's frontend).
 # The proxy_headers setting in Uvicorn is typically enabled by default when forwarded_allow_ips is set.
-CMD ["gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8080", "--forwarded-allow-ips='*'"]
+CMD ["gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8080", "--forwarded-allow-ips=*"]
