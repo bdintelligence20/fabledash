@@ -2,11 +2,23 @@
  * API utility functions for making HTTP requests to the backend
  */
 
-// Force HTTPS for the backend URL
-export const apiUrl = 'https://fabledash-backend-73351471156.us-central1.run.app';
+// Determine API URL: Prioritize runtime ENV, then build-time ENV, then hardcoded default
+// Ensure window.ENV is checked safely as it's injected at runtime
+const runtimeApiUrl = typeof window !== 'undefined' && window.ENV && window.ENV.API_URL ? window.ENV.API_URL : null;
+const buildtimeApiUrl = process.env.VITE_API_URL;
+const defaultApiUrl = 'https://fabledash-backend-73351471156.us-central1.run.app'; // Fallback
 
-// Log the API URL for debugging
-console.log('Using API URL:', apiUrl);
+export const apiUrl = runtimeApiUrl || buildtimeApiUrl || defaultApiUrl;
+
+// Log the API URL and its source for debugging
+if (runtimeApiUrl) {
+  console.log('Using runtime API URL (from env-config.js):', apiUrl);
+} else if (buildtimeApiUrl) {
+  console.log('Using build-time API URL (from Vite .env):', apiUrl);
+} else {
+  console.log('Using default hardcoded API URL:', apiUrl);
+}
+console.log('Final API URL being used:', apiUrl);
 
 /**
  * Make a GET request to the API
