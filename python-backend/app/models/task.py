@@ -38,7 +38,7 @@ class Task(BaseModel):
     client_id: Optional[int] = None
     status_id: int
     due_date: Optional[date] = None
-    priority: Optional[int] = None
+    priority: Optional[str] = None  # Changed from int to str
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -49,7 +49,7 @@ class TaskCreate(BaseModel):
     client_id: Optional[int] = None
     status_id: int
     due_date: Optional[date] = None
-    priority: Optional[int] = None
+    priority: Optional[str] = None  # Changed from int to str
 
 class TaskUpdate(BaseModel):
     """Model for updating a task."""
@@ -58,7 +58,7 @@ class TaskUpdate(BaseModel):
     client_id: Optional[int] = None
     status_id: Optional[int] = None
     due_date: Optional[date] = None
-    priority: Optional[int] = None
+    priority: Optional[str] = None  # Changed from int to str
 
 class TaskCommentCreate(BaseModel):
     """Model for creating a new task comment."""
