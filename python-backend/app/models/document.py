@@ -8,9 +8,9 @@ class Document(BaseModel):
     id: int
     agent_id: int
     filename: str = Field(..., alias='file_name') # Added alias for file_name from DB
-    file_type: str
-    file_size: int
-    content_type: str
+    file_type: Optional[str] = None # Made Optional
+    file_size: Optional[int] = None # Made Optional
+    content_type: Optional[str] = None # Made Optional
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -18,9 +18,9 @@ class DocumentCreate(BaseModel):
     """Model for creating a new document."""
     agent_id: int
     filename: str
-    file_type: str
-    file_size: int
-    content_type: str
+    file_type: Optional[str] = None # Made Optional
+    file_size: Optional[int] = None # Made Optional
+    content_type: Optional[str] = None # Made Optional
 
 class DocumentResponse(BaseResponse):
     """Response model for a single document."""
