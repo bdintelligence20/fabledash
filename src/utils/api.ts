@@ -2,22 +2,8 @@
  * API utility functions for making HTTP requests to the backend
  */
 
-// Add type definition for window.ENV
-declare global {
-  interface Window {
-    ENV?: {
-      API_URL: string;
-      SUPABASE_URL: string;
-      SUPABASE_KEY: string;
-    };
-  }
-}
-
-// Get the API URL from window.ENV, environment variables, or use localhost for development
-const rawApiUrl = window.ENV?.API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-// Ensure HTTPS is used in production
-export const apiUrl = rawApiUrl.replace(/^http:\/\//i, 'https://');
+// Force HTTPS for the backend URL
+export const apiUrl = 'https://fabledash-backend-73351471156.us-central1.run.app';
 
 // Log the API URL for debugging
 console.log('Using API URL:', apiUrl);
