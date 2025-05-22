@@ -42,11 +42,25 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 # Custom middleware to log request scheme details
 @app.middleware("http")
 async def log_request_details(request: Request, call_next):
-    logger.info(f"Incoming request URL: {request.url}")
-    logger.info(f"Request scheme from scope: {request.scope.get('scheme')}")
-    logger.info(f"X-Forwarded-Proto header: {request.headers.get('x-forwarded-proto')}")
-    logger.info(f"X-Forwarded-For header: {request.headers.get('x-forwarded-for')}")
+    # Log initial state
+    logger.info(f"Middleware - Initial incoming request URL: {request.url}")
+    logger.info(f"Middleware - Initial request scheme from scope: {request.scope.get('scheme')}")
+    logger.info(f"Middleware - Initial X-Forwarded-Proto header: {request.headers.get('x-forwarded-proto')}")
+    logger.info(f"Middleware - Initial X-Forwarded-For header: {request.headers.get('x-forwarded-for')}")
+
+    # If X-Forwarded-Proto is https, ensure the scope reflects this.
+    # This might help Starlette's redirect logic generate correct HTTPS URLs.
+    x_forwarded_proto = request.headers.get('x-forwarded-proto')
+    if x_forwarded_proto:
+        request.scope['scheme'] = x_forwarded_proto
+        logger.info(f"Middleware - Overwrote scope scheme to: {request.scope['scheme']} based on X-Forwarded-Proto")
+    
     response = await call_next(request)
+    
+    # Log redirect location if it's a redirect response
+    if response.status_code in [301, 302, 303, 307, 308] and "location" in response.headers:
+        logger.info(f"Middleware - Redirecting to: {response.headers['location']} with status {response.status_code}")
+        
     return response
 
 # Configure CORS (AFTER ProxyHeaders and custom logger)
