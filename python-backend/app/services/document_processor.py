@@ -219,6 +219,21 @@ async def retrieve_relevant_chunks(
         List[RelevantChunk]: List of relevant document chunks with similarity scores.
     """
     try:
+        # Check if document_chunks table exists by trying to query it
+        try:
+            test_result = supabase.table("document_chunks").select("id").limit(1).execute()
+            if hasattr(test_result, 'error') and test_result.error:
+                # Check if the error is about the table not existing
+                if 'does not exist' in str(test_result.error):
+                    logger.warning(f"document_chunks table does not exist. Returning empty chunks list.")
+                    return []
+                else:
+                    logger.error(f"Error testing document_chunks table: {test_result.error}")
+                    return []
+        except Exception as table_check_error:
+            logger.warning(f"Could not check document_chunks table existence: {table_check_error}. Returning empty chunks list.")
+            return []
+        
         # Generate embedding for query
         query_embedding = await generate_embedding(query)
         
@@ -285,6 +300,10 @@ async def retrieve_relevant_chunks(
         
         if hasattr(chunks_result, 'error') and chunks_result.error:
             logger.error(f"Error retrieving chunks: {chunks_result.error}")
+            # If the table doesn't exist, return empty list instead of raising exception
+            if 'does not exist' in str(chunks_result.error):
+                logger.warning(f"document_chunks table does not exist. Returning empty chunks list.")
+                return []
             raise Exception(f"Error retrieving chunks: {chunks_result.error}")
         
         chunks = chunks_result.data
@@ -327,7 +346,9 @@ async def retrieve_relevant_chunks(
         return relevant_chunks
     except Exception as e:
         logger.error(f"Error retrieving relevant chunks: {e}")
-        raise
+        # Instead of raising the exception, return empty list to allow chat to continue
+        logger.warning(f"Returning empty chunks list due to error: {e}")
+        return []
 
 def format_chunks_as_context(chunks: List[RelevantChunk]) -> str:
     """
