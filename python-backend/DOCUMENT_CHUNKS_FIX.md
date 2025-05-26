@@ -9,22 +9,38 @@ You may encounter the following issues related to the missing `document_chunks` 
 Error retrieving relevant chunks: {'code': '42P01', 'details': None, 'hint': None, 'message': 'relation "public.document_chunks" does not exist'}
 ```
 
-2. **Document Upload Error**: When trying to upload documents, you get a 405 (Method Not Allowed) error or the upload fails during processing.
+2. **Document Upload Error**: When trying to upload documents, you may encounter:
+   - 405 (Method Not Allowed) error
+   - 500 error with message: `Could not find the 'content_type' column of 'documents'`
+   - Upload fails during processing
 
-These errors occur because the `document_chunks` table is missing from your Supabase database. This table is required for the RAG (Retrieval Augmented Generation) system to store and retrieve document chunks for AI agents.
+These errors occur because:
+1. The `document_chunks` table is missing from your Supabase database
+2. The `documents` table is missing required columns (`content_type`, `file_size`, `file_type`, `updated_at`)
+
+These components are required for the RAG (Retrieval Augmented Generation) system and document management.
 
 ## Solution
 
-### Option 1: Run SQL Script in Supabase Dashboard (Recommended)
+### Option 1: Fix Documents Table First (If getting content_type errors)
+
+If you're getting `Could not find the 'content_type' column` errors:
+
+1. Go to your Supabase project dashboard
+2. Navigate to the SQL Editor
+3. Copy and paste the contents of `python-backend/scripts/fix_documents_table.sql`
+4. Run the SQL script
+
+### Option 2: Create Document Chunks Table
 
 1. Go to your Supabase project dashboard
 2. Navigate to the SQL Editor
 3. Copy and paste the contents of `python-backend/scripts/create_document_chunks_table.sql`
 4. Run the SQL script
 
-### Option 2: Apply the Complete Schema
+### Option 3: Apply the Complete Schema (Comprehensive Fix)
 
-If you want to ensure all tables are properly created, you can run the complete schema:
+If you want to ensure all tables are properly created with all required columns:
 
 1. Go to your Supabase project dashboard
 2. Navigate to the SQL Editor

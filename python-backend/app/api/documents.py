@@ -114,6 +114,7 @@ async def upload_document(
         document_data = {
             "agent_id": agent_id,
             "filename": filename,
+            "file_name": filename,  # Add this for compatibility with existing schema
             "file_type": file_extension,
             "file_size": file_size,
             "content_type": content_type
