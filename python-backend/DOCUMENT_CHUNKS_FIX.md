@@ -2,13 +2,16 @@
 
 ## Issue Description
 
-When trying to start a chat with a child agent, you may encounter the following error:
+You may encounter the following issues related to the missing `document_chunks` table:
 
+1. **Chat Error**: When trying to start a chat with a child agent:
 ```
 Error retrieving relevant chunks: {'code': '42P01', 'details': None, 'hint': None, 'message': 'relation "public.document_chunks" does not exist'}
 ```
 
-This error occurs because the `document_chunks` table is missing from your Supabase database. This table is required for the RAG (Retrieval Augmented Generation) system to store and retrieve document chunks for AI agents.
+2. **Document Upload Error**: When trying to upload documents, you get a 405 (Method Not Allowed) error or the upload fails during processing.
+
+These errors occur because the `document_chunks` table is missing from your Supabase database. This table is required for the RAG (Retrieval Augmented Generation) system to store and retrieve document chunks for AI agents.
 
 ## Solution
 
@@ -41,11 +44,18 @@ The fix creates the following:
 
 ## Code Changes Made
 
-The document processor service (`python-backend/app/services/document_processor.py`) has been updated to:
+### Document Processor Service (`python-backend/app/services/document_processor.py`)
 
 1. **Gracefully handle missing table** - Instead of crashing, it now returns an empty chunks list
 2. **Check table existence** - Verifies the table exists before attempting queries
 3. **Log warnings** - Provides clear logging when the table is missing
+4. **Document processing** - Handles missing table during document upload processing
+
+### Documents API (`python-backend/app/api/documents.py`)
+
+1. **Added `/formdata` endpoint** - Provides alternative upload endpoint for frontend compatibility
+2. **Graceful chunk deletion** - Handles missing table when deleting documents
+3. **Error handling** - Prevents upload failures when RAG processing isn't available
 
 ## Verification
 

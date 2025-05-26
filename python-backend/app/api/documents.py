@@ -141,6 +141,17 @@ async def upload_document(
         logger.error(f"Error uploading document: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/formdata", response_model=DocumentResponse)
+async def upload_document_formdata(
+    file: UploadFile = File(...),
+    agent_id: int = Form(..., description="The ID of the agent to associate the document with")
+):
+    """
+    Upload a document using form data (alternative endpoint for frontend compatibility).
+    """
+    # This is the same as the main upload endpoint, just with a different path
+    return await upload_document(file=file, agent_id=agent_id)
+
 @router.delete("/{document_id}", response_model=DocumentResponse)
 async def delete_document(document_id: int = Path(..., description="The ID of the document to delete")):
     """
@@ -154,12 +165,19 @@ async def delete_document(document_id: int = Path(..., description="The ID of th
             logger.error(f"Document not found: {document_result.error}")
             raise HTTPException(status_code=404, detail=f"Document not found: {document_result.error}")
         
-        # Delete document chunks
-        chunks_result = supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
-        
-        if hasattr(chunks_result, 'error') and chunks_result.error:
-            logger.error(f"Error deleting document chunks: {chunks_result.error}")
-            raise HTTPException(status_code=500, detail=f"Error deleting document chunks: {chunks_result.error}")
+        # Delete document chunks (handle gracefully if table doesn't exist)
+        try:
+            chunks_result = supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
+            
+            if hasattr(chunks_result, 'error') and chunks_result.error:
+                # If the table doesn't exist, log warning but continue
+                if 'does not exist' in str(chunks_result.error):
+                    logger.warning(f"document_chunks table does not exist, skipping chunk deletion")
+                else:
+                    logger.error(f"Error deleting document chunks: {chunks_result.error}")
+                    raise HTTPException(status_code=500, detail=f"Error deleting document chunks: {chunks_result.error}")
+        except Exception as chunk_error:
+            logger.warning(f"Could not delete document chunks: {chunk_error}")
         
         # Delete document
         result = supabase.table("documents").delete().eq("id", document_id).execute()

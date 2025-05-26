@@ -161,6 +161,20 @@ async def process_document(document_id: int, file_path: str, file_type: str) -> 
         file_type: Type of the document file.
     """
     try:
+        # Check if document_chunks table exists first
+        try:
+            test_result = supabase.table("document_chunks").select("id").limit(1).execute()
+            if hasattr(test_result, 'error') and test_result.error:
+                if 'does not exist' in str(test_result.error):
+                    logger.warning(f"document_chunks table does not exist. Document {document_id} uploaded but not processed for RAG.")
+                    return
+                else:
+                    logger.error(f"Error testing document_chunks table: {test_result.error}")
+                    return
+        except Exception as table_check_error:
+            logger.warning(f"Could not check document_chunks table existence: {table_check_error}. Document {document_id} uploaded but not processed for RAG.")
+            return
+        
         # Extract text from document
         text = extract_text(file_path, file_type)
         
@@ -191,12 +205,17 @@ async def process_document(document_id: int, file_path: str, file_type: str) -> 
             
             if hasattr(result, 'error') and result.error:
                 logger.error(f"Error storing document chunk: {result.error}")
+                # If the table doesn't exist, log warning but don't raise exception
+                if 'does not exist' in str(result.error):
+                    logger.warning(f"document_chunks table does not exist. Document {document_id} uploaded but not processed for RAG.")
+                    return
                 raise Exception(f"Error storing document chunk: {result.error}")
             
         logger.info(f"Document {document_id} processed successfully")
     except Exception as e:
         logger.error(f"Error processing document {document_id}: {e}")
-        raise
+        # Don't raise the exception to prevent upload failure
+        logger.warning(f"Document {document_id} uploaded but processing failed: {e}")
 
 async def retrieve_relevant_chunks(
     agent_id: int,
