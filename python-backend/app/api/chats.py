@@ -9,7 +9,7 @@ from app.models.chat import (
 from app.models.agent import Agent
 from app.utils.supabase_client import get_supabase_client
 from app.utils.openai_client import get_openai_client, safe_api_call
-from app.services.document_processor import retrieve_relevant_chunks, format_chunks_as_context
+from app.services.document_processor import retrieve_relevant_chunks, format_chunks_as_context, retrieve_child_agent_chat_history, format_chat_history_as_context
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -215,26 +215,43 @@ async def send_message(
         # Format chunks as context
         document_context = format_chunks_as_context(relevant_chunks)
         
-        # If we have relevant chunks, add them to the context
+        # If this is a parent agent, retrieve child agent chat history
+        child_chat_context = ""
+        if include_child_agent_context:
+            logger.info("Retrieving child agent chat history for parent agent context")
+            child_chat_context = await retrieve_child_agent_chat_history(chat["agents"]["id"], limit=20)
+            if child_chat_context:
+                logger.info("Retrieved child agent chat history")
+            else:
+                logger.info("No child agent chat history found")
+        
+        # Combine all context
+        all_context = ""
         if document_context:
-            logger.info("Adding document context to the prompt")
+            all_context += document_context
+        if child_chat_context:
+            all_context += format_chat_history_as_context(child_chat_context)
+        
+        # If we have any context, add it to the prompt
+        if all_context:
+            logger.info("Adding context to the prompt")
             
             # Find the system message
             system_message_index = next((i for i, msg in enumerate(openai_messages) if msg["role"] == "system"), None)
             
             if system_message_index is not None:
-                # Add document context to system message
-                logger.info("Adding document context to existing system message")
-                openai_messages[system_message_index]["content"] += "\n\n" + document_context
+                # Add context to system message
+                logger.info("Adding context to existing system message")
+                openai_messages[system_message_index]["content"] += "\n\n" + all_context
             else:
-                # If no system message exists, add one with the document context
-                logger.info("Creating new system message with document context")
+                # If no system message exists, add one with the context
+                logger.info("Creating new system message with context")
                 openai_messages.insert(0, {
                     "role": "system",
-                    "content": f"You are an AI assistant. {document_context}"
+                    "content": f"You are an AI assistant. {all_context}"
                 })
         else:
-            logger.info("No document context to add to the prompt")
+            logger.info("No context to add to the prompt")
         
         # Use the safe_api_call helper to handle API errors gracefully
         completion = await safe_api_call(

@@ -389,3 +389,89 @@ def format_chunks_as_context(chunks: List[RelevantChunk]) -> str:
         context += f"--- {document_info} ---\n{chunk.chunk.content}\n\n"
     
     return context
+
+async def retrieve_child_agent_chat_history(agent_id: int, limit: int = 10) -> str:
+    """
+    Retrieve recent chat history from child agents for parent agent context.
+    
+    Args:
+        agent_id: ID of the parent agent.
+        limit: Maximum number of recent messages to retrieve per child agent.
+        
+    Returns:
+        str: Formatted chat history context.
+    """
+    try:
+        # Get all child agents
+        child_agents_result = supabase.table("agents").select("id, name").eq("parent_id", agent_id).execute()
+        
+        if hasattr(child_agents_result, 'error') and child_agents_result.error:
+            logger.error(f"Error retrieving child agents: {child_agents_result.error}")
+            return ""
+        
+        child_agents = child_agents_result.data
+        if not child_agents:
+            return ""
+        
+        context = "Here are recent conversations from my specialized child agents:\n\n"
+        
+        for child_agent in child_agents:
+            child_agent_id = child_agent["id"]
+            child_agent_name = child_agent["name"]
+            
+            # Get recent chats for this child agent
+            chats_result = supabase.table("chats").select("id").eq("agent_id", child_agent_id).order("created_at", desc=True).limit(3).execute()
+            
+            if hasattr(chats_result, 'error') and chats_result.error:
+                logger.warning(f"Error retrieving chats for child agent {child_agent_id}: {chats_result.error}")
+                continue
+            
+            chats = chats_result.data
+            if not chats:
+                continue
+            
+            # Get recent messages from these chats
+            chat_ids = [chat["id"] for chat in chats]
+            messages_result = supabase.table("messages").select("role, content, created_at").in_("chat_id", chat_ids).neq("role", "system").order("created_at", desc=True).limit(limit).execute()
+            
+            if hasattr(messages_result, 'error') and messages_result.error:
+                logger.warning(f"Error retrieving messages for child agent {child_agent_id}: {messages_result.error}")
+                continue
+            
+            messages = messages_result.data
+            if not messages:
+                continue
+            
+            context += f"--- {child_agent_name} (Child Agent) ---\n"
+            
+            # Group messages into Q&A pairs
+            for i in range(0, len(messages), 2):
+                if i + 1 < len(messages):
+                    user_msg = messages[i] if messages[i]["role"] == "user" else messages[i + 1]
+                    assistant_msg = messages[i + 1] if messages[i + 1]["role"] == "assistant" else messages[i]
+                    
+                    if user_msg["role"] == "user" and assistant_msg["role"] == "assistant":
+                        context += f"Q: {user_msg['content']}\n"
+                        context += f"A: {assistant_msg['content']}\n\n"
+            
+            context += "\n"
+        
+        return context
+    except Exception as e:
+        logger.error(f"Error retrieving child agent chat history: {e}")
+        return ""
+
+def format_chat_history_as_context(chat_history: str) -> str:
+    """
+    Format chat history as context for the AI.
+    
+    Args:
+        chat_history: Raw chat history string.
+        
+    Returns:
+        str: Formatted context.
+    """
+    if not chat_history:
+        return ""
+    
+    return f"\n\n{chat_history}"
