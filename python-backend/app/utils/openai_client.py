@@ -1,5 +1,5 @@
 import os
-from openai import OpenAI
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import logging
 
@@ -18,18 +18,18 @@ if not OPENAI_API_KEY:
 
 # Create OpenAI client
 try:
-    openai_client = OpenAI(api_key=OPENAI_API_KEY)
-    logger.info("OpenAI client created successfully")
+    openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    logger.info("OpenAI async client created successfully")
 except Exception as e:
     logger.error(f"Error creating OpenAI client: {e}")
     raise
 
-def get_openai_client() -> OpenAI:
+def get_openai_client() -> AsyncOpenAI:
     """
-    Returns the OpenAI client instance.
+    Returns the OpenAI async client instance.
     
     Returns:
-        OpenAI: The OpenAI client instance.
+        AsyncOpenAI: The OpenAI async client instance.
     """
     return openai_client
 

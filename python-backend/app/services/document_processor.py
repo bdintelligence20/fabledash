@@ -141,8 +141,8 @@ async def generate_embedding(text: str) -> List[float]:
         List[float]: Embedding vector.
     """
     try:
-        # Assuming openai_client is synchronous. If it were AsyncOpenAI, await would be correct.
-        response = openai_client.embeddings.create(
+        # Use async OpenAI client
+        response = await openai_client.embeddings.create(
             model="text-embedding-3-small",
             input=text
         )
