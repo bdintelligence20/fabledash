@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 1, 2, 3 COMPLETE. 4, 5 of 12 -- IN PROGRESS
-Plan: 04-02 complete (client detail page), 04-03 complete, 05-01 complete, 05-02 complete, 05-03 complete.
-Status: Phase 4 in progress (04-01, 04-02, 04-03 done), Phase 5 in progress (05-01, 05-02, 05-03 done). Parallel execution.
-Last activity: 2026-02-25 -- Plan 05-02 executed (activity log / Gemini-style timer)
+Plan: 04-03 complete, 05-01 complete, 05-02 complete, 05-03 complete, 05-04 complete.
+Status: Phase 4 in progress (04-01, 04-02, 04-03 done), Phase 5 in progress (05-01, 05-02, 05-03, 05-04 done). Parallel execution.
+Last activity: 2026-02-25 -- Plan 05-04 executed (time allocation dashboard with backend aggregation endpoint)
 
 Progress: [==================]░░ ~28%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: 3.0 min
-- Total execution time: ~0.98 hours
+- Total plans completed: 21
+- Average duration: 2.9 min
+- Total execution time: ~1.0 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [==================]░░ ~28%
 | 02-core-data | 4/4 | 12 min | 3.0 min |
 | 03-frontend | 4/4 | 11 min | 2.8 min |
 | 04-client-task | 4/5 | 11 min | 2.8 min |
-| 05-advanced-time-logging | 3/5 | 7 min | 2.3 min |
+| 05-advanced-time-logging | 4/5 | 9 min | 2.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (2 min), 04-02 (2 min), 02-04 (3 min), 03-03 (2 min), 02-03 (3 min)
+- Last 5 plans: 05-04 (2 min), 05-02 (2 min), 04-02 (2 min), 02-04 (3 min), 03-03 (2 min)
 - Trend: consistently fast ~2-3 min/plan
 
 ## Accumulated Context
@@ -109,6 +109,10 @@ Recent decisions affecting current work:
 - **05-02:** Timer and form maintain separate task lists to avoid coupling their client selections
 - **05-02:** ActivityLog sorts chronologically ascending for natural top-to-bottom timeline reading
 - **05-02:** Grid uses 3/5 + 2/5 column split (lg:grid-cols-5) for balanced form/log proportion
+- **05-04:** Four chart colors mapped to partner groups: primary-500 (Collab), success-500 (EDCP), accent-500 (Direct Clients), warning-500 (Separate Businesses)
+- **05-04:** Stacked bar built with pure CSS/Tailwind -- no chart library dependency added
+- **05-04:** Backend builds client_id->partner_group map by fetching all clients for cross-collection Firestore join
+
 ### Deferred Issues
 
 None yet.
@@ -120,5 +124,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 04-02 complete. Phase 4 in progress (04-04 next). Phase 5 in progress (05-04 next).
-Resume file: .planning/phases/04-client-task-management/04-02-SUMMARY.md
+Stopped at: Plan 05-04 complete. Phase 5 nearly done (05-05 remaining). Phase 4 in progress (04-04, 04-05 remaining).
+Resume file: .planning/phases/05-advanced-time-logging/05-04-SUMMARY.md
