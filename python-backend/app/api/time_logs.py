@@ -76,6 +76,7 @@ async def create_time_log(
         "description": body.description,
         "start_time": body.start_time.isoformat(),
         "end_time": body.end_time.isoformat(),
+        "is_billable": body.is_billable,
         "duration_minutes": duration_minutes,
         "created_at": now.isoformat(),
         "updated_at": now.isoformat(),
@@ -109,6 +110,7 @@ async def list_time_logs(
     date_from: dt.date | None = Query(None, description="Filter logs on or after this date"),
     date_to: dt.date | None = Query(None, description="Filter logs on or before this date"),
     created_by: str | None = Query(None, description="Filter by user who created the entry"),
+    is_billable: bool | None = Query(None, description="Filter by billable status"),
 ):
     """List time logs with optional filtering by client, task, date range, and creator."""
     try:
@@ -125,6 +127,8 @@ async def list_time_logs(
             query = query.where("date", "<=", date_to.isoformat())
         if created_by:
             query = query.where("created_by", "==", created_by)
+        if is_billable is not None:
+            query = query.where("is_billable", "==", is_billable)
 
         query = query.order_by("date", direction="DESCENDING")
         query = query.order_by("start_time", direction="DESCENDING")

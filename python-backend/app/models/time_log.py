@@ -38,6 +38,7 @@ class TimeLogBase(BaseModel):
     description: str
     start_time: dt.time
     end_time: dt.time
+    is_billable: bool = True
 
 
 class TimeLogCreate(TimeLogBase):
@@ -55,6 +56,7 @@ class TimeLogUpdate(BaseModel):
     description: str | None = None
     start_time: dt.time | None = None
     end_time: dt.time | None = None
+    is_billable: bool | None = None
 
 
 class TimeLogResponse(TimeLogBase):
