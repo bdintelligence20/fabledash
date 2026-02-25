@@ -19,9 +19,9 @@ Progress: [================]░░░ ~25%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 3.1 min
-- Total execution time: ~0.75 hours
+- Total execution time: ~0.78 hours
 
 **By Phase:**
 
@@ -31,7 +31,7 @@ Progress: [================]░░░ ~25%
 | 02-core-data | 4/4 | 12 min | 3.0 min |
 | 03-frontend | 4/4 | 11 min | 2.8 min |
 | 04-client-task | 1/5 | 3 min | 3.0 min |
-| 05-advanced-time-logging | 1/5 | 2 min | 2.0 min |
+| 05-advanced-time-logging | 2/5 | 5 min | 2.5 min |
 
 **Recent Trend:**
 - Last 5 plans: 02-04 (3 min), 03-03 (2 min), 02-03 (3 min), 03-04 (3 min), 05-03 (2 min)
@@ -94,6 +94,9 @@ Recent decisions affecting current work:
 - **04-01:** Badge variant mapping: edcp->default, separate_businesses->warning (no secondary/accent Badge variants)
 - **04-01:** CreateEditClientModal is local component within ClientsPage (not extracted to separate file)
 - **04-01:** Client names are Link components to /clients/{id} for detail page navigation
+- **05-01:** is_billable defaults to True -- most agency work is billable
+- **05-01:** Quick re-entry pattern: form clears task/description/times on success but keeps date and client
+- **05-01:** Duration calculated client-side for instant feedback; server still calculates authoritatively
 
 ### Deferred Issues
 
