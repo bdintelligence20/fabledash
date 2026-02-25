@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phases 1-3 COMPLETE. Phase 5 (Advanced Time Logging) in progress.
+**Current focus:** Phases 1-3 COMPLETE. Phase 4 (Client & Task Management) and Phase 5 (Advanced Time Logging) in progress.
 
 ## Current Position
 
-Phase: 1, 2, 3 COMPLETE. 5 of 12 -- IN PROGRESS
-Plan: 05-03 complete (time log list and filtering). Next: 05-04.
-Status: Phase 5 in progress. Plans 05-01, 05-02, 05-03 executing in parallel wave.
-Last activity: 2026-02-25 — Plan 05-03 executed (time log list page with filtering)
+Phase: 1, 2, 3 COMPLETE. 4, 5 of 12 -- IN PROGRESS
+Plan: 04-01 complete, 05-01 complete, 05-03 complete. Next: 05-02 or 05-04.
+Status: Phase 4 started (04-01 done), Phase 5 in progress (05-01, 05-03 done). Parallel execution.
+Last activity: 2026-02-25 -- Plan 05-01 executed (time entry UI + backend is_billable field)
 
 Progress: [================]░░░ ~25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: 3.1 min
-- Total execution time: ~0.72 hours
+- Total execution time: ~0.75 hours
 
 **By Phase:**
 
@@ -30,6 +30,7 @@ Progress: [================]░░░ ~25%
 | 01-foundation | 5/5 | 18 min | 3.6 min |
 | 02-core-data | 4/4 | 12 min | 3.0 min |
 | 03-frontend | 4/4 | 11 min | 2.8 min |
+| 04-client-task | 1/5 | 3 min | 3.0 min |
 | 05-advanced-time-logging | 1/5 | 2 min | 2.0 min |
 
 **Recent Trend:**
@@ -90,6 +91,9 @@ Recent decisions affecting current work:
 - **05-03:** Billable determination uses task_id presence as proxy (no explicit billable field yet)
 - **05-03:** Partner group filtering is client-side via lookup map (API doesn't support this filter)
 - **05-03:** Reference data pattern: fetch clients + tasks on mount, build Map<id, name> for O(1) lookups
+- **04-01:** Badge variant mapping: edcp->default, separate_businesses->warning (no secondary/accent Badge variants)
+- **04-01:** CreateEditClientModal is local component within ClientsPage (not extracted to separate file)
+- **04-01:** Client names are Link components to /clients/{id} for detail page navigation
 
 ### Deferred Issues
 
