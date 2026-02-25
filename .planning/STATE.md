@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 1, 2, 3 COMPLETE. 4, 5 of 12 -- IN PROGRESS
-Plan: 04-01 complete, 05-01 complete, 05-03 complete. Next: 05-02 or 05-04.
-Status: Phase 4 started (04-01 done), Phase 5 in progress (05-01, 05-03 done). Parallel execution.
-Last activity: 2026-02-25 -- Plan 05-01 executed (time entry UI + backend is_billable field)
+Plan: 04-03 complete (task list and filtering), 05-01 complete, 05-03 complete.
+Status: Phase 4 in progress (04-01, 04-02, 04-03 done), Phase 5 in progress (05-01, 05-03 done). Parallel execution.
+Last activity: 2026-02-25 -- Plan 04-03 executed (task list page with filters, bulk actions, create modal)
 
-Progress: [================]░░░ ~25%
+Progress: [==================]░░ ~28%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 18
 - Average duration: 3.1 min
-- Total execution time: ~0.78 hours
+- Total execution time: ~0.92 hours
 
 **By Phase:**
 
@@ -30,7 +30,7 @@ Progress: [================]░░░ ~25%
 | 01-foundation | 5/5 | 18 min | 3.6 min |
 | 02-core-data | 4/4 | 12 min | 3.0 min |
 | 03-frontend | 4/4 | 11 min | 2.8 min |
-| 04-client-task | 1/5 | 3 min | 3.0 min |
+| 04-client-task | 3/5 | 9 min | 3.0 min |
 | 05-advanced-time-logging | 2/5 | 5 min | 2.5 min |
 
 **Recent Trend:**
@@ -94,6 +94,10 @@ Recent decisions affecting current work:
 - **04-01:** Badge variant mapping: edcp->default, separate_businesses->warning (no secondary/accent Badge variants)
 - **04-01:** CreateEditClientModal is local component within ClientsPage (not extracted to separate file)
 - **04-01:** Client names are Link components to /clients/{id} for detail page navigation
+- **04-03:** Badge variant 'default' used for todo/low (component has no 'secondary' variant)
+- **04-03:** Client-side search filters displayed tasks by title; API filters handle status/priority/client
+- **04-03:** Bulk status change uses Promise.all for parallel PUT requests, then refreshes list
+- **04-03:** Delete is hard delete with confirmation modal (matches backend behavior)
 - **05-01:** is_billable defaults to True -- most agency work is billable
 - **05-01:** Quick re-entry pattern: form clears task/description/times on success but keeps date and client
 - **05-01:** Duration calculated client-side for instant feedback; server still calculates authoritatively
