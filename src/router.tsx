@@ -13,6 +13,8 @@ import VolumeRatePage from './pages/VolumeRatePage';
 import RevenueTrackingPage from './pages/RevenueTrackingPage';
 import CashPositionPage from './pages/CashPositionPage';
 import AgentsPage from './pages/AgentsPage';
+import AgentDetailPage from './pages/AgentDetailPage';
+import AgentChatPage from './pages/AgentChatPage';
 import MeetingsPage from './pages/MeetingsPage';
 import MeetingDetailPage from './pages/MeetingDetailPage';
 import TimePage from './pages/TimePage';
@@ -46,6 +48,8 @@ export const router = createBrowserRouter([
           { path: '/finances/volume-rate', element: <VolumeRatePage /> },
           { path: '/finances/cash', element: <CashPositionPage /> },
           { path: '/agents', element: <AgentsPage /> },
+          { path: '/agents/:agentId', element: <AgentDetailPage /> },
+          { path: '/agents/:agentId/chat/:conversationId', element: <AgentChatPage /> },
           { path: '/meetings', element: <MeetingsPage /> },
           { path: '/meetings/:meetingId', element: <MeetingDetailPage /> },
           { path: '/time', element: <TimePage /> },
