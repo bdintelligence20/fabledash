@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phases 1, 2, 3 COMPLETE. Next: Phase 4 (Client & Task Management).
+**Current focus:** Phases 1-3 COMPLETE. Phase 5 (Advanced Time Logging) in progress.
 
 ## Current Position
 
-Phase: 1, 2, 3 COMPLETE. 4 of 12 -- NOT STARTED
-Plan: 03-04 complete (dashboard widgets). Phase 3 fully done (03-01, 03-02, 03-03, 03-04).
-Status: Phases 1-3 complete. Ready for Phase 4 (Client & Task Management).
-Last activity: 2026-02-25 — Plan 03-04 executed (dashboard page skeleton with widget grid)
+Phase: 1, 2, 3 COMPLETE. 5 of 12 -- IN PROGRESS
+Plan: 05-03 complete (time log list and filtering). Next: 05-04.
+Status: Phase 5 in progress. Plans 05-01, 05-02, 05-03 executing in parallel wave.
+Last activity: 2026-02-25 — Plan 05-03 executed (time log list page with filtering)
 
-Progress: [================]░░ ~25%
+Progress: [================]░░░ ~25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 3.2 min
-- Total execution time: ~0.68 hours
+- Total plans completed: 14
+- Average duration: 3.1 min
+- Total execution time: ~0.72 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [================]░░ ~25%
 | 01-foundation | 5/5 | 18 min | 3.6 min |
 | 02-core-data | 4/4 | 12 min | 3.0 min |
 | 03-frontend | 4/4 | 11 min | 2.8 min |
+| 05-advanced-time-logging | 1/5 | 2 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (3 min), 02-04 (3 min), 03-03 (2 min), 02-03 (3 min), 03-04 (3 min)
-- Trend: consistently fast ~3 min/plan
+- Last 5 plans: 02-04 (3 min), 03-03 (2 min), 02-03 (3 min), 03-04 (3 min), 05-03 (2 min)
+- Trend: consistently fast ~2-3 min/plan
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Recent decisions affecting current work:
 - **03-04:** Relative imports (../ui) instead of @/ aliases -- Vite has no path alias configured
 - **03-04:** Dashboard widgets use hardcoded mock data -- no API calls in skeleton phase
 - **03-04:** Revenue chart placeholder reserves min-h-[300px] with Phase 7 note
+- **05-03:** Billable determination uses task_id presence as proxy (no explicit billable field yet)
+- **05-03:** Partner group filtering is client-side via lookup map (API doesn't support this filter)
+- **05-03:** Reference data pattern: fetch clients + tasks on mount, build Map<id, name> for O(1) lookups
 
 ### Deferred Issues
 
@@ -98,5 +102,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 03-04 complete. Phases 1-3 fully done. Next: Phase 4 (Client & Task Management).
-Resume file: .planning/phases/03-frontend-architecture/03-04-SUMMARY.md
+Stopped at: Plan 05-03 complete. Phase 5 in progress. Next: 05-04 (time log edit/delete).
+Resume file: .planning/phases/05-advanced-time-logging/05-03-SUMMARY.md
