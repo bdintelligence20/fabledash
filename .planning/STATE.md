@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phases 1-5 COMPLETE. Phase 6 (Sage Financial Integration) next.
+**Current focus:** Phases 1-6 COMPLETE. Phases 7 (Financial Dashboards) and 8 (Meeting Intelligence) next.
 
 ## Current Position
 
-Phase: 1, 2, 3, 4, 5 COMPLETE. 6 of 12 -- PLANNING
-Plan: All plans through 05-05 complete.
-Status: Phases 1-5 fully complete (24/24 plans). Phase 6 needs planning and execution.
-Last activity: 2026-02-25 -- Plans 04-05 and 05-05 executed (Kanban/Calendar views, Utilization dashboard)
+Phase: 1-6 COMPLETE. 7, 8 of 12 -- PLANNING
+Plan: All plans through 06-05 complete (29/59).
+Status: Phases 1-6 fully complete (29 plans). Phases 7 and 8 can run in parallel.
+Last activity: 2026-02-25 -- Phase 6 complete (Sage API, financial sync, P&L/forecast uploads, FinancesPage)
 
-Progress: [========================]░░░░░░ ~41%
+Progress: [=============================]░░░░░ ~49%
 
 ## Performance Metrics
 
