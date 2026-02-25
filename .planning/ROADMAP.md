@@ -14,7 +14,7 @@ None
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Foundation & Infrastructure** — Firebase setup, tear down Supabase, project scaffolding, auth
+- [x] **Phase 1: Foundation & Infrastructure** — Firebase setup, tear down Supabase, project scaffolding, auth
 - [ ] **Phase 2: Core Data Layer** — Firestore collections, FastAPI endpoints for all core entities
 - [ ] **Phase 3: Frontend Architecture** — Design system, app shell, routing, responsive layout
 - [ ] **Phase 4: Client & Task Management** — Full CRUD, Kanban views, filtering, client detail pages
