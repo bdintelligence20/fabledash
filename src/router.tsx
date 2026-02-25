@@ -7,11 +7,13 @@ import TaskDetailPage from './pages/TaskDetailPage';
 import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
 import FinancesPage from './pages/FinancesPage';
+import FinancialOverviewPage from './pages/FinancialOverviewPage';
 import CostBenefitPage from './pages/CostBenefitPage';
 import VolumeRatePage from './pages/VolumeRatePage';
 import RevenueTrackingPage from './pages/RevenueTrackingPage';
 import CashPositionPage from './pages/CashPositionPage';
 import AgentsPage from './pages/AgentsPage';
+import MeetingsPage from './pages/MeetingsPage';
 import TimePage from './pages/TimePage';
 import TimeLogListPage from './pages/TimeLogListPage';
 import TimeAllocationPage from './pages/TimeAllocationPage';
@@ -37,11 +39,13 @@ export const router = createBrowserRouter([
           { path: '/clients', element: <ClientsPage /> },
           { path: '/clients/:clientId', element: <ClientDetailPage /> },
           { path: '/finances', element: <FinancesPage /> },
+          { path: '/finances/overview', element: <FinancialOverviewPage /> },
           { path: '/finances/revenue', element: <RevenueTrackingPage /> },
           { path: '/finances/cost-benefit', element: <CostBenefitPage /> },
           { path: '/finances/volume-rate', element: <VolumeRatePage /> },
           { path: '/finances/cash', element: <CashPositionPage /> },
           { path: '/agents', element: <AgentsPage /> },
+          { path: '/meetings', element: <MeetingsPage /> },
           { path: '/time', element: <TimePage /> },
           { path: '/time/logs', element: <TimeLogListPage /> },
           { path: '/time/allocation', element: <TimeAllocationPage /> },

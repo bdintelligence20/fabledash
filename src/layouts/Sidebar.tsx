@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home,
   CheckSquare,
@@ -10,14 +11,21 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeft,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+
+interface SubNavItem {
+  to: string;
+  label: string;
+}
 
 interface NavItem {
   to: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
+  subItems?: SubNavItem[];
 }
 
 interface NavSection {
@@ -41,7 +49,19 @@ const navSections: NavSection[] = [
   {
     label: 'Intelligence',
     items: [
-      { to: '/finances', label: 'Finances', icon: DollarSign },
+      {
+        to: '/finances',
+        label: 'Finances',
+        icon: DollarSign,
+        subItems: [
+          { to: '/finances/overview', label: 'Financial Overview' },
+          { to: '/finances/revenue', label: 'Revenue' },
+          { to: '/finances/cost-benefit', label: 'Cost-Benefit' },
+          { to: '/finances/cash', label: 'Cash Position' },
+          { to: '/finances/volume-rate', label: 'Volume vs Rate' },
+          { to: '/finances', label: 'Data Sources' },
+        ],
+      },
       { to: '/agents', label: 'AI Agents', icon: Bot },
       { to: '/reports', label: 'Reports', icon: BarChart2 },
     ],
@@ -56,9 +76,28 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const { user, logout } = useAuth();
+  const location = useLocation();
 
   const displayName = user?.displayName || user?.email || 'User';
   const initial = displayName.charAt(0).toUpperCase();
+
+  // Track which nav items with sub-items are expanded
+  const isOnFinancesPage = location.pathname.startsWith('/finances');
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(
+    isOnFinancesPage ? new Set(['/finances']) : new Set(),
+  );
+
+  const toggleExpanded = (to: string) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(to)) {
+        next.delete(to);
+      } else {
+        next.add(to);
+      }
+      return next;
+    });
+  };
 
   const handleNavClick = () => {
     // Close mobile nav when a link is clicked
@@ -93,33 +132,88 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
             )}
             {collapsed && <div className="pt-3" />}
             <ul className="space-y-0.5 px-2">
-              {section.items.map(({ to, label, icon: Icon, badge }) => (
-                <li key={to}>
-                  <NavLink
-                    to={to}
-                    end={to === '/'}
-                    onClick={handleNavClick}
-                    title={collapsed ? label : undefined}
-                    className={({ isActive }) =>
-                      [
-                        'flex items-center gap-3 py-2.5 rounded-r-lg text-sm transition-default',
-                        collapsed ? 'justify-center px-2' : 'px-4',
-                        isActive
-                          ? 'bg-primary-50 text-primary-600 font-semibold border-l-3 border-primary-500'
-                          : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900',
-                      ].join(' ')
-                    }
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    {!collapsed && <span>{label}</span>}
-                    {!collapsed && badge !== undefined && badge > 0 && (
-                      <span className="ml-auto bg-danger-100 text-danger-600 text-xs font-medium rounded-full px-2 py-0.5">
-                        {badge}
-                      </span>
+              {section.items.map(({ to, label, icon: Icon, badge, subItems }) => {
+                const hasSubItems = subItems && subItems.length > 0;
+                const isExpanded = expandedItems.has(to);
+                // Parent is "active" if current path starts with its path (for grouping)
+                const isParentActive = hasSubItems && location.pathname.startsWith(to);
+
+                return (
+                  <li key={to}>
+                    {hasSubItems && !collapsed ? (
+                      /* Parent item with sub-items: toggles expansion */
+                      <button
+                        onClick={() => toggleExpanded(to)}
+                        className={[
+                          'flex items-center gap-3 py-2.5 rounded-r-lg text-sm transition-default w-full text-left px-4',
+                          isParentActive
+                            ? 'bg-primary-50 text-primary-600 font-semibold border-l-3 border-primary-500'
+                            : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900',
+                        ].join(' ')}
+                      >
+                        <Icon className="h-5 w-5 flex-shrink-0" />
+                        <span>{label}</span>
+                        <ChevronDown
+                          className={[
+                            'ml-auto h-4 w-4 transition-transform duration-200',
+                            isExpanded ? 'rotate-180' : '',
+                          ].join(' ')}
+                        />
+                      </button>
+                    ) : (
+                      /* Regular nav item or collapsed parent */
+                      <NavLink
+                        to={to}
+                        end={to === '/' || (hasSubItems && !collapsed)}
+                        onClick={handleNavClick}
+                        title={collapsed ? label : undefined}
+                        className={({ isActive }) =>
+                          [
+                            'flex items-center gap-3 py-2.5 rounded-r-lg text-sm transition-default',
+                            collapsed ? 'justify-center px-2' : 'px-4',
+                            isActive || (collapsed && isParentActive)
+                              ? 'bg-primary-50 text-primary-600 font-semibold border-l-3 border-primary-500'
+                              : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900',
+                          ].join(' ')
+                        }
+                      >
+                        <Icon className="h-5 w-5 flex-shrink-0" />
+                        {!collapsed && <span>{label}</span>}
+                        {!collapsed && badge !== undefined && badge > 0 && (
+                          <span className="ml-auto bg-danger-100 text-danger-600 text-xs font-medium rounded-full px-2 py-0.5">
+                            {badge}
+                          </span>
+                        )}
+                      </NavLink>
                     )}
-                  </NavLink>
-                </li>
-              ))}
+
+                    {/* Sub-items (only when expanded and not collapsed) */}
+                    {hasSubItems && isExpanded && !collapsed && (
+                      <ul className="mt-0.5 mb-1 space-y-0.5">
+                        {subItems.map((sub) => (
+                          <li key={sub.to}>
+                            <NavLink
+                              to={sub.to}
+                              end
+                              onClick={handleNavClick}
+                              className={({ isActive }) =>
+                                [
+                                  'flex items-center py-1.5 pl-12 pr-4 rounded-r-lg text-xs transition-default',
+                                  isActive
+                                    ? 'text-primary-600 font-semibold bg-primary-50/60'
+                                    : 'text-surface-500 hover:text-surface-700 hover:bg-surface-50',
+                                ].join(' ')
+                              }
+                            >
+                              {sub.label}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ))}
