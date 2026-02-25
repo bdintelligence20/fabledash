@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     LOG_LEVEL: str = "INFO"
 
+    # Sage Business Cloud Accounting API
+    SAGE_CLIENT_ID: str = ""
+    SAGE_CLIENT_SECRET: str = ""
+    SAGE_API_BASE_URL: str = "https://api.accounting.sage.com/v3.1"
+    SAGE_REDIRECT_URI: str = "http://localhost:8000/sage/callback"
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Split CORS_ORIGINS string into a list of origins."""
