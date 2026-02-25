@@ -68,7 +68,15 @@ const navSections: NavSection[] = [
       },
       { to: '/agents', label: 'AI Agents', icon: Bot },
       { to: '/meetings', label: 'Meetings', icon: MessageSquare },
-      { to: '/reports', label: 'Reports', icon: BarChart2 },
+      {
+        to: '/reports',
+        label: 'Reports',
+        icon: BarChart2,
+        subItems: [
+          { to: '/reports/health', label: 'Health & Vitality' },
+          { to: '/reports/comparison', label: 'Period Comparison' },
+        ],
+      },
     ],
   },
 ];
@@ -87,10 +95,10 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
   const initial = displayName.charAt(0).toUpperCase();
 
   // Track which nav items with sub-items are expanded
-  const isOnFinancesPage = location.pathname.startsWith('/finances');
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(
-    isOnFinancesPage ? new Set(['/finances']) : new Set(),
-  );
+  const initialExpanded = new Set<string>();
+  if (location.pathname.startsWith('/finances')) initialExpanded.add('/finances');
+  if (location.pathname.startsWith('/reports')) initialExpanded.add('/reports');
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(initialExpanded);
 
   const toggleExpanded = (to: string) => {
     setExpandedItems((prev) => {

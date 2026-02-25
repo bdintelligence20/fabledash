@@ -6,9 +6,15 @@ import {
   ClipboardCheck,
   Heart,
   ArrowRight,
+  Download,
+  Sparkles,
+  Copy,
+  Check,
+  GitCompareArrows,
 } from 'lucide-react';
-import { Card, Button } from '../components/ui';
+import { Card, Button, Modal } from '../components/ui';
 import { colors } from '../styles/tokens';
+import apiClient from '../lib/api';
 
 /* -------------------------------------------------------------------------- */
 /*  Report card definitions                                                    */
@@ -24,11 +30,27 @@ interface ReportCard {
 
 const REPORT_CARDS: ReportCard[] = [
   {
+    title: 'Health & Vitality',
+    description:
+      'Comprehensive report combining operational efficiency, financial performance, and process quality with overall health score.',
+    icon: <Heart className="h-6 w-6" />,
+    color: colors.danger[500],
+    to: '/reports/health',
+  },
+  {
+    title: 'Period Comparison',
+    description:
+      'Side-by-side quarter or year-to-date comparison with trend arrows, delta badges, and improvements summary.',
+    icon: <GitCompareArrows className="h-6 w-6" />,
+    color: colors.primary[500],
+    to: '/reports/comparison',
+  },
+  {
     title: 'Operational Efficiency',
     description:
       'Utilization rate, time allocation by partner group, saturation leaderboards, and productivity score.',
     icon: <Activity className="h-6 w-6" />,
-    color: colors.primary[500],
+    color: colors.accent[500],
     to: '/reports/health',
   },
   {
@@ -44,15 +66,7 @@ const REPORT_CARDS: ReportCard[] = [
     description:
       'Task completion rates, overdue tracking, meeting-to-action ratio, and time entry consistency.',
     icon: <ClipboardCheck className="h-6 w-6" />,
-    color: colors.accent[500],
-    to: '/reports/health',
-  },
-  {
-    title: 'Full Health & Vitality',
-    description:
-      'Comprehensive report combining operational efficiency, financial performance, and process quality with overall health score.',
-    icon: <Heart className="h-6 w-6" />,
-    color: colors.danger[500],
+    color: colors.warning[500],
     to: '/reports/health',
   },
 ];
@@ -97,19 +111,19 @@ function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function periodToQuery(period: QuickPeriod): string {
-  let range: { start: string; end: string };
+function getPeriodRange(period: QuickPeriod): { start: string; end: string } {
   switch (period) {
     case 'this_quarter':
-      range = getQuarterRange(0);
-      break;
+      return getQuarterRange(0);
     case 'last_quarter':
-      range = getQuarterRange(-1);
-      break;
+      return getQuarterRange(-1);
     case 'ytd':
-      range = getYTDRange();
-      break;
+      return getYTDRange();
   }
+}
+
+function periodToQuery(period: QuickPeriod): string {
+  const range = getPeriodRange(period);
   return `?period_start=${range.start}&period_end=${range.end}`;
 }
 
@@ -119,39 +133,103 @@ function periodToQuery(period: QuickPeriod): string {
 
 export default function ReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<QuickPeriod>('this_quarter');
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportContent, setExportContent] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleExport = async (format: 'text' | 'summary') => {
+    setExportLoading(true);
+    setExportContent('');
+    setExportModalOpen(true);
+    setCopied(false);
+
+    try {
+      const range = getPeriodRange(selectedPeriod);
+      const res = await apiClient.get<{ success: boolean; content: string; format: string }>(
+        `/reports/export?period_start=${range.start}&period_end=${range.end}&format=${format}`,
+      );
+      if (res.success) {
+        setExportContent(res.content);
+      } else {
+        setExportContent('Failed to generate export. Please try again.');
+      }
+    } catch {
+      setExportContent('Failed to generate export. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(exportContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+    }
+  };
 
   return (
     <div>
       {/* Page header */}
-      <div className="animate-up">
-        <h1 className="text-2xl font-bold text-heading">Health &amp; Vitality Reports</h1>
-        <p className="text-body mt-1">
-          Business health dashboards combining operational efficiency, financial performance, and process quality.
-        </p>
+      <div className="animate-up flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-heading">Health &amp; Vitality Reports</h1>
+          <p className="text-body mt-1">
+            Business health dashboards combining operational efficiency, financial performance, and process quality.
+          </p>
+        </div>
       </div>
 
-      {/* Quick period selector */}
+      {/* Quick period selector + export buttons */}
       <div className="mt-6 animate-up" style={{ animationDelay: '100ms' }}>
         <Card padding="md">
-          <p className="text-sm font-medium text-surface-600 mb-3">Quick Period</p>
-          <div className="flex flex-wrap gap-2">
-            {QUICK_PERIODS.map((p) => (
-              <Button
-                key={p.key}
-                variant={selectedPeriod === p.key ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setSelectedPeriod(p.key)}
-              >
-                {p.label}
-              </Button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-surface-600 mb-3">Quick Period</p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_PERIODS.map((p) => (
+                  <Button
+                    key={p.key}
+                    variant={selectedPeriod === p.key ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setSelectedPeriod(p.key)}
+                  >
+                    {p.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-surface-600 mb-3">Export Report</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExport('text')}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Text
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExport('summary')}
+                >
+                  <Sparkles className="h-4 w-4 mr-1.5" />
+                  AI Summary
+                </Button>
+              </div>
+            </div>
           </div>
         </Card>
       </div>
 
       {/* Report cards grid */}
       <div
-        className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 animate-up"
+        className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-up"
         style={{ animationDelay: '200ms' }}
       >
         {REPORT_CARDS.map((card) => (
@@ -187,6 +265,45 @@ export default function ReportsPage() {
           </Link>
         ))}
       </div>
+
+      {/* Export modal */}
+      <Modal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        title="Export Report"
+        size="lg"
+      >
+        {exportLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-8 w-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+            <span className="ml-3 text-sm text-surface-600">Generating report...</span>
+          </div>
+        ) : (
+          <div>
+            <div className="flex justify-end mb-2">
+              <Button variant="secondary" size="sm" onClick={handleCopy}>
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1.5 text-success-600" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-1.5" />
+                    Copy
+                  </>
+                )}
+              </Button>
+            </div>
+            <textarea
+              readOnly
+              value={exportContent}
+              rows={18}
+              className="w-full rounded-lg border border-surface-200 bg-surface-50 p-4 text-sm font-mono text-surface-700 focus:outline-none resize-y"
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

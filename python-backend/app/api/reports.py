@@ -9,6 +9,7 @@ from app.dependencies.auth import get_current_user
 from app.models.user import CurrentUser
 from app.utils.report_engine import ReportEngine
 from app.utils.report_comparison import ReportComparison
+from app.utils.report_export import ReportExporter
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,11 @@ def _get_engines() -> tuple[ReportEngine, ReportComparison]:
     engine = ReportEngine()
     comparison = ReportComparison(engine)
     return engine, comparison
+
+
+def _get_exporter() -> ReportExporter:
+    """Instantiate report exporter."""
+    return ReportExporter()
 
 
 # --- Base report endpoints ---
@@ -155,3 +161,33 @@ async def ytd_report(
     except Exception:
         logger.exception("Failed to generate YTD report")
         return {"success": False, "error": "Failed to generate YTD report"}
+
+
+# --- Export endpoint ---
+
+
+@router.get("/export")
+async def export_report(
+    period_start: date = Query(..., description="Start of reporting period"),
+    period_end: date = Query(..., description="End of reporting period"),
+    format: str = Query("text", description="Export format: text or summary"),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Export report as structured text or AI-generated executive summary."""
+    if format not in ("text", "summary"):
+        raise HTTPException(status_code=400, detail="format must be 'text' or 'summary'")
+
+    try:
+        engine, _ = _get_engines()
+        report_data = await engine.full_health_report(period_start, period_end)
+
+        exporter = _get_exporter()
+        if format == "summary":
+            content = await exporter.generate_ai_summary(report_data)
+        else:
+            content = await exporter.generate_text_report(report_data)
+
+        return {"success": True, "content": content, "format": format}
+    except Exception:
+        logger.exception("Failed to export report")
+        return {"success": False, "error": "Failed to export report"}
