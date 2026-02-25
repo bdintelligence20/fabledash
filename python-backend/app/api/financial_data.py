@@ -1,6 +1,7 @@
-"""Aggregated financial data API endpoints — summary, revenue trends."""
+"""Aggregated financial data API endpoints — summary, revenue trends, cost-benefit."""
 
 import logging
+from collections import defaultdict
 from datetime import date, timedelta
 
 import firebase_admin
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from google.cloud.firestore_v1 import FieldFilter
 
 from app.dependencies.auth import get_current_user
+from app.models.client import COLLECTION_NAME as CLIENT_COLLECTION
 from app.models.financial import (
     COLLECTION_NAME,
     FORECAST_COLLECTION,
@@ -15,6 +17,7 @@ from app.models.financial import (
     PNL_COLLECTION,
     SAGE_CREDENTIALS_COLLECTION,
 )
+from app.models.time_log import COLLECTION_NAME as TIME_LOG_COLLECTION
 from app.models.user import CurrentUser
 from app.utils.firebase_client import get_firestore_client
 
@@ -194,3 +197,127 @@ async def revenue_trend(
         "success": True,
         "data": trend_data,
     }
+
+
+@router.get("/cost-benefit")
+async def cost_benefit(
+    date_from: date | None = Query(None, description="Start of period (inclusive)"),
+    date_to: date | None = Query(None, description="End of period (inclusive)"),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Client cost-benefit analysis — ZAR per hour rankings.
+
+    Calculates revenue-per-hour for each client, identifies pass-through
+    projects (revenue > 0 but < 2 hours logged), and returns clients sorted
+    by ZAR/Hr descending.
+    """
+    db = get_firestore_client()
+
+    try:
+        # 1. Fetch all clients
+        client_docs = list(db.collection(CLIENT_COLLECTION).stream())
+        client_map: dict[str, dict] = {}
+        for cdoc in client_docs:
+            cdata = cdoc.to_dict()
+            client_map[cdoc.id] = {
+                "name": cdata.get("name", "Unknown Client"),
+                "partner_group": cdata.get("partner_group", "direct_clients"),
+            }
+
+        # 2. Fetch paid invoices within date range — accumulate revenue by client_id
+        inv_query = db.collection(INVOICES_COLLECTION).where("status", "==", "paid")
+        if date_from:
+            inv_query = inv_query.where("issued_date", ">=", date_from.isoformat())
+        if date_to:
+            inv_query = inv_query.where("issued_date", "<=", date_to.isoformat())
+
+        revenue_by_client: dict[str, float] = defaultdict(float)
+        invoice_count_by_client: dict[str, int] = defaultdict(int)
+        for doc in inv_query.stream():
+            data = doc.to_dict()
+            cid = data.get("client_id", "")
+            if cid:
+                revenue_by_client[cid] += float(data.get("amount", 0))
+                invoice_count_by_client[cid] += 1
+
+        # 3. Fetch time logs within date range — accumulate hours by client_id
+        tl_query = db.collection(TIME_LOG_COLLECTION)
+        if date_from:
+            tl_query = tl_query.where("date", ">=", date_from.isoformat())
+        if date_to:
+            tl_query = tl_query.where("date", "<=", date_to.isoformat())
+
+        minutes_by_client: dict[str, int] = defaultdict(int)
+        for doc in tl_query.stream():
+            data = doc.to_dict()
+            cid = data.get("client_id", "")
+            if cid:
+                minutes_by_client[cid] += data.get("duration_minutes", 0)
+
+        # 4. Build per-client cost-benefit rows
+        all_client_ids = set(revenue_by_client.keys()) | set(minutes_by_client.keys())
+
+        clients_list: list[dict] = []
+        total_revenue = 0.0
+        total_hours = 0.0
+        pass_through_count = 0
+        pass_through_revenue = 0.0
+
+        for cid in all_client_ids:
+            revenue = revenue_by_client.get(cid, 0.0)
+            minutes = minutes_by_client.get(cid, 0)
+            hours = round(minutes / 60, 1)
+            inv_count = invoice_count_by_client.get(cid, 0)
+
+            # Pass-through: revenue > 0 but very low hours (< 2)
+            is_pass_through = revenue > 0 and hours < 2
+
+            if hours > 0 and not is_pass_through:
+                zar_per_hour = round(revenue / hours, 2)
+            else:
+                zar_per_hour = 0.0
+
+            client_info = client_map.get(cid, {"name": "Unknown Client", "partner_group": "direct_clients"})
+
+            clients_list.append({
+                "client_id": cid,
+                "client_name": client_info["name"],
+                "partner_group": client_info["partner_group"],
+                "total_revenue": round(revenue, 2),
+                "total_hours": hours,
+                "zar_per_hour": zar_per_hour,
+                "invoice_count": inv_count,
+                "is_pass_through": is_pass_through,
+            })
+
+            total_revenue += revenue
+            total_hours += hours
+            if is_pass_through:
+                pass_through_count += 1
+                pass_through_revenue += revenue
+
+        # 5. Sort by zar_per_hour descending (pass-through at the end)
+        clients_list.sort(
+            key=lambda c: (not c["is_pass_through"], c["zar_per_hour"]),
+            reverse=True,
+        )
+
+        average_zar_per_hour = round(total_revenue / total_hours, 2) if total_hours > 0 else 0.0
+
+        return {
+            "success": True,
+            "data": {
+                "clients": clients_list,
+                "summary": {
+                    "total_revenue": round(total_revenue, 2),
+                    "total_hours": round(total_hours, 1),
+                    "average_zar_per_hour": average_zar_per_hour,
+                    "pass_through_count": pass_through_count,
+                    "pass_through_revenue": round(pass_through_revenue, 2),
+                },
+            },
+        }
+
+    except Exception:
+        logger.exception("Failed to compute cost-benefit analysis")
+        return {"success": False, "error": "Failed to compute cost-benefit analysis"}
