@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Search, Trash2, Pencil, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, Search, Trash2, Pencil, X, List, Columns3, Calendar } from 'lucide-react';
 import {
   Button,
   Card,
@@ -13,6 +13,8 @@ import {
 } from '../components/ui';
 import type { SelectOption } from '../components/ui';
 import { apiClient } from '../lib/api';
+import KanbanBoard from '../components/tasks/KanbanBoard';
+import CalendarView from '../components/tasks/CalendarView';
 
 /* -------------------------------------------------------------------------- */
 /*  Types (matching backend models)                                            */
@@ -65,6 +67,24 @@ interface ClientResponse {
   created_at: string;
   updated_at: string;
   created_by: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  View mode                                                                  */
+/* -------------------------------------------------------------------------- */
+
+type ViewMode = 'list' | 'kanban' | 'calendar';
+
+const VIEW_STORAGE_KEY = 'fabledash-task-view';
+
+function getInitialViewMode(): ViewMode {
+  try {
+    const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+    if (stored === 'list' || stored === 'kanban' || stored === 'calendar') return stored;
+  } catch {
+    // localStorage unavailable
+  }
+  return 'list';
 }
 
 /* -------------------------------------------------------------------------- */
@@ -149,6 +169,20 @@ function isOverdue(dateStr: string | null, status: TaskStatus): boolean {
 /* -------------------------------------------------------------------------- */
 
 export default function TasksPage() {
+  const navigate = useNavigate();
+
+  // View mode state (persisted to localStorage)
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
+
+  function changeViewMode(mode: ViewMode) {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, mode);
+    } catch {
+      // localStorage unavailable
+    }
+  }
+
   // Data state
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [clients, setClients] = useState<ClientResponse[]>([]);
@@ -352,6 +386,21 @@ export default function TasksPage() {
     }
   }
 
+  /* ---- Kanban status change ---- */
+
+  async function handleKanbanStatusChange(taskId: string, newStatus: TaskStatus) {
+    try {
+      await apiClient.put(`/tasks/${taskId}`, { status: newStatus });
+      await fetchTasks();
+    } catch {
+      // Error swallowed; list refresh will show actual state
+    }
+  }
+
+  function handleTaskClick(taskId: string) {
+    navigate(`/tasks/${taskId}`);
+  }
+
   /* ---- Render ---- */
 
   return (
@@ -359,9 +408,38 @@ export default function TasksPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-surface-900">Tasks</h1>
-        <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
-          New Task
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* View switcher */}
+          <div className="flex items-center rounded-lg border border-surface-200 bg-white p-0.5">
+            <button
+              type="button"
+              onClick={() => changeViewMode('list')}
+              className={`rounded-md p-1.5 transition-colors ${viewMode === 'list' ? 'bg-primary-100 text-primary-700' : 'text-surface-400 hover:text-surface-600'}`}
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewMode('kanban')}
+              className={`rounded-md p-1.5 transition-colors ${viewMode === 'kanban' ? 'bg-primary-100 text-primary-700' : 'text-surface-400 hover:text-surface-600'}`}
+              title="Kanban view"
+            >
+              <Columns3 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewMode('calendar')}
+              className={`rounded-md p-1.5 transition-colors ${viewMode === 'calendar' ? 'bg-primary-100 text-primary-700' : 'text-surface-400 hover:text-surface-600'}`}
+              title="Calendar view"
+            >
+              <Calendar className="h-4 w-4" />
+            </button>
+          </div>
+          <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
+            New Task
+          </Button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -417,100 +495,127 @@ export default function TasksPage() {
         </Card>
       )}
 
-      {/* Data table */}
-      <Card padding="none">
-        <Table>
-          <Table.Head>
-            <Table.Row>
-              <Table.HeaderCell className="w-10">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
-                />
-              </Table.HeaderCell>
-              <Table.HeaderCell>Title</Table.HeaderCell>
-              <Table.HeaderCell>Client</Table.HeaderCell>
-              <Table.HeaderCell>Status</Table.HeaderCell>
-              <Table.HeaderCell>Priority</Table.HeaderCell>
-              <Table.HeaderCell>Due Date</Table.HeaderCell>
-              <Table.HeaderCell className="w-24">Actions</Table.HeaderCell>
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
-            {loading ? (
+      {/* View content */}
+      {viewMode === 'list' && (
+        <Card padding="none">
+          <Table>
+            <Table.Head>
               <Table.Row>
-                <Table.Cell colSpan={7} className="text-center py-12 text-surface-400">
-                  Loading tasks...
-                </Table.Cell>
+                <Table.HeaderCell className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                  />
+                </Table.HeaderCell>
+                <Table.HeaderCell>Title</Table.HeaderCell>
+                <Table.HeaderCell>Client</Table.HeaderCell>
+                <Table.HeaderCell>Status</Table.HeaderCell>
+                <Table.HeaderCell>Priority</Table.HeaderCell>
+                <Table.HeaderCell>Due Date</Table.HeaderCell>
+                <Table.HeaderCell className="w-24">Actions</Table.HeaderCell>
               </Table.Row>
-            ) : displayedTasks.length === 0 ? (
-              <Table.Row>
-                <Table.Cell colSpan={7} className="text-center py-12 text-surface-400">
-                  No tasks found.
-                </Table.Cell>
-              </Table.Row>
-            ) : (
-              displayedTasks.map((task) => (
-                <Table.Row key={task.id}>
-                  <Table.Cell>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(task.id)}
-                      onChange={() => toggleSelect(task.id)}
-                      className="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
-                    />
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Link
-                      to={`/tasks/${task.id}`}
-                      className="font-medium text-surface-900 hover:text-primary-600 transition-colors"
-                    >
-                      {task.title}
-                    </Link>
-                  </Table.Cell>
-                  <Table.Cell>{clientMap[task.client_id] || 'Unknown'}</Table.Cell>
-                  <Table.Cell>
-                    <Badge variant={STATUS_BADGE_VARIANT[task.status]} dot>
-                      {STATUS_LABELS[task.status]}
-                    </Badge>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Badge variant={PRIORITY_BADGE_VARIANT[task.priority]}>
-                      {PRIORITY_LABELS[task.priority]}
-                    </Badge>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <span className={isOverdue(task.due_date, task.status) ? 'text-danger-600 font-medium' : ''}>
-                      {formatDueDate(task.due_date)}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        className="rounded p-1.5 text-surface-400 hover:text-primary-600 hover:bg-surface-100 transition-colors"
-                        title="Edit task"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteId(task.id)}
-                        className="rounded p-1.5 text-surface-400 hover:text-danger-600 hover:bg-danger-50 transition-colors"
-                        title="Delete task"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+            </Table.Head>
+            <Table.Body>
+              {loading ? (
+                <Table.Row>
+                  <Table.Cell colSpan={7} className="text-center py-12 text-surface-400">
+                    Loading tasks...
                   </Table.Cell>
                 </Table.Row>
-              ))
-            )}
-          </Table.Body>
-        </Table>
-      </Card>
+              ) : displayedTasks.length === 0 ? (
+                <Table.Row>
+                  <Table.Cell colSpan={7} className="text-center py-12 text-surface-400">
+                    No tasks found.
+                  </Table.Cell>
+                </Table.Row>
+              ) : (
+                displayedTasks.map((task) => (
+                  <Table.Row key={task.id}>
+                    <Table.Cell>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(task.id)}
+                        onChange={() => toggleSelect(task.id)}
+                        className="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Link
+                        to={`/tasks/${task.id}`}
+                        className="font-medium text-surface-900 hover:text-primary-600 transition-colors"
+                      >
+                        {task.title}
+                      </Link>
+                    </Table.Cell>
+                    <Table.Cell>{clientMap[task.client_id] || 'Unknown'}</Table.Cell>
+                    <Table.Cell>
+                      <Badge variant={STATUS_BADGE_VARIANT[task.status]} dot>
+                        {STATUS_LABELS[task.status]}
+                      </Badge>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Badge variant={PRIORITY_BADGE_VARIANT[task.priority]}>
+                        {PRIORITY_LABELS[task.priority]}
+                      </Badge>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <span className={isOverdue(task.due_date, task.status) ? 'text-danger-600 font-medium' : ''}>
+                        {formatDueDate(task.due_date)}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="rounded p-1.5 text-surface-400 hover:text-primary-600 hover:bg-surface-100 transition-colors"
+                          title="Edit task"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteId(task.id)}
+                          className="rounded p-1.5 text-surface-400 hover:text-danger-600 hover:bg-danger-50 transition-colors"
+                          title="Delete task"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                ))
+              )}
+            </Table.Body>
+          </Table>
+        </Card>
+      )}
+
+      {viewMode === 'kanban' && (
+        loading ? (
+          <Card className="p-12 text-center text-surface-400">Loading tasks...</Card>
+        ) : (
+          <KanbanBoard
+            tasks={displayedTasks}
+            clientMap={clientMap}
+            onStatusChange={handleKanbanStatusChange}
+            onTaskClick={handleTaskClick}
+          />
+        )
+      )}
+
+      {viewMode === 'calendar' && (
+        loading ? (
+          <Card className="p-12 text-center text-surface-400">Loading tasks...</Card>
+        ) : (
+          <CalendarView
+            tasks={displayedTasks}
+            clientMap={clientMap}
+            onTaskClick={handleTaskClick}
+          />
+        )
+      )}
 
       {/* Bulk actions bar */}
       {selectedIds.size > 0 && (
