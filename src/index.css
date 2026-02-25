@@ -1,3 +1,85 @@
+/* =============================================================================
+   FableDash Design System — Base Styles
+   Tokens defined in tailwind.config.js, semantic classes defined here.
+   ============================================================================= */
+
+/* Google Fonts — Inter (primary typeface) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =============================================================================
+   Base Layer — Global defaults
+   ============================================================================= */
+@layer base {
+  html {
+    @apply text-surface-900 bg-surface-50;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans antialiased;
+  }
+}
+
+/* =============================================================================
+   Component Layer — Semantic utility classes
+   ============================================================================= */
+@layer components {
+  /* Typography */
+  .text-heading {
+    @apply text-surface-900 font-semibold tracking-tight;
+  }
+
+  .text-body {
+    @apply text-surface-600 leading-relaxed;
+  }
+
+  .text-caption {
+    @apply text-surface-500 text-sm;
+  }
+
+  .text-label {
+    @apply text-surface-700 text-sm font-medium;
+  }
+
+  /* Surfaces */
+  .surface-card {
+    @apply bg-white rounded-xl shadow-card border border-surface-100;
+  }
+
+  .surface-elevated {
+    @apply bg-white rounded-xl shadow-medium;
+  }
+
+  /* Focus ring */
+  .ring-focus {
+    @apply ring-2 ring-primary-500/20 ring-offset-2;
+  }
+
+  /* Transition default */
+  .transition-default {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  /* ZAR currency prefix */
+  .currency-zar::before {
+    content: 'R';
+    margin-right: 0.125rem;
+  }
+}
+
+/* =============================================================================
+   Utility Layer — Animation helpers
+   ============================================================================= */
+@layer utilities {
+  .animate-in {
+    @apply animate-fade-in;
+  }
+
+  .animate-up {
+    @apply animate-slide-up;
+  }
+}
