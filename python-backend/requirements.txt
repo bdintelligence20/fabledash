@@ -2,8 +2,9 @@ fastapi
 uvicorn
 pydantic
 python-multipart
-supabase
 openai
+firebase-admin
+google-cloud-firestore
 python-dotenv
 pytest
 httpx<0.24.0,>=0.23.0
