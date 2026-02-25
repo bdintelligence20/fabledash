@@ -5,34 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 2 and Phase 3 in progress (parallel execution). 02-02, 02-04, 03-02, and 03-03 complete.
+**Current focus:** Phase 2 COMPLETE (all 4 plans done). Phase 3 nearing completion (3/4 done). Next: 03-04 (dashboard widgets).
 
 ## Current Position
 
-Phase: 2 & 3 of 12 -- IN PROGRESS (parallel)
-Plan: 02-04 complete (time log CRUD), 02-02 complete (client CRUD), 03-02 complete (UI component library), 03-03 complete (app shell), 02-01 complete (core data models), 03-01 complete (design system tokens)
-Status: Phase 2 and Phase 3 running in parallel. 02-01, 02-02, 02-04, 03-01, 03-02, 03-03 done. 02-03 in progress. Next: 02-03 (task CRUD), 03-04 (dashboard widgets).
-Last activity: 2026-02-25 — Plan 03-03 executed (app shell with sidebar, header, breadcrumbs, mobile nav)
+Phase: 2 COMPLETE, 3 of 12 -- IN PROGRESS
+Plan: 02-03 complete (task CRUD). Phase 2 fully done (02-01, 02-02, 02-03, 02-04). Phase 3: 03-01, 03-02, 03-03 done.
+Status: Phase 2 complete. Phase 3 in progress (3/4 done). Next: 03-04 (dashboard widgets).
+Last activity: 2026-02-25 — Plan 02-03 executed (task CRUD endpoints with comments/attachments)
 
-Progress: [===========]░░ ~20%
+Progress: [============]░░ ~22%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 3.3 min
-- Total execution time: ~0.58 hours
+- Total execution time: ~0.63 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 5/5 | 18 min | 3.6 min |
-| 02-core-data | 3/4 | 9 min | 3.0 min |
+| 02-core-data | 4/4 | 12 min | 3.0 min |
 | 03-frontend | 3/4 | 8 min | 2.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3 min), 02-02 (3 min), 03-02 (3 min), 02-04 (3 min), 03-03 (2 min)
+- Last 5 plans: 02-02 (3 min), 03-02 (3 min), 02-04 (3 min), 03-03 (2 min), 02-03 (3 min)
 - Trend: consistently fast ~3 min/plan
 
 ## Accumulated Context
@@ -67,22 +67,22 @@ Recent decisions affecting current work:
 - **02-02:** Soft delete (is_active=False) instead of hard delete to preserve task/time log referential integrity
 - **02-02:** Re-raise HTTPException in catch-all except blocks to avoid swallowing 404s
 - **02-02:** model_dump(mode="json") for response serialization ensures datetime JSON compatibility
-- **03-01:** Surface palette uses warm stone tones (not cold grays) for human-centric feel
-- **03-01:** tokens.ts mirrors tailwind.config.js exactly -- Tailwind config is single source of truth
-- **03-01:** chartColors has categorical (6-color), sequential, and diverging palettes for Recharts
-- **03-01:** Only extended fontSize with `display` -- preserved all Tailwind defaults
+- **02-03:** Hard delete for tasks (leaf entities) -- no downstream referential dependencies
+- **02-03:** Comments/attachments use Firestore ArrayUnion/ArrayRemove for atomic embedded array operations
+- **02-03:** Enum values converted to .value before Firestore write, reconstructed on read via Pydantic
+- **02-03:** Comment/attachment create bodies are plain dicts (not Pydantic models) for simple sub-resources
 - **02-04:** Hard delete for time logs (leaf entities) -- no downstream referential dependencies
 - **02-04:** ISO string serialization for date/time Firestore storage with Python type conversion on read
 - **02-04:** Duration auto-recalculated on update when either start_time or end_time changes
 - **02-04:** Hyphenated /time-logs URL prefix for REST convention; underscored time_logs for Firestore collection
+- **03-01:** Surface palette uses warm stone tones (not cold grays) for human-centric feel
+- **03-01:** tokens.ts mirrors tailwind.config.js exactly -- Tailwind config is single source of truth
+- **03-01:** chartColors has categorical (6-color), sequential, and diverging palettes for Recharts
+- **03-01:** Only extended fontSize with `display` -- preserved all Tailwind defaults
 - **03-02:** No external dependencies added -- class merging via template literals, no clsx/tailwind-merge
 - **03-02:** Compound components (Card, Table) use Object.assign pattern for dot-notation API
 - **03-02:** Modal uses React Portal to document.body with Escape key and backdrop click close
 - **03-02:** Component API pattern: all components accept className for override/extension
-- **03-03:** Sidebar always expanded in mobile drawer (collapsed state is desktop-only)
-- **03-03:** Breadcrumbs use static route-label map; unknown segments pass through for future nested routes
-- **03-03:** Shell composition pattern: AppLayout is thin wrapper composing Sidebar + Header + MobileNav + Outlet
-- **03-03:** localStorage persistence: useState initializer reads, useEffect syncs on change
 
 ### Deferred Issues
 
@@ -95,5 +95,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 03-03 complete. Phase 2 and Phase 3 running in parallel. Next: 02-03 (task CRUD), 03-04 (dashboard widgets).
-Resume file: .planning/phases/03-frontend-architecture/03-03-SUMMARY.md
+Stopped at: Plan 02-03 complete. Phase 2 fully done. Phase 3 at 3/4. Next: 03-04 (dashboard widgets).
+Resume file: .planning/phases/02-core-data-layer/02-03-SUMMARY.md
