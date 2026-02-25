@@ -15,8 +15,8 @@ None
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Foundation & Infrastructure** — Firebase setup, tear down Supabase, project scaffolding, auth
-- [ ] **Phase 2: Core Data Layer** — Firestore collections, FastAPI endpoints for all core entities
-- [ ] **Phase 3: Frontend Architecture** — Design system, app shell, routing, responsive layout
+- [x] **Phase 2: Core Data Layer** — Firestore collections, FastAPI endpoints for all core entities
+- [x] **Phase 3: Frontend Architecture** — Design system, app shell, routing, responsive layout
 - [ ] **Phase 4: Client & Task Management** — Full CRUD, Kanban views, filtering, client detail pages
 - [ ] **Phase 5: Advanced Time Logging** — Time entry, auto-duration, activity logs, time allocation by group
 - [ ] **Phase 6: Sage Financial Integration** — Sage API connection, weekly snapshots, P&L/Excel uploads
@@ -202,8 +202,8 @@ Note: Phases 2 and 3 can run in parallel (both depend only on Phase 1). Phases 4
 | Phase | Plans Complete | Status | Completed |
 |-------|---------------|--------|-----------|
 | 1. Foundation & Infrastructure | 5/5 | Complete | 2026-02-25 |
-| 2. Core Data Layer | 0/4 | Not started | - |
-| 3. Frontend Architecture | 0/4 | Not started | - |
+| 2. Core Data Layer | 4/4 | Complete | 2026-02-25 |
+| 3. Frontend Architecture | 4/4 | Complete | 2026-02-25 |
 | 4. Client & Task Management | 0/5 | Not started | - |
 | 5. Advanced Time Logging | 0/5 | Not started | - |
 | 6. Sage Financial Integration | 0/5 | Not started | - |

@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 2 COMPLETE (all 4 plans done). Phase 3 nearing completion (3/4 done). Next: 03-04 (dashboard widgets).
+**Current focus:** Phases 1, 2, 3 COMPLETE. Next: Phase 4 (Client & Task Management).
 
 ## Current Position
 
-Phase: 2 COMPLETE, 3 of 12 -- IN PROGRESS
-Plan: 02-03 complete (task CRUD). Phase 2 fully done (02-01, 02-02, 02-03, 02-04). Phase 3: 03-01, 03-02, 03-03 done.
-Status: Phase 2 complete. Phase 3 in progress (3/4 done). Next: 03-04 (dashboard widgets).
-Last activity: 2026-02-25 — Plan 02-03 executed (task CRUD endpoints with comments/attachments)
+Phase: 1, 2, 3 COMPLETE. 4 of 12 -- NOT STARTED
+Plan: 03-04 complete (dashboard widgets). Phase 3 fully done (03-01, 03-02, 03-03, 03-04).
+Status: Phases 1-3 complete. Ready for Phase 4 (Client & Task Management).
+Last activity: 2026-02-25 — Plan 03-04 executed (dashboard page skeleton with widget grid)
 
-Progress: [============]░░ ~22%
+Progress: [================]░░ ~25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 3.3 min
-- Total execution time: ~0.63 hours
+- Total plans completed: 13
+- Average duration: 3.2 min
+- Total execution time: ~0.68 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [============]░░ ~22%
 |-------|-------|-------|----------|
 | 01-foundation | 5/5 | 18 min | 3.6 min |
 | 02-core-data | 4/4 | 12 min | 3.0 min |
-| 03-frontend | 3/4 | 8 min | 2.7 min |
+| 03-frontend | 4/4 | 11 min | 2.8 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (3 min), 03-02 (3 min), 02-04 (3 min), 03-03 (2 min), 02-03 (3 min)
+- Last 5 plans: 03-02 (3 min), 02-04 (3 min), 03-03 (2 min), 02-03 (3 min), 03-04 (3 min)
 - Trend: consistently fast ~3 min/plan
 
 ## Accumulated Context
@@ -83,6 +83,9 @@ Recent decisions affecting current work:
 - **03-02:** Compound components (Card, Table) use Object.assign pattern for dot-notation API
 - **03-02:** Modal uses React Portal to document.body with Escape key and backdrop click close
 - **03-02:** Component API pattern: all components accept className for override/extension
+- **03-04:** Relative imports (../ui) instead of @/ aliases -- Vite has no path alias configured
+- **03-04:** Dashboard widgets use hardcoded mock data -- no API calls in skeleton phase
+- **03-04:** Revenue chart placeholder reserves min-h-[300px] with Phase 7 note
 
 ### Deferred Issues
 
@@ -95,5 +98,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 02-03 complete. Phase 2 fully done. Phase 3 at 3/4. Next: 03-04 (dashboard widgets).
-Resume file: .planning/phases/02-core-data-layer/02-03-SUMMARY.md
+Stopped at: Plan 03-04 complete. Phases 1-3 fully done. Next: Phase 4 (Client & Task Management).
+Resume file: .planning/phases/03-frontend-architecture/03-04-SUMMARY.md
