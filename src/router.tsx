@@ -10,6 +10,7 @@ import FinancesPage from './pages/FinancesPage';
 import AgentsPage from './pages/AgentsPage';
 import TimePage from './pages/TimePage';
 import TimeLogListPage from './pages/TimeLogListPage';
+import TimeAllocationPage from './pages/TimeAllocationPage';
 import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
           { path: '/agents', element: <AgentsPage /> },
           { path: '/time', element: <TimePage /> },
           { path: '/time/logs', element: <TimeLogListPage /> },
+          { path: '/time/allocation', element: <TimeAllocationPage /> },
           { path: '/reports', element: <ReportsPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
