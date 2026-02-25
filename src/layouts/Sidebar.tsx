@@ -13,6 +13,7 @@ import {
   PanelLeft,
   ChevronDown,
   MessageSquare,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -26,6 +27,7 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
+  highlight?: boolean;
   subItems?: SubNavItem[];
 }
 
@@ -50,6 +52,7 @@ const navSections: NavSection[] = [
   {
     label: 'Intelligence',
     items: [
+      { to: '/opsai', label: 'OpsAI', icon: Sparkles, highlight: true },
       {
         to: '/finances',
         label: 'Finances',
@@ -134,7 +137,7 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
             )}
             {collapsed && <div className="pt-3" />}
             <ul className="space-y-0.5 px-2">
-              {section.items.map(({ to, label, icon: Icon, badge, subItems }) => {
+              {section.items.map(({ to, label, icon: Icon, badge, highlight, subItems }) => {
                 const hasSubItems = subItems && subItems.length > 0;
                 const isExpanded = expandedItems.has(to);
                 // Parent is "active" if current path starts with its path (for grouping)
@@ -175,7 +178,9 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
                             collapsed ? 'justify-center px-2' : 'px-4',
                             isActive || (collapsed && isParentActive)
                               ? 'bg-primary-50 text-primary-600 font-semibold border-l-3 border-primary-500'
-                              : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900',
+                              : highlight
+                                ? 'bg-accent-50 text-accent-700 font-medium hover:bg-accent-100'
+                                : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900',
                           ].join(' ')
                         }
                       >

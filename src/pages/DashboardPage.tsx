@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { BarChart2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BarChart2, AlertTriangle, Sparkles } from 'lucide-react';
 import { Card, Tabs } from '../components/ui';
 import { MetricRow, RecentActivity, AlertsPanel, QuickActions } from '../components/dashboard';
 import { apiClient } from '../lib/api';
@@ -184,8 +185,36 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Alert severity breakdown
+  const highAlerts = alerts.filter((a) => a.severity === 'high');
+  const mediumAlerts = alerts.filter((a) => a.severity === 'medium');
+  const lowAlerts = alerts.filter((a) => a.severity === 'low');
+
   return (
     <div>
+      {/* High-severity alert banner */}
+      {highAlerts.length > 0 && (
+        <div className="mb-4 animate-up flex items-center gap-3 rounded-lg bg-danger-50 border border-danger-200 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 text-danger-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-danger-800">
+              {highAlerts.length} high-severity alert{highAlerts.length !== 1 ? 's' : ''} require attention
+            </p>
+            <p className="text-xs text-danger-600 mt-0.5">
+              {highAlerts[0].message}
+              {highAlerts.length > 1 && ` (+${highAlerts.length - 1} more)`}
+            </p>
+          </div>
+          <Link
+            to="/opsai"
+            className="flex items-center gap-1.5 text-xs font-medium text-danger-700 hover:text-danger-900 bg-danger-100 hover:bg-danger-200 px-3 py-1.5 rounded-md transition-default flex-shrink-0"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Ask OpsAI
+          </Link>
+        </div>
+      )}
+
       {/* Page header */}
       <div className="flex items-start justify-between animate-up">
         <div>
@@ -220,9 +249,45 @@ export default function DashboardPage() {
           <RecentActivity timeLogs={recentLogs} loading={activityLoading} />
         </div>
 
-        {/* Right column — alerts + quick actions */}
+        {/* Right column — alerts + OpsAI summary + quick actions */}
         <div className="lg:col-span-1 space-y-6">
           <AlertsPanel alerts={alerts} loading={alertsLoading} />
+
+          {/* OpsAI alert summary widget */}
+          {!alertsLoading && alerts.length > 0 && (
+            <Card padding="none">
+              <Card.Body>
+                <Link
+                  to="/opsai"
+                  className="flex items-center gap-3 group"
+                >
+                  <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-accent-100 flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-accent-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-surface-800 group-hover:text-accent-700 transition-default">
+                      OpsAI Insights
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {highAlerts.length > 0 && (
+                        <span className="text-xs text-danger-600 font-medium">{highAlerts.length} high</span>
+                      )}
+                      {mediumAlerts.length > 0 && (
+                        <span className="text-xs text-warning-600 font-medium">{mediumAlerts.length} med</span>
+                      )}
+                      {lowAlerts.length > 0 && (
+                        <span className="text-xs text-primary-600 font-medium">{lowAlerts.length} low</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-xs text-accent-600 font-medium group-hover:text-accent-800 transition-default">
+                    Analyze &rarr;
+                  </span>
+                </Link>
+              </Card.Body>
+            </Card>
+          )}
+
           <QuickActions />
         </div>
       </div>
