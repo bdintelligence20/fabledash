@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 2 & 3 of 12 -- IN PROGRESS (parallel)
-Plan: 02-04 complete (time log CRUD), 02-02 complete (client CRUD), 03-02 complete (UI component library), 02-01 complete (core data models), 03-01 complete (design system tokens)
-Status: Phase 2 and Phase 3 running in parallel. 02-01, 02-02, 02-04, 03-01, 03-02 done. 02-03 in progress. Next: 02-03 (task CRUD), 03-03 (layout components), 03-04 (dashboard widgets).
-Last activity: 2026-02-25 — Plan 02-04 executed (time log CRUD with auto-duration)
+Plan: 02-04 complete (time log CRUD), 02-02 complete (client CRUD), 03-02 complete (UI component library), 03-03 complete (app shell), 02-01 complete (core data models), 03-01 complete (design system tokens)
+Status: Phase 2 and Phase 3 running in parallel. 02-01, 02-02, 02-04, 03-01, 03-02, 03-03 done. 02-03 in progress. Next: 02-03 (task CRUD), 03-04 (dashboard widgets).
+Last activity: 2026-02-25 — Plan 03-03 executed (app shell with sidebar, header, breadcrumbs, mobile nav)
 
 Progress: [===========]░░ ~20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 3.3 min
-- Total execution time: ~0.55 hours
+- Total execution time: ~0.58 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [===========]░░ ~20%
 |-------|-------|-------|----------|
 | 01-foundation | 5/5 | 18 min | 3.6 min |
 | 02-core-data | 3/4 | 9 min | 3.0 min |
-| 03-frontend | 2/4 | 6 min | 3.0 min |
+| 03-frontend | 3/4 | 8 min | 2.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (3 min), 02-01 (3 min), 02-02 (3 min), 03-02 (3 min), 02-04 (3 min)
+- Last 5 plans: 02-01 (3 min), 02-02 (3 min), 03-02 (3 min), 02-04 (3 min), 03-03 (2 min)
 - Trend: consistently fast ~3 min/plan
 
 ## Accumulated Context
@@ -79,6 +79,10 @@ Recent decisions affecting current work:
 - **03-02:** Compound components (Card, Table) use Object.assign pattern for dot-notation API
 - **03-02:** Modal uses React Portal to document.body with Escape key and backdrop click close
 - **03-02:** Component API pattern: all components accept className for override/extension
+- **03-03:** Sidebar always expanded in mobile drawer (collapsed state is desktop-only)
+- **03-03:** Breadcrumbs use static route-label map; unknown segments pass through for future nested routes
+- **03-03:** Shell composition pattern: AppLayout is thin wrapper composing Sidebar + Header + MobileNav + Outlet
+- **03-03:** localStorage persistence: useState initializer reads, useEffect syncs on change
 
 ### Deferred Issues
 
@@ -91,5 +95,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 02-04 complete. Phase 2 and Phase 3 running in parallel. Next: 02-03 (task CRUD), 03-03 (layout components), 03-04 (dashboard widgets).
-Resume file: .planning/phases/02-core-data-layer/02-04-SUMMARY.md
+Stopped at: Plan 03-03 complete. Phase 2 and Phase 3 running in parallel. Next: 02-03 (task CRUD), 03-04 (dashboard widgets).
+Resume file: .planning/phases/03-frontend-architecture/03-03-SUMMARY.md
