@@ -20,8 +20,8 @@ None
 - [x] **Phase 4: Client & Task Management** — Full CRUD, Kanban views, filtering, client detail pages
 - [x] **Phase 5: Advanced Time Logging** — Time entry, auto-duration, activity logs, time allocation by group
 - [x] **Phase 6: Sage Financial Integration** — Sage API connection, weekly snapshots, P&L/Excel uploads
-- [ ] **Phase 7: Financial Dashboards** — Revenue growth, cost-benefit (ZAR/Hr), cash position, volume vs rate
-- [ ] **Phase 8: Meeting Intelligence** — Read AI + Fireflies integration, contextual linking, automated briefing
+- [x] **Phase 7: Financial Dashboards** — Revenue growth, cost-benefit (ZAR/Hr), cash position, volume vs rate
+- [x] **Phase 8: Meeting Intelligence** — Read AI + Fireflies integration, contextual linking, automated briefing
 - [ ] **Phase 9: AI Agent Ecosystem** — Two-tier agents, RAG, document processing, model selection, parallel execution
 - [ ] **Phase 10: OpsAI Intelligence Layer** — Conversational AI, proactive alerts, cross-source queries
 - [ ] **Phase 11: Health & Vitality Reports** — Operational efficiency, process quality, quarterly/YTD comparatives
@@ -207,8 +207,8 @@ Note: Phases 2 and 3 can run in parallel (both depend only on Phase 1). Phases 4
 | 4. Client & Task Management | 5/5 | Complete | 2026-02-25 |
 | 5. Advanced Time Logging | 5/5 | Complete | 2026-02-25 |
 | 6. Sage Financial Integration | 5/5 | Complete | 2026-02-25 |
-| 7. Financial Dashboards | 0/5 | Not started | - |
-| 8. Meeting Intelligence | 0/5 | Not started | - |
+| 7. Financial Dashboards | 5/5 | Complete | 2026-02-25 |
+| 8. Meeting Intelligence | 5/5 | Complete | 2026-02-25 |
 | 9. AI Agent Ecosystem | 0/7 | Not started | - |
 | 10. OpsAI Intelligence Layer | 0/5 | Not started | - |
 | 11. Health & Vitality Reports | 0/5 | Not started | - |
