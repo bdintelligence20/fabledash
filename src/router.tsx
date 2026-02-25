@@ -8,6 +8,7 @@ import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
 import FinancesPage from './pages/FinancesPage';
 import CostBenefitPage from './pages/CostBenefitPage';
+import VolumeRatePage from './pages/VolumeRatePage';
 import RevenueTrackingPage from './pages/RevenueTrackingPage';
 import CashPositionPage from './pages/CashPositionPage';
 import AgentsPage from './pages/AgentsPage';
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
           { path: '/finances', element: <FinancesPage /> },
           { path: '/finances/revenue', element: <RevenueTrackingPage /> },
           { path: '/finances/cost-benefit', element: <CostBenefitPage /> },
+          { path: '/finances/volume-rate', element: <VolumeRatePage /> },
           { path: '/finances/cash', element: <CashPositionPage /> },
           { path: '/agents', element: <AgentsPage /> },
           { path: '/time', element: <TimePage /> },
