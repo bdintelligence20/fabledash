@@ -1,113 +1,89 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
-from datetime import datetime, date
-from .base import BaseResponse
+"""Task models for Firestore task documents."""
 
-class TaskStatus(BaseModel):
-    """Task status model."""
-    id: int
-    name: str
-    color: Optional[str] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+from datetime import datetime
+from enum import Enum
+
+from pydantic import BaseModel
+
+COLLECTION_NAME = "tasks"
+
+
+class TaskStatus(str, Enum):
+    """Workflow status for tasks."""
+
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    IN_REVIEW = "in_review"
+    DONE = "done"
+    BLOCKED = "blocked"
+
+
+class TaskPriority(str, Enum):
+    """Priority levels for tasks."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    URGENT = "urgent"
+
 
 class TaskComment(BaseModel):
-    """Task comment model."""
-    id: int
-    task_id: int
+    """Embedded comment within a task document."""
+
+    id: str
     content: str
+    author_uid: str
+    author_name: str | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+
 
 class TaskAttachment(BaseModel):
-    """Task attachment model."""
-    id: int
-    task_id: int
+    """Embedded attachment metadata within a task document."""
+
+    id: str
     filename: str
-    file_type: str
-    file_size: int
-    content_type: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    url: str
+    content_type: str | None = None
+    uploaded_by: str
+    uploaded_at: datetime
 
-class Task(BaseModel):
-    """Task model."""
-    id: int
-    title: str
-    description: Optional[str] = None
-    client_id: Optional[int] = None
-    status_id: int
-    due_date: Optional[date] = None
-    priority: Optional[str] = None  # Changed from int to str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
 
-class TaskCreate(BaseModel):
-    """Model for creating a new task."""
+class TaskBase(BaseModel):
+    """Shared fields for task create/update operations."""
+
     title: str
-    description: Optional[str] = None
-    client_id: Optional[int] = None
-    status_id: int
-    due_date: Optional[date] = None
-    priority: Optional[str] = None  # Changed from int to str
+    description: str | None = None
+    client_id: str
+    status: TaskStatus = TaskStatus.TODO
+    priority: TaskPriority = TaskPriority.MEDIUM
+    due_date: datetime | None = None
+    assigned_to: str | None = None
+
+
+class TaskCreate(TaskBase):
+    """Request body for creating a new task."""
+
+    pass
+
 
 class TaskUpdate(BaseModel):
-    """Model for updating a task."""
-    title: Optional[str] = None
-    description: Optional[str] = None
-    client_id: Optional[int] = None
-    status_id: Optional[int] = None
-    due_date: Optional[date] = None
-    priority: Optional[str] = None  # Changed from int to str
+    """Request body for updating a task. All fields optional for partial updates."""
 
-class TaskCommentCreate(BaseModel):
-    """Model for creating a new task comment."""
-    task_id: int
-    content: str
+    title: str | None = None
+    description: str | None = None
+    client_id: str | None = None
+    status: TaskStatus | None = None
+    priority: TaskPriority | None = None
+    due_date: datetime | None = None
+    assigned_to: str | None = None
 
-class TaskStatusCreate(BaseModel):
-    """Model for creating a new task status."""
-    name: str
-    color: Optional[str] = None
 
-class TaskResponse(BaseResponse):
-    """Response model for a single task."""
-    task: Task
+class TaskResponse(TaskBase):
+    """Full task document representation returned from API."""
 
-class TasksResponse(BaseResponse):
-    """Response model for multiple tasks."""
-    tasks: List[Task]
-
-class TaskStatusResponse(BaseResponse):
-    """Response model for a single task status."""
-    status: TaskStatus
-
-class TaskStatusesResponse(BaseResponse):
-    """Response model for multiple task statuses."""
-    statuses: List[TaskStatus]
-
-class TaskCommentResponse(BaseResponse):
-    """Response model for a single task comment."""
-    comment: TaskComment
-
-class TaskCommentsResponse(BaseResponse):
-    """Response model for multiple task comments."""
-    comments: List[TaskComment]
-
-class TaskAttachmentResponse(BaseResponse):
-    """Response model for a single task attachment."""
-    attachment: TaskAttachment
-
-class TaskAttachmentsResponse(BaseResponse):
-    """Response model for multiple task attachments."""
-    attachments: List[TaskAttachment]
-
-class TaskWithDetails(Task):
-    """Task model with additional details."""
-    status: Optional[TaskStatus] = None
-    comments: List[TaskComment] = []
-    attachments: List[TaskAttachment] = []
-
-class TaskWithDetailsResponse(BaseResponse):
-    """Response model for a task with additional details."""
-    task: TaskWithDetails
+    id: str
+    comments: list[TaskComment] = []
+    attachments: list[TaskAttachment] = []
+    created_at: datetime
+    updated_at: datetime
+    created_by: str
