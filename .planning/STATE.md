@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 11 (Health & Vitality Reports) — plan 01 complete. Report engine backend operational.
+**Current focus:** Phase 11 (Health & Vitality Reports) — plan 02 complete. Comparison framework verified.
 
 ## Current Position
 
-Phase: 11-health-vitality-reports (plan 01 in progress)
-Plan: 11-01 complete. Report engine with 4 report types + comparison endpoints.
-Status: ReportEngine, ReportComparison, and 7 API endpoints deployed. Backend reports operational.
-Last activity: 2026-02-25 -- Plan 11-01 complete (report engine + API endpoints)
+Phase: 11-health-vitality-reports (plan 02 of 05 complete)
+Plan: 11-02 complete. Period comparison engine with quarterly, YTD, and arbitrary date range support.
+Status: ReportComparison verified — compare_periods, quarterly_comparison, ytd_report all functional. 3 comparison endpoints live.
+Last activity: 2026-02-25 -- Plan 11-02 complete (comparative framework)
 
-Progress: [====================================]░░ ~60%
+Progress: [====================================]░░ ~62%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26
-- Average duration: 2.9 min
+- Total plans completed: 27
+- Average duration: 2.8 min
 - Total execution time: ~1.3 hours
 
 **By Phase:**
@@ -132,6 +132,10 @@ Recent decisions affecting current work:
 - **11-01:** Report engine methods accept date objects (not strings) for type safety
 - **11-01:** Comparison engine uses higher_is_better semantics per metric for direction labeling
 - **11-01:** Time entry consistency calculates working days (Mon-Fri) for accurate denominator
+- **11-02:** Quarter date ranges hardcoded as QUARTER_RANGES dict (not calculated)
+- **11-02:** YTD compares current year Jan 1-today vs same date range last year
+- **11-02:** Delta calculation: absolute_change + percentage_change + direction per metric
+- **11-02:** Comparison engine delegates to ReportEngine.full_health_report for both periods
 
 ### Deferred Issues
 
@@ -144,5 +148,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Phase 11 plan 01 complete. Report engine backend with 7 endpoints operational.
-Resume file: .planning/phases/11-health-vitality-reports/11-01-SUMMARY.md
+Stopped at: Phase 11 plan 02 complete. Comparison framework verified and documented.
+Resume file: .planning/phases/11-health-vitality-reports/11-02-SUMMARY.md
