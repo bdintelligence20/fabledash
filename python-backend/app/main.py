@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.clients import router as clients_router
 from app.config import get_settings
 from app.utils.firebase_client import initialize_firebase
 
@@ -82,17 +83,16 @@ async def request_logging_middleware(request: Request, call_next):
 
 # --- Router includes ---
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(clients_router, prefix="/clients", tags=["clients"])
 
 # Placeholder routers (will be rebuilt in Phase 2)
 # from app.api.agents import router as agents_router
 # from app.api.chats import router as chats_router
 # from app.api.documents import router as documents_router
-# from app.api.clients import router as clients_router
 # from app.api.tasks import router as tasks_router
 # app.include_router(agents_router, prefix="/agents", tags=["agents"])
 # app.include_router(chats_router, prefix="/chats", tags=["chats"])
 # app.include_router(documents_router, prefix="/documents", tags=["documents"])
-# app.include_router(clients_router, prefix="/clients", tags=["clients"])
 # app.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 
 
