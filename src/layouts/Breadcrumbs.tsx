@@ -11,6 +11,9 @@ const routeLabels: Record<string, string> = {
   '/reports': 'Reports',
 };
 
+/** Routes with dynamic child segments (e.g. /clients/:id). Final crumb shows "Detail". */
+const dynamicParentRoutes = new Set(['/clients', '/tasks']);
+
 interface Breadcrumb {
   label: string;
   path: string;
@@ -34,10 +37,19 @@ export default function Breadcrumbs() {
     const segments = pathname.split('/').filter(Boolean);
     let currentPath = '';
 
-    for (const segment of segments) {
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
       currentPath += `/${segment}`;
-      const label = routeLabels[currentPath] || segment;
-      crumbs.push({ label, path: currentPath });
+
+      if (routeLabels[currentPath]) {
+        // Known route — use static label
+        crumbs.push({ label: routeLabels[currentPath], path: currentPath });
+      } else {
+        // Dynamic segment (e.g. a Firestore document ID)
+        const parentPath = '/' + segments.slice(0, i).join('/');
+        const label = dynamicParentRoutes.has(parentPath) ? 'Detail' : segment.slice(0, 8);
+        crumbs.push({ label, path: currentPath });
+      }
     }
   }
 
