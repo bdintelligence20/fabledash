@@ -97,13 +97,16 @@ app.include_router(financial_uploads_router, prefix="/financial", tags=["financi
 app.include_router(financial_data_router, prefix="/financial-data", tags=["financial-data"])
 app.include_router(meetings_router, prefix="/meetings", tags=["meetings"])
 
+# Phase 09: AI Agent Ecosystem
+from app.api.agents import router as agents_router
+from app.api.documents import router as documents_router
+
+app.include_router(agents_router, prefix="/agents", tags=["agents"])
+app.include_router(documents_router, prefix="/documents", tags=["documents"])
+
 # Placeholder routers (will be rebuilt in later phases)
-# from app.api.agents import router as agents_router
 # from app.api.chats import router as chats_router
-# from app.api.documents import router as documents_router
-# app.include_router(agents_router, prefix="/agents", tags=["agents"])
 # app.include_router(chats_router, prefix="/chats", tags=["chats"])
-# app.include_router(documents_router, prefix="/documents", tags=["documents"])
 
 
 # --- Routes ---

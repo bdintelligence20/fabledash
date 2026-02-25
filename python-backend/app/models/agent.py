@@ -1,39 +1,81 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
-from datetime import datetime
-from .base import BaseResponse
+"""Agent models for Firestore agent documents."""
 
-class Agent(BaseModel):
-    """Agent model."""
-    id: int
-    name: str
-    description: Optional[str] = None
-    client_id: Optional[int] = None
-    is_parent: bool = False
-    parent_id: Optional[int] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+from datetime import datetime
+from enum import Enum
+
+from pydantic import BaseModel
+
+COLLECTION_NAME = "agents"
+
+
+class AgentTier(str, Enum):
+    """Agent tier classification."""
+
+    OPS_TRAFFIC = "ops_traffic"
+    CLIENT_BASED = "client_based"
+
+
+class AgentStatus(str, Enum):
+    """Agent lifecycle status."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ARCHIVED = "archived"
+
+
+class AgentModel(str, Enum):
+    """Supported LLM models for agents."""
+
+    GPT4O = "gpt-4o"
+    GPT4O_MINI = "gpt-4o-mini"
+    CLAUDE_SONNET = "claude-sonnet-4-6"
+    CLAUDE_HAIKU = "claude-haiku-4-5"
+
 
 class AgentCreate(BaseModel):
-    """Model for creating a new agent."""
+    """Request body for creating a new agent."""
+
     name: str
-    description: Optional[str] = None
-    client_id: Optional[int] = None
-    is_parent: bool = False
-    parent_id: Optional[int] = None
+    description: str | None = None
+    tier: AgentTier
+    client_id: str | None = None
+    parent_agent_id: str | None = None
+    model: AgentModel = AgentModel.GPT4O_MINI
+    system_prompt: str | None = None
+    capabilities: list[str] = []
+    document_ids: list[str] = []
+
 
 class AgentUpdate(BaseModel):
-    """Model for updating an agent."""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    client_id: Optional[int] = None
-    is_parent: Optional[bool] = None
-    parent_id: Optional[int] = None
+    """Request body for updating an agent. All fields optional for partial updates."""
 
-class AgentResponse(BaseResponse):
-    """Response model for a single agent."""
-    agent: Agent
+    name: str | None = None
+    description: str | None = None
+    tier: AgentTier | None = None
+    client_id: str | None = None
+    parent_agent_id: str | None = None
+    model: AgentModel | None = None
+    system_prompt: str | None = None
+    capabilities: list[str] | None = None
+    document_ids: list[str] | None = None
 
-class AgentsResponse(BaseResponse):
-    """Response model for multiple agents."""
-    agents: List[Agent]
+
+class AgentResponse(BaseModel):
+    """Full agent document representation returned from API."""
+
+    id: str
+    name: str
+    description: str | None = None
+    tier: AgentTier
+    status: AgentStatus
+    client_id: str | None = None
+    client_name: str | None = None
+    parent_agent_id: str | None = None
+    model: AgentModel
+    system_prompt: str | None = None
+    capabilities: list[str] = []
+    document_ids: list[str] = []
+    conversation_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+    created_by: str
