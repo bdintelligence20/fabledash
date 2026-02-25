@@ -15,6 +15,7 @@ import CashPositionPage from './pages/CashPositionPage';
 import AgentsPage from './pages/AgentsPage';
 import AgentDetailPage from './pages/AgentDetailPage';
 import AgentChatPage from './pages/AgentChatPage';
+import OpsAIPage from './pages/OpsAIPage';
 import MeetingsPage from './pages/MeetingsPage';
 import MeetingDetailPage from './pages/MeetingDetailPage';
 import TimePage from './pages/TimePage';
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
           { path: '/agents', element: <AgentsPage /> },
           { path: '/agents/:agentId', element: <AgentDetailPage /> },
           { path: '/agents/:agentId/chat/:conversationId', element: <AgentChatPage /> },
+          { path: '/opsai', element: <OpsAIPage /> },
           { path: '/meetings', element: <MeetingsPage /> },
           { path: '/meetings/:meetingId', element: <MeetingDetailPage /> },
           { path: '/time', element: <TimePage /> },
