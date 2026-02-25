@@ -111,6 +111,11 @@ from app.api.opsai import router as opsai_router
 
 app.include_router(opsai_router, prefix="/opsai", tags=["opsai"])
 
+# Phase 11: Health & Vitality Reports
+from app.api.reports import router as reports_router
+
+app.include_router(reports_router, prefix="/reports", tags=["reports"])
+
 
 # --- Routes ---
 
