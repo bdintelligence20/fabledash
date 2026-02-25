@@ -1,57 +1,43 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+"""Document models for Firestore document management and chunking."""
+
 from datetime import datetime
-from .base import BaseResponse
+from enum import Enum
 
-class Document(BaseModel):
-    """Document model."""
-    id: int
-    agent_id: int
-    filename: str = Field(..., alias='file_name') # Added alias for file_name from DB
-    file_type: Optional[str] = None # Made Optional
-    file_size: Optional[int] = None # Made Optional
-    content_type: Optional[str] = None # Made Optional
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+from pydantic import BaseModel
 
-class DocumentCreate(BaseModel):
-    """Model for creating a new document."""
-    agent_id: int
+COLLECTION_NAME = "documents"
+CHUNKS_COLLECTION = "document_chunks"
+
+
+class DocumentStatus(str, Enum):
+    """Processing status for uploaded documents."""
+
+    PROCESSING = "processing"
+    READY = "ready"
+    ERROR = "error"
+
+
+class DocumentResponse(BaseModel):
+    """Full document representation returned from API."""
+
+    id: str
     filename: str
-    file_type: Optional[str] = None # Made Optional
-    file_size: Optional[int] = None # Made Optional
-    content_type: Optional[str] = None # Made Optional
+    file_type: str | None = None
+    file_size: int = 0
+    status: DocumentStatus = DocumentStatus.PROCESSING
+    agent_id: str | None = None
+    client_id: str | None = None
+    chunk_count: int = 0
+    error_message: str | None = None
+    uploaded_at: datetime
+    uploaded_by: str
 
-class DocumentResponse(BaseResponse):
-    """Response model for a single document."""
-    document: Document
-
-class DocumentsResponse(BaseResponse):
-    """Response model for multiple documents."""
-    documents: List[Document]
 
 class DocumentChunk(BaseModel):
-    """Document chunk model for vector search."""
-    id: int
-    document_id: int
+    """A single chunk of extracted document text stored in Firestore."""
+
+    id: str
+    document_id: str
     content: str
-    embedding: Optional[List[float]] = None
-    metadata: Optional[Dict[str, Any]] = None
-    created_at: datetime
-
-class DocumentChunkCreate(BaseModel):
-    """Model for creating a new document chunk."""
-    document_id: int
-    content: str
-    embedding: Optional[List[float]] = None
-    metadata: Optional[Dict[str, Any]] = None
-
-class RelevantChunk(BaseModel):
-    """Model for a relevant document chunk with similarity score."""
-    chunk: DocumentChunk
-    similarity: float
-    document: Optional[Document] = None
-
-class RelevantChunksResponse(BaseResponse):
-    """Response model for relevant document chunks."""
-    chunks: List[RelevantChunk]
+    chunk_index: int
+    metadata: dict = {}
