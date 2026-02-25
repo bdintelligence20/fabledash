@@ -2,23 +2,9 @@
  * API utility functions for making HTTP requests to the backend
  */
 
-// Determine API URL: Prioritize runtime ENV, then build-time ENV, then hardcoded default
-// Ensure window.ENV is checked safely as it's injected at runtime
-const runtimeApiUrl = typeof window !== 'undefined' && window.ENV && window.ENV.API_URL ? window.ENV.API_URL : null;
-const buildtimeApiUrl = process.env.VITE_API_URL;
-const defaultApiUrl = 'https://fabledash-backend-73351471156.us-central1.run.app'; // Fallback
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-export const apiUrl = runtimeApiUrl || buildtimeApiUrl || defaultApiUrl;
-
-// Log the API URL and its source for debugging
-if (runtimeApiUrl) {
-  console.log('Using runtime API URL (from env-config.js):', apiUrl);
-} else if (buildtimeApiUrl) {
-  console.log('Using build-time API URL (from Vite .env):', apiUrl);
-} else {
-  console.log('Using default hardcoded API URL:', apiUrl);
-}
-console.log('Final API URL being used:', apiUrl);
+export const apiUrl = API_URL;
 
 /**
  * Make a GET request to the API
@@ -27,7 +13,6 @@ console.log('Final API URL being used:', apiUrl);
  */
 export const apiGet = async (endpoint: string) => {
   const fullUrl = `${apiUrl}${endpoint}`;
-  console.log(`apiGet: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
     const response = await fetch(fullUrl);
     return await response.json();
@@ -45,7 +30,6 @@ export const apiGet = async (endpoint: string) => {
  */
 export const apiPost = async (endpoint: string, data: any) => {
   const fullUrl = `${apiUrl}${endpoint}`;
-  console.log(`apiPost: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
     const response = await fetch(fullUrl, {
       method: 'POST',
@@ -69,7 +53,6 @@ export const apiPost = async (endpoint: string, data: any) => {
  */
 export const apiPut = async (endpoint: string, data: any) => {
   const fullUrl = `${apiUrl}${endpoint}`;
-  console.log(`apiPut: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
     const response = await fetch(fullUrl, {
       method: 'PUT',
@@ -92,7 +75,6 @@ export const apiPut = async (endpoint: string, data: any) => {
  */
 export const apiDelete = async (endpoint: string) => {
   const fullUrl = `${apiUrl}${endpoint}`;
-  console.log(`apiDelete: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
     const response = await fetch(fullUrl, {
       method: 'DELETE',
@@ -115,7 +97,6 @@ export const apiDelete = async (endpoint: string) => {
  */
 export const apiUploadFile = async (endpoint: string, formData: FormData) => {
   const fullUrl = `${apiUrl}${endpoint}`;
-  console.log(`apiUploadFile: Attempting to fetch ${fullUrl} (derived from apiUrl: ${apiUrl})`);
   try {
     const response = await fetch(fullUrl, {
       method: 'POST',
