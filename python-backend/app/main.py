@@ -12,6 +12,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.clients import router as clients_router
+from app.api.financial_data import router as financial_data_router
 from app.api.financial_uploads import router as financial_uploads_router
 from app.api.sage import router as sage_router
 from app.api.tasks import router as tasks_router
@@ -92,6 +93,7 @@ app.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 app.include_router(time_logs_router, prefix="/time-logs", tags=["time-logs"])
 app.include_router(sage_router, prefix="/sage", tags=["sage"])
 app.include_router(financial_uploads_router, prefix="/financial", tags=["financial"])
+app.include_router(financial_data_router, prefix="/financial-data", tags=["financial-data"])
 
 # Placeholder routers (will be rebuilt in later phases)
 # from app.api.agents import router as agents_router

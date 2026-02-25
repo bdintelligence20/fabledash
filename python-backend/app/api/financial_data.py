@@ -1,0 +1,196 @@
+"""Aggregated financial data API endpoints — summary, revenue trends."""
+
+import logging
+from datetime import date, timedelta
+
+import firebase_admin
+from fastapi import APIRouter, Depends, Query
+from google.cloud.firestore_v1 import FieldFilter
+
+from app.dependencies.auth import get_current_user
+from app.models.financial import (
+    COLLECTION_NAME,
+    FORECAST_COLLECTION,
+    INVOICES_COLLECTION,
+    PNL_COLLECTION,
+    SAGE_CREDENTIALS_COLLECTION,
+)
+from app.models.user import CurrentUser
+from app.utils.firebase_client import get_firestore_client
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+@router.get("/summary")
+async def financial_summary(
+    period: str | None = Query(None, description="Filter by period (e.g. 2026-02)"),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Aggregated financial overview.
+
+    Returns the latest snapshot, invoice statistics, most recent P&L upload,
+    latest revenue forecast, and Sage connection status.
+    """
+    db = get_firestore_client()
+
+    # 1. Latest financial snapshot (most recent by period_end)
+    snapshot = None
+    try:
+        snap_query = db.collection(COLLECTION_NAME).order_by(
+            "period_end", direction="DESCENDING"
+        )
+        if period:
+            snap_query = snap_query.where(
+                filter=FieldFilter("period_end", ">=", period)
+            )
+        snap_query = snap_query.limit(1)
+        snap_docs = list(snap_query.stream())
+        if snap_docs:
+            snapshot = snap_docs[0].to_dict()
+    except Exception:
+        logger.exception("Failed to fetch latest financial snapshot")
+
+    # 2. Invoice stats: count by status, totals
+    invoices_summary = {
+        "total": 0,
+        "paid": 0,
+        "outstanding": 0,
+        "overdue": 0,
+        "total_revenue": 0.0,
+        "total_outstanding_amount": 0.0,
+    }
+    try:
+        inv_docs = list(db.collection(INVOICES_COLLECTION).stream())
+        for doc in inv_docs:
+            data = doc.to_dict()
+            status = data.get("status", "")
+            amount = float(data.get("amount", 0))
+            invoices_summary["total"] += 1
+
+            if status == "paid":
+                invoices_summary["paid"] += 1
+                invoices_summary["total_revenue"] += amount
+            elif status == "overdue":
+                invoices_summary["overdue"] += 1
+                invoices_summary["outstanding"] += 1
+                invoices_summary["total_outstanding_amount"] += amount
+            elif status in ("draft", "sent"):
+                invoices_summary["outstanding"] += 1
+                invoices_summary["total_outstanding_amount"] += amount
+    except Exception:
+        logger.exception("Failed to compute invoice statistics")
+
+    # 3. Latest P&L upload for the period
+    pnl_summary = None
+    try:
+        pnl_query = db.collection(PNL_COLLECTION).order_by(
+            "uploaded_at", direction="DESCENDING"
+        )
+        if period:
+            pnl_query = pnl_query.where(filter=FieldFilter("period", "==", period))
+        pnl_query = pnl_query.limit(1)
+        pnl_docs = list(pnl_query.stream())
+        if pnl_docs:
+            pnl_data = pnl_docs[0].to_dict()
+            pnl_summary = {
+                "id": pnl_data.get("id"),
+                "filename": pnl_data.get("filename"),
+                "period": pnl_data.get("period"),
+                "row_count": len(pnl_data.get("rows", [])),
+                "uploaded_at": pnl_data.get("uploaded_at"),
+            }
+    except Exception:
+        logger.exception("Failed to fetch latest P&L upload")
+
+    # 4. Latest revenue forecast
+    forecast_summary = None
+    try:
+        fc_query = (
+            db.collection(FORECAST_COLLECTION)
+            .order_by("uploaded_at", direction="DESCENDING")
+            .limit(1)
+        )
+        fc_docs = list(fc_query.stream())
+        if fc_docs:
+            fc_data = fc_docs[0].to_dict()
+            forecast_summary = {
+                "id": fc_data.get("id"),
+                "filename": fc_data.get("filename"),
+                "forecast_date": fc_data.get("forecast_date"),
+                "entry_count": len(fc_data.get("entries", [])),
+                "uploaded_at": fc_data.get("uploaded_at"),
+            }
+    except Exception:
+        logger.exception("Failed to fetch latest revenue forecast")
+
+    # 5. Sage connection status
+    sage_connected = False
+    try:
+        if firebase_admin._apps:
+            cred_doc = (
+                db.collection(SAGE_CREDENTIALS_COLLECTION).document("current").get()
+            )
+            sage_connected = cred_doc.exists
+    except Exception:
+        logger.exception("Failed to check Sage connection status")
+
+    return {
+        "success": True,
+        "data": {
+            "snapshot": snapshot,
+            "invoices": invoices_summary,
+            "pnl": pnl_summary,
+            "forecast": forecast_summary,
+            "sage_connected": sage_connected,
+        },
+    }
+
+
+@router.get("/revenue-trend")
+async def revenue_trend(
+    months: int = Query(6, ge=1, le=24, description="Number of months of trend data"),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Monthly revenue trend over the last N months.
+
+    Returns an array of period-level revenue, expenses, and net profit data
+    from financial snapshots.
+    """
+    db = get_firestore_client()
+
+    # Calculate the start date (N months ago)
+    today = date.today()
+    start_date = today.replace(day=1)
+    # Walk back N months
+    for _ in range(months):
+        start_date = (start_date - timedelta(days=1)).replace(day=1)
+
+    start_str = start_date.isoformat()
+
+    trend_data: list[dict] = []
+    try:
+        query = (
+            db.collection(COLLECTION_NAME)
+            .where(filter=FieldFilter("period_start", ">=", start_str))
+            .order_by("period_start", direction="ASCENDING")
+        )
+        docs = list(query.stream())
+        for doc in docs:
+            data = doc.to_dict()
+            trend_data.append(
+                {
+                    "period": data.get("period_start", "")[:7],  # YYYY-MM
+                    "revenue": data.get("total_revenue", 0),
+                    "expenses": data.get("total_expenses", 0),
+                    "net_profit": data.get("net_profit", 0),
+                }
+            )
+    except Exception:
+        logger.exception("Failed to fetch revenue trend data")
+
+    return {
+        "success": True,
+        "data": trend_data,
+    }
