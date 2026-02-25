@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 1, 2, 3 COMPLETE. 4, 5 of 12 -- IN PROGRESS
-Plan: 04-03 complete (task list and filtering), 05-01 complete, 05-03 complete.
+Plan: 04-02 complete (client detail page), 04-03 complete, 05-01 complete, 05-03 complete.
 Status: Phase 4 in progress (04-01, 04-02, 04-03 done), Phase 5 in progress (05-01, 05-03 done). Parallel execution.
-Last activity: 2026-02-25 -- Plan 04-03 executed (task list page with filters, bulk actions, create modal)
+Last activity: 2026-02-25 -- Plan 04-02 executed (client detail page with info, stats, tabs, breadcrumbs)
 
 Progress: [==================]░░ ~28%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
-- Average duration: 3.1 min
-- Total execution time: ~0.92 hours
+- Total plans completed: 19
+- Average duration: 3.0 min
+- Total execution time: ~0.95 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [==================]░░ ~28%
 | 01-foundation | 5/5 | 18 min | 3.6 min |
 | 02-core-data | 4/4 | 12 min | 3.0 min |
 | 03-frontend | 4/4 | 11 min | 2.8 min |
-| 04-client-task | 3/5 | 9 min | 3.0 min |
+| 04-client-task | 4/5 | 11 min | 2.8 min |
 | 05-advanced-time-logging | 2/5 | 5 min | 2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (3 min), 03-03 (2 min), 02-03 (3 min), 03-04 (3 min), 05-03 (2 min)
+- Last 5 plans: 04-02 (2 min), 02-04 (3 min), 03-03 (2 min), 02-03 (3 min), 03-04 (3 min)
 - Trend: consistently fast ~2-3 min/plan
 
 ## Accumulated Context
@@ -98,6 +98,10 @@ Recent decisions affecting current work:
 - **04-03:** Client-side search filters displayed tasks by title; API filters handle status/priority/client
 - **04-03:** Bulk status change uses Promise.all for parallel PUT requests, then refreshes list
 - **04-03:** Delete is hard delete with confirmation modal (matches backend behavior)
+- **04-02:** EditClientModal is local to ClientDetailPage (same pattern as 04-01 modal in ClientsPage)
+- **04-02:** Tab labels include counts ("Tasks (5)") for at-a-glance context
+- **04-02:** Dynamic breadcrumb shows "Detail" for known parent routes (/clients, /tasks) instead of raw IDs
+- **04-02:** New Task button links to /tasks?client_id=X (simple link, no inline create modal)
 - **05-01:** is_billable defaults to True -- most agency work is billable
 - **05-01:** Quick re-entry pattern: form clears task/description/times on success but keeps date and client
 - **05-01:** Duration calculated client-side for instant feedback; server still calculates authoritatively
@@ -113,5 +117,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 05-03 complete. Phase 5 in progress. Next: 05-04 (time log edit/delete).
-Resume file: .planning/phases/05-advanced-time-logging/05-03-SUMMARY.md
+Stopped at: Plan 04-02 complete. Phase 4 in progress (04-04 next). Phase 5 in progress (05-04 next).
+Resume file: .planning/phases/04-client-task-management/04-02-SUMMARY.md
