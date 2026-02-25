@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.dependencies.auth import get_current_user
 from app.models.base import BaseResponse, ErrorResponse
 from app.models.client import COLLECTION_NAME as CLIENT_COLLECTION, PartnerGroup
+from app.models.task import COLLECTION_NAME as TASK_COLLECTION
 from app.models.time_log import (
     COLLECTION_NAME,
     TimeLogCreate,
@@ -239,6 +240,143 @@ async def get_time_allocation(
     except Exception:
         logger.exception("Failed to aggregate time allocation")
         return ErrorResponse(error="Failed to aggregate time allocation").model_dump()
+
+
+@router.get("/utilization", response_model=None)
+async def get_utilization(
+    user: CurrentUser = Depends(get_current_user),
+    date_from: dt.date | None = Query(None, description="Start of period (inclusive)"),
+    date_to: dt.date | None = Query(None, description="End of period (inclusive)"),
+):
+    """Calculate utilization rate and saturation leaderboards."""
+    try:
+        db = get_firestore_client()
+
+        # Build time logs query with optional date range
+        tl_query = db.collection(COLLECTION_NAME)
+        if date_from:
+            tl_query = tl_query.where("date", ">=", date_from.isoformat())
+        if date_to:
+            tl_query = tl_query.where("date", "<=", date_to.isoformat())
+
+        time_log_docs = list(tl_query.stream())
+
+        # ---- Utilization metrics ----
+        total_minutes = 0
+        billable_minutes = 0
+        # Per-client accumulator: { client_id: { minutes, billable_minutes, count } }
+        client_agg: dict[str, dict] = defaultdict(lambda: {"minutes": 0, "count": 0})
+        # Per-task accumulator: { task_id: { minutes, client_id, count } }
+        task_agg: dict[str, dict] = defaultdict(lambda: {"minutes": 0, "client_id": "", "count": 0})
+        # Per-day accumulator: { date_str: { total_minutes, billable_minutes } }
+        day_agg: dict[str, dict] = defaultdict(lambda: {"total_minutes": 0, "billable_minutes": 0})
+
+        for doc in time_log_docs:
+            data = doc.to_dict()
+            minutes = data.get("duration_minutes", 0)
+            is_billable = data.get("is_billable", True)
+            client_id = data.get("client_id", "")
+            task_id = data.get("task_id")
+            date_str = data.get("date", "")
+
+            total_minutes += minutes
+            if is_billable:
+                billable_minutes += minutes
+
+            # Client aggregation
+            client_agg[client_id]["minutes"] += minutes
+            client_agg[client_id]["count"] += 1
+
+            # Task aggregation (skip null/empty task_id)
+            if task_id:
+                task_agg[task_id]["minutes"] += minutes
+                task_agg[task_id]["client_id"] = client_id
+                task_agg[task_id]["count"] += 1
+
+            # Daily aggregation
+            day_agg[date_str]["total_minutes"] += minutes
+            if is_billable:
+                day_agg[date_str]["billable_minutes"] += minutes
+
+        non_billable_minutes = total_minutes - billable_minutes
+        total_hours = round(total_minutes / 60, 1)
+        billable_hours = round(billable_minutes / 60, 1)
+        non_billable_hours = round(non_billable_minutes / 60, 1)
+        utilization_rate = round((billable_minutes / total_minutes) * 100, 1) if total_minutes > 0 else 0.0
+
+        # ---- Saturation by client (top 5) ----
+        # Fetch all clients to resolve names
+        client_docs = db.collection(CLIENT_COLLECTION).stream()
+        client_name_map: dict[str, str] = {}
+        for cdoc in client_docs:
+            cdata = cdoc.to_dict()
+            client_name_map[cdoc.id] = cdata.get("name", "Unknown Client")
+
+        sorted_clients = sorted(client_agg.items(), key=lambda x: x[1]["minutes"], reverse=True)[:5]
+        saturation_by_client = []
+        for cid, stats in sorted_clients:
+            c_hours = round(stats["minutes"] / 60, 1)
+            pct = round((stats["minutes"] / total_minutes) * 100, 1) if total_minutes > 0 else 0.0
+            saturation_by_client.append({
+                "client_name": client_name_map.get(cid, "Unknown Client"),
+                "total_hours": c_hours,
+                "percentage_of_total": pct,
+                "entry_count": stats["count"],
+            })
+
+        # ---- Saturation by task (top 5) ----
+        # Fetch all tasks to resolve names
+        task_docs = db.collection(TASK_COLLECTION).stream()
+        task_name_map: dict[str, str] = {}
+        for tdoc in task_docs:
+            tdata = tdoc.to_dict()
+            task_name_map[tdoc.id] = tdata.get("title", "Unknown Task")
+
+        sorted_tasks = sorted(task_agg.items(), key=lambda x: x[1]["minutes"], reverse=True)[:5]
+        saturation_by_task = []
+        for tid, stats in sorted_tasks:
+            t_hours = round(stats["minutes"] / 60, 1)
+            pct = round((stats["minutes"] / total_minutes) * 100, 1) if total_minutes > 0 else 0.0
+            saturation_by_task.append({
+                "task_name": task_name_map.get(tid, "Unknown Task"),
+                "client_name": client_name_map.get(stats["client_id"], "Unknown Client"),
+                "total_hours": t_hours,
+                "percentage_of_total": pct,
+                "entry_count": stats["count"],
+            })
+
+        # ---- Daily trend ----
+        daily_trend = []
+        for date_key in sorted(day_agg.keys()):
+            d = day_agg[date_key]
+            daily_trend.append({
+                "date": date_key,
+                "total_hours": round(d["total_minutes"] / 60, 1),
+                "billable_hours": round(d["billable_minutes"] / 60, 1),
+            })
+
+        period_from = date_from.isoformat() if date_from else None
+        period_to = date_to.isoformat() if date_to else None
+
+        return {
+            "success": True,
+            "data": {
+                "period": {"from": period_from, "to": period_to},
+                "utilization": {
+                    "total_logged_hours": total_hours,
+                    "total_billable_hours": billable_hours,
+                    "total_non_billable_hours": non_billable_hours,
+                    "utilization_rate": utilization_rate,
+                },
+                "saturation_by_client": saturation_by_client,
+                "saturation_by_task": saturation_by_task,
+                "daily_trend": daily_trend,
+            },
+        }
+
+    except Exception:
+        logger.exception("Failed to calculate utilization metrics")
+        return ErrorResponse(error="Failed to calculate utilization metrics").model_dump()
 
 
 @router.get("/{time_log_id}", response_model=None)
