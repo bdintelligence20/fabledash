@@ -1,5 +1,5 @@
 import { TrendingUp, Activity, Users, Wallet } from 'lucide-react';
-import { StatCard } from '@/components/ui';
+import { StatCard } from '../ui';
 
 const metrics = [
   {

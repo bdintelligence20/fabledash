@@ -1,4 +1,4 @@
-import { Card, Badge } from '@/components/ui';
+import { Card, Badge } from '../ui';
 
 type Severity = 'danger' | 'warning' | 'info';
 

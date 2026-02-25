@@ -1,5 +1,5 @@
 import { Clock, Plus, DollarSign, Bot } from 'lucide-react';
-import { Card, Button } from '@/components/ui';
+import { Card, Button } from '../ui';
 
 const actions = [
   {

@@ -1,5 +1,5 @@
 import { UserPlus, FileText, Clock, Mic, AlertTriangle } from 'lucide-react';
-import { Card } from '@/components/ui';
+import { Card } from '../ui';
 
 interface ActivityItem {
   id: string;
