@@ -12,14 +12,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.dependencies.auth import get_current_user, require_ceo
 from app.models.base import ErrorResponse
 from app.models.meeting import (
+    BRIEFING_COLLECTION,
     COLLECTION_NAME,
     TRANSCRIPT_COLLECTION,
+    BriefingRequest,
+    MeetingBriefing,
     MeetingCreate,
     MeetingResponse,
     MeetingSource,
     MeetingTranscript,
 )
 from app.models.user import CurrentUser
+from app.utils.briefing_generator import get_briefing_generator
 from app.utils.firebase_client import get_firestore_client
 from app.utils.meeting_sync import get_meeting_sync_service
 from app.utils.transcript_processor import get_transcript_processor
@@ -200,6 +204,139 @@ async def create_meeting(
             status_code=500,
             detail=ErrorResponse(
                 error="Failed to create meeting", detail=str(e)
+            ).model_dump(),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Briefing routes (before /{meeting_id} to avoid path conflicts)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{meeting_id}/briefing", response_model=dict)
+async def generate_briefing(
+    meeting_id: str,
+    body: BriefingRequest,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Generate an AI-powered meeting briefing.
+
+    Supports three formats:
+    - "formal": full brief with header, executive summary, discussion, decisions, actions, next steps
+    - "summary": executive summary + action items only
+    - "dispatch": concise internal team update
+    """
+    try:
+        db = get_firestore_client()
+
+        # Fetch the meeting document
+        meeting_doc = db.collection(COLLECTION_NAME).document(meeting_id).get()
+        if not meeting_doc.exists:
+            raise HTTPException(status_code=404, detail="Meeting not found")
+
+        meeting_data = meeting_doc.to_dict()
+        meeting_data["id"] = meeting_doc.id
+
+        # Resolve transcript text
+        transcript_text: str | None = None
+        try:
+            transcript_query = (
+                db.collection(TRANSCRIPT_COLLECTION)
+                .where("meeting_id", "==", meeting_id)
+                .limit(1)
+            )
+            for t_doc in transcript_query.stream():
+                t_data = t_doc.to_dict()
+                transcript_text = t_data.get("full_text", "")
+                break
+        except Exception:
+            logger.debug(
+                "Could not query transcripts collection for meeting %s",
+                meeting_id,
+            )
+
+        # Fall back to meeting notes if no transcript
+        if not transcript_text:
+            transcript_text = meeting_data.get("notes") or None
+
+        # Generate the briefing
+        generator = get_briefing_generator()
+        content = await generator.generate_briefing(
+            meeting=meeting_data,
+            transcript_text=transcript_text,
+            format=body.format,
+        )
+
+        # Save the briefing
+        briefing = await generator.save_briefing(
+            meeting_id=meeting_id,
+            content=content,
+            format=body.format,
+            user_id=user.uid,
+        )
+
+        return {
+            "success": True,
+            "data": {
+                "briefing_id": briefing.id,
+                "content": briefing.content,
+                "format": briefing.format,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        logger.warning("Briefing generation unavailable: %s", e)
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to generate briefing for meeting %s", meeting_id)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="Failed to generate briefing", detail=str(e)
+            ).model_dump(),
+        )
+
+
+@router.get("/{meeting_id}/briefings", response_model=dict)
+async def list_briefings(
+    meeting_id: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """List all generated briefings for a specific meeting."""
+    try:
+        db = get_firestore_client()
+
+        # Verify meeting exists
+        meeting_doc = db.collection(COLLECTION_NAME).document(meeting_id).get()
+        if not meeting_doc.exists:
+            raise HTTPException(status_code=404, detail="Meeting not found")
+
+        # Query briefings for this meeting
+        query = (
+            db.collection(BRIEFING_COLLECTION)
+            .where("meeting_id", "==", meeting_id)
+            .order_by("generated_at", direction="DESCENDING")
+        )
+
+        briefings = []
+        for doc in query.stream():
+            doc_dict = doc.to_dict()
+            doc_dict["id"] = doc.id
+            briefings.append(
+                MeetingBriefing(**doc_dict).model_dump(mode="json")
+            )
+
+        return {"success": True, "data": briefings}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to list briefings for meeting %s", meeting_id)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="Failed to list briefings", detail=str(e)
             ).model_dump(),
         )
 
