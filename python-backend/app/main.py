@@ -1,51 +1,90 @@
+"""FableDash API - CEO Operations Intelligence Hub."""
+
+import logging
+import time
+from contextlib import asynccontextmanager
+
+import firebase_admin
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import os
-import logging
-from dotenv import load_dotenv
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-# Import routers (commented out - will be rebuilt in Phase 2)
-# from app.api.agents import router as agents_router
-# from app.api.chats import router as chats_router
-# from app.api.documents import router as documents_router
-# from app.api.clients import router as clients_router
-# from app.api.tasks import router as tasks_router
+from app.config import get_settings
+from app.utils.firebase_client import initialize_firebase
 
-# Load environment variables
-load_dotenv()
+settings = get_settings()
 
 # Configure logging
 logging.basicConfig(
-    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
+    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
+
+# --- Lifespan ---
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: initialize services on startup, cleanup on shutdown."""
+    logger.info("Starting FableDash API...")
+    try:
+        initialize_firebase()
+        logger.info("Firebase initialized successfully")
+    except Exception:
+        logger.exception("Firebase initialization failed - continuing without Firebase")
+    yield
+    logger.info("Shutting down FableDash API...")
+
+
+# --- App ---
+
 app = FastAPI(
     title="FableDash API",
-    description="API for FableDash AI Agent System",
+    description="CEO Operations Intelligence Hub",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
-# Configure CORS
-cors_origins_str = os.getenv(
-    "CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
-)
-cors_origins = [origin.strip() for origin in cors_origins_str.split(",")]
+# --- Middleware ---
 
-logger.info(f"CORS origins: {cors_origins}")
-
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Router includes commented out - will be rebuilt with Firebase in Phase 2
+# Proxy headers for GCP / reverse-proxy deployments
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    """Log every request with method, path, status code, and duration."""
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "%s %s -> %d (%.1fms)",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
+
+
+# --- Router includes (placeholder - will be rebuilt in Phase 2) ---
+# from app.api.agents import router as agents_router
+# from app.api.chats import router as chats_router
+# from app.api.documents import router as documents_router
+# from app.api.clients import router as clients_router
+# from app.api.tasks import router as tasks_router
 # app.include_router(agents_router, prefix="/agents", tags=["agents"])
 # app.include_router(chats_router, prefix="/chats", tags=["chats"])
 # app.include_router(documents_router, prefix="/documents", tags=["documents"])
@@ -53,31 +92,40 @@ app.add_middleware(
 # app.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 
 
-# Root endpoint
+# --- Routes ---
+
+
 @app.get("/", tags=["root"])
 async def root():
-    return {"message": "Welcome to FableDash API", "version": "2.0.0"}
+    """Root endpoint returning API info."""
+    return {
+        "name": "FableDash API",
+        "version": "2.0.0",
+        "status": "operational",
+    }
 
 
-# Health check endpoint
 @app.get("/health", tags=["health"])
 async def health_check():
-    return {"status": "healthy"}
+    """Health check endpoint with Firebase connection status."""
+    return {
+        "status": "healthy",
+        "firebase": bool(firebase_admin._apps),
+    }
 
 
-# Global exception handler
+# --- Exception handling ---
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    """Return structured error response for all unhandled exceptions."""
+    logger.error("Unhandled exception on %s %s: %s", request.method, request.url.path, exc, exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"success": False, "message": "Internal server error"},
+        content={
+            "success": False,
+            "error": "Internal server error",
+            "detail": str(exc),
+        },
     )
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    port = int(os.getenv("PORT", "8000"))
-    host = os.getenv("HOST", "0.0.0.0")
-    uvicorn.run("app.main:app", host=host, port=port, reload=True)
