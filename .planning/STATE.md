@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 1 of 12 (Foundation & Infrastructure)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-02-25 — Project initialized, roadmap created
+Plan: 01-01 complete, next is 01-02
+Status: Executing
+Last activity: 2026-02-25 — Plan 01-01 executed (strip Supabase, install Firebase)
 
-Progress: ░░░░░░░░░░ 0%
+Progress: [=]░░░░░░░░░ ~2%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 8 min
+- Total execution time: ~0.13 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| — | — | — | — |
+| 01-foundation | 1/5 | 8 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: —
+- Last 5 plans: 01-01 (8 min)
 - Trend: —
 
 ## Accumulated Context
@@ -40,7 +40,9 @@ Progress: ░░░░░░░░░░ 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-(None yet)
+- **01-01:** Gutted document_processor.py entirely (too coupled to Supabase) -- will rebuild with Firebase in Phase 2
+- **01-01:** Frontend env config uses Vite native import.meta.env (removed runtime window.ENV pattern)
+- **01-01:** API router stubs return `{status: "pending rebuild"}` during migration period
 
 ### Deferred Issues
 
@@ -53,5 +55,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Roadmap created with 12 phases (59 total plans)
-Resume file: None
+Stopped at: Plan 01-01 complete. Ready for 01-02 (Firebase project setup and SDK initialization).
+Resume file: .planning/phases/01-foundation-infrastructure/01-01-SUMMARY.md
