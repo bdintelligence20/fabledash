@@ -1,6 +1,7 @@
-"""Aggregated financial data API endpoints — summary, revenue trends, cost-benefit."""
+"""Aggregated financial data API endpoints — summary, revenue trends, cost-benefit, volume-rate."""
 
 import logging
+import statistics
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -188,6 +189,7 @@ async def revenue_trend(
                     "revenue": data.get("total_revenue", 0),
                     "expenses": data.get("total_expenses", 0),
                     "net_profit": data.get("net_profit", 0),
+                    "cash_on_hand": data.get("cash_on_hand", 0),
                 }
             )
     except Exception:
@@ -321,3 +323,142 @@ async def cost_benefit(
     except Exception:
         logger.exception("Failed to compute cost-benefit analysis")
         return {"success": False, "error": "Failed to compute cost-benefit analysis"}
+
+
+@router.get("/volume-rate")
+async def volume_rate(
+    date_from: date | None = Query(None, description="Start of period (inclusive)"),
+    date_to: date | None = Query(None, description="End of period (inclusive)"),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Volume vs rate analysis — classifies clients into quadrants by hours and ZAR/hr.
+
+    Calculates total hours (volume) and ZAR per hour (rate) for each client,
+    then classifies into four quadrants using median thresholds:
+    - high_volume_high_rate (stars)
+    - high_volume_low_rate (compression risk)
+    - low_volume_high_rate (efficient)
+    - low_volume_low_rate (review needed)
+    """
+    db = get_firestore_client()
+
+    try:
+        # 1. Fetch all clients
+        client_docs = list(db.collection(CLIENT_COLLECTION).stream())
+        client_map: dict[str, dict] = {}
+        for cdoc in client_docs:
+            cdata = cdoc.to_dict()
+            client_map[cdoc.id] = {
+                "name": cdata.get("name", "Unknown Client"),
+                "partner_group": cdata.get("partner_group", "direct_clients"),
+            }
+
+        # 2. Fetch paid invoices within date range — accumulate revenue by client_id
+        inv_query = db.collection(INVOICES_COLLECTION).where("status", "==", "paid")
+        if date_from:
+            inv_query = inv_query.where("issued_date", ">=", date_from.isoformat())
+        if date_to:
+            inv_query = inv_query.where("issued_date", "<=", date_to.isoformat())
+
+        revenue_by_client: dict[str, float] = defaultdict(float)
+        for doc in inv_query.stream():
+            data = doc.to_dict()
+            cid = data.get("client_id", "")
+            if cid:
+                revenue_by_client[cid] += float(data.get("amount", 0))
+
+        # 3. Fetch time logs within date range — accumulate hours by client_id
+        tl_query = db.collection(TIME_LOG_COLLECTION)
+        if date_from:
+            tl_query = tl_query.where("date", ">=", date_from.isoformat())
+        if date_to:
+            tl_query = tl_query.where("date", "<=", date_to.isoformat())
+
+        minutes_by_client: dict[str, int] = defaultdict(int)
+        for doc in tl_query.stream():
+            data = doc.to_dict()
+            cid = data.get("client_id", "")
+            if cid:
+                minutes_by_client[cid] += data.get("duration_minutes", 0)
+
+        # 4. Build per-client rows (only clients with hours > 0)
+        all_client_ids = set(revenue_by_client.keys()) | set(minutes_by_client.keys())
+
+        clients_list: list[dict] = []
+        hours_values: list[float] = []
+        rate_values: list[float] = []
+
+        for cid in all_client_ids:
+            revenue = revenue_by_client.get(cid, 0.0)
+            minutes = minutes_by_client.get(cid, 0)
+            hours = round(minutes / 60, 1)
+
+            if hours <= 0:
+                continue
+
+            zar_per_hour = round(revenue / hours, 2)
+            client_info = client_map.get(
+                cid, {"name": "Unknown Client", "partner_group": "direct_clients"}
+            )
+
+            clients_list.append({
+                "client_id": cid,
+                "client_name": client_info["name"],
+                "total_hours": hours,
+                "zar_per_hour": zar_per_hour,
+                "total_revenue": round(revenue, 2),
+                "classification": "",  # filled after medians
+            })
+            hours_values.append(hours)
+            rate_values.append(zar_per_hour)
+
+        # 5. Calculate medians
+        median_hours = (
+            round(statistics.median(hours_values), 1) if hours_values else 0.0
+        )
+        median_rate = (
+            round(statistics.median(rate_values), 2) if rate_values else 0.0
+        )
+
+        # 6. Classify into quadrants
+        quadrant_counts = {
+            "high_volume_high_rate": 0,
+            "high_volume_low_rate": 0,
+            "low_volume_high_rate": 0,
+            "low_volume_low_rate": 0,
+        }
+
+        for client in clients_list:
+            high_vol = client["total_hours"] > median_hours
+            high_rate = client["zar_per_hour"] > median_rate
+
+            if high_vol and high_rate:
+                classification = "high_volume_high_rate"
+            elif high_vol and not high_rate:
+                classification = "high_volume_low_rate"
+            elif not high_vol and high_rate:
+                classification = "low_volume_high_rate"
+            else:
+                classification = "low_volume_low_rate"
+
+            client["classification"] = classification
+            quadrant_counts[classification] += 1
+
+        # 7. Sort by revenue descending
+        clients_list.sort(key=lambda c: c["total_revenue"], reverse=True)
+
+        return {
+            "success": True,
+            "data": {
+                "clients": clients_list,
+                "medians": {
+                    "hours": median_hours,
+                    "zar_per_hour": median_rate,
+                },
+                "quadrant_counts": quadrant_counts,
+            },
+        }
+
+    except Exception:
+        logger.exception("Failed to compute volume-rate analysis")
+        return {"success": False, "error": "Failed to compute volume-rate analysis"}

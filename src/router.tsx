@@ -9,6 +9,7 @@ import ClientDetailPage from './pages/ClientDetailPage';
 import FinancesPage from './pages/FinancesPage';
 import CostBenefitPage from './pages/CostBenefitPage';
 import RevenueTrackingPage from './pages/RevenueTrackingPage';
+import CashPositionPage from './pages/CashPositionPage';
 import AgentsPage from './pages/AgentsPage';
 import TimePage from './pages/TimePage';
 import TimeLogListPage from './pages/TimeLogListPage';
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
           { path: '/finances', element: <FinancesPage /> },
           { path: '/finances/revenue', element: <RevenueTrackingPage /> },
           { path: '/finances/cost-benefit', element: <CostBenefitPage /> },
+          { path: '/finances/cash', element: <CashPositionPage /> },
           { path: '/agents', element: <AgentsPage /> },
           { path: '/time', element: <TimePage /> },
           { path: '/time/logs', element: <TimeLogListPage /> },
