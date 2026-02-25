@@ -12,25 +12,25 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 Phase: 1 of 12 (Foundation & Infrastructure)
 Plan: 01-04 complete, next is 01-05
 Status: Executing
-Last activity: 2026-02-25 — Plan 01-04 executed (React frontend reset with Firebase SDK, routing, and app shell)
+Last activity: 2026-02-25 — Plan 01-03 executed (Firebase Auth middleware, RBAC dependencies, auth API endpoints)
 
-Progress: [====]░░░░░░ ~8%
+Progress: [=====]░░░░░ ~10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 4.7 min
-- Total execution time: ~0.23 hours
+- Total plans completed: 4
+- Average duration: 4.0 min
+- Total execution time: ~0.27 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 3/5 | 14 min | 4.7 min |
+| 01-foundation | 4/5 | 16 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (8 min), 01-02 (3 min), 01-04 (3 min)
+- Last 5 plans: 01-01 (8 min), 01-02 (3 min), 01-04 (3 min), 01-03 (2 min)
 - Trend: accelerating
 
 ## Accumulated Context
@@ -48,6 +48,9 @@ Recent decisions affecting current work:
 - **01-02:** ProxyHeadersMiddleware with trusted_hosts=["*"] for GCP Cloud Run
 - **01-02:** All env vars via pydantic BaseSettings with lru_cache singleton pattern
 - **01-04:** API client uses generic request<T> pattern with ApiError class for typed errors
+- **01-03:** Auth is opt-in via Depends() on individual routes, not global middleware
+- **01-03:** Two-tier RBAC: CEO + team_member roles matching business structure
+- **01-03:** set-role merges new role into existing custom claims (preserves other claims)
 - **01-04:** AppLayout is minimal placeholder -- Phase 3 builds the real design system sidebar
 - **01-04:** Removed tailwindcss from vite manualChunks (PostCSS plugin, not runtime dep)
 
@@ -62,5 +65,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 01-04 complete. Ready for 01-05 (next foundation infrastructure plan).
-Resume file: .planning/phases/01-foundation-infrastructure/01-04-SUMMARY.md
+Stopped at: Plans 01-01 through 01-04 complete. Ready for 01-05 (final foundation infrastructure plan).
+Resume file: .planning/phases/01-foundation-infrastructure/01-03-SUMMARY.md
