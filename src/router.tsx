@@ -4,9 +4,11 @@ import AppLayout from './layouts/AppLayout';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
 import ClientsPage from './pages/ClientsPage';
+import ClientDetailPage from './pages/ClientDetailPage';
 import FinancesPage from './pages/FinancesPage';
 import AgentsPage from './pages/AgentsPage';
 import TimePage from './pages/TimePage';
+import TimeLogListPage from './pages/TimeLogListPage';
 import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -25,9 +27,11 @@ export const router = createBrowserRouter([
           { path: '/', element: <DashboardPage /> },
           { path: '/tasks', element: <TasksPage /> },
           { path: '/clients', element: <ClientsPage /> },
+          { path: '/clients/:clientId', element: <ClientDetailPage /> },
           { path: '/finances', element: <FinancesPage /> },
           { path: '/agents', element: <AgentsPage /> },
           { path: '/time', element: <TimePage /> },
+          { path: '/time/logs', element: <TimeLogListPage /> },
           { path: '/reports', element: <ReportsPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
