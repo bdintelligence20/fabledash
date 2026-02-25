@@ -2,11 +2,13 @@
 
 import datetime as dt
 import logging
+from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.dependencies.auth import get_current_user
 from app.models.base import BaseResponse, ErrorResponse
+from app.models.client import COLLECTION_NAME as CLIENT_COLLECTION, PartnerGroup
 from app.models.time_log import (
     COLLECTION_NAME,
     TimeLogCreate,
@@ -147,6 +149,96 @@ async def list_time_logs(
     except Exception:
         logger.exception("Failed to list time logs")
         return ErrorResponse(error="Failed to list time logs").model_dump()
+
+
+@router.get("/allocation", response_model=None)
+async def get_time_allocation(
+    user: CurrentUser = Depends(get_current_user),
+    date_from: dt.date | None = Query(None, description="Start of period (inclusive)"),
+    date_to: dt.date | None = Query(None, description="End of period (inclusive)"),
+):
+    """Aggregate logged time by partner group for time allocation dashboard."""
+    try:
+        db = get_firestore_client()
+
+        # Build time logs query with optional date range
+        tl_query = db.collection(COLLECTION_NAME)
+        if date_from:
+            tl_query = tl_query.where("date", ">=", date_from.isoformat())
+        if date_to:
+            tl_query = tl_query.where("date", "<=", date_to.isoformat())
+
+        time_log_docs = tl_query.stream()
+
+        # Fetch all clients to build client_id -> partner_group map
+        client_docs = db.collection(CLIENT_COLLECTION).stream()
+        client_group_map: dict[str, str] = {}
+        for cdoc in client_docs:
+            cdata = cdoc.to_dict()
+            client_group_map[cdoc.id] = cdata.get("partner_group", "direct_clients")
+
+        # Accumulate per-group stats
+        ALL_GROUPS = [pg.value for pg in PartnerGroup]
+        group_stats: dict[str, dict] = {
+            g: {
+                "total_minutes": 0,
+                "billable_minutes": 0,
+                "entry_count": 0,
+            }
+            for g in ALL_GROUPS
+        }
+
+        grand_total_minutes = 0
+
+        for doc in time_log_docs:
+            data = doc.to_dict()
+            client_id = data.get("client_id", "")
+            partner_group = client_group_map.get(client_id, "direct_clients")
+            # Ensure group is valid; fall back to direct_clients
+            if partner_group not in group_stats:
+                partner_group = "direct_clients"
+
+            minutes = data.get("duration_minutes", 0)
+            is_billable = data.get("is_billable", True)
+
+            group_stats[partner_group]["total_minutes"] += minutes
+            if is_billable:
+                group_stats[partner_group]["billable_minutes"] += minutes
+            group_stats[partner_group]["entry_count"] += 1
+            grand_total_minutes += minutes
+
+        # Build response groups
+        groups = []
+        for g in ALL_GROUPS:
+            s = group_stats[g]
+            total_min = s["total_minutes"]
+            billable_min = s["billable_minutes"]
+            non_billable_min = total_min - billable_min
+            percentage = round((total_min / grand_total_minutes) * 100, 1) if grand_total_minutes > 0 else 0.0
+            groups.append({
+                "partner_group": g,
+                "total_hours": round(total_min / 60, 1),
+                "billable_hours": round(billable_min / 60, 1),
+                "non_billable_hours": round(non_billable_min / 60, 1),
+                "entry_count": s["entry_count"],
+                "percentage": percentage,
+            })
+
+        period_from = date_from.isoformat() if date_from else None
+        period_to = date_to.isoformat() if date_to else None
+
+        return {
+            "success": True,
+            "data": {
+                "period": {"from": period_from, "to": period_to},
+                "total_hours": round(grand_total_minutes / 60, 1),
+                "groups": groups,
+            },
+        }
+
+    except Exception:
+        logger.exception("Failed to aggregate time allocation")
+        return ErrorResponse(error="Failed to aggregate time allocation").model_dump()
 
 
 @router.get("/{time_log_id}", response_model=None)
