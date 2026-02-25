@@ -7,6 +7,7 @@ import TaskDetailPage from './pages/TaskDetailPage';
 import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
 import FinancesPage from './pages/FinancesPage';
+import RevenueTrackingPage from './pages/RevenueTrackingPage';
 import AgentsPage from './pages/AgentsPage';
 import TimePage from './pages/TimePage';
 import TimeLogListPage from './pages/TimeLogListPage';
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
           { path: '/clients', element: <ClientsPage /> },
           { path: '/clients/:clientId', element: <ClientDetailPage /> },
           { path: '/finances', element: <FinancesPage /> },
+          { path: '/finances/revenue', element: <RevenueTrackingPage /> },
           { path: '/agents', element: <AgentsPage /> },
           { path: '/time', element: <TimePage /> },
           { path: '/time/logs', element: <TimeLogListPage /> },
