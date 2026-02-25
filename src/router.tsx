@@ -14,6 +14,7 @@ import RevenueTrackingPage from './pages/RevenueTrackingPage';
 import CashPositionPage from './pages/CashPositionPage';
 import AgentsPage from './pages/AgentsPage';
 import MeetingsPage from './pages/MeetingsPage';
+import MeetingDetailPage from './pages/MeetingDetailPage';
 import TimePage from './pages/TimePage';
 import TimeLogListPage from './pages/TimeLogListPage';
 import TimeAllocationPage from './pages/TimeAllocationPage';
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
           { path: '/finances/cash', element: <CashPositionPage /> },
           { path: '/agents', element: <AgentsPage /> },
           { path: '/meetings', element: <MeetingsPage /> },
+          { path: '/meetings/:meetingId', element: <MeetingDetailPage /> },
           { path: '/time', element: <TimePage /> },
           { path: '/time/logs', element: <TimeLogListPage /> },
           { path: '/time/allocation', element: <TimeAllocationPage /> },
