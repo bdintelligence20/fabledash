@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 1, 2, 3 COMPLETE. 4, 5 of 12 -- IN PROGRESS
-Plan: 04-02 complete (client detail page), 04-03 complete, 05-01 complete, 05-03 complete.
-Status: Phase 4 in progress (04-01, 04-02, 04-03 done), Phase 5 in progress (05-01, 05-03 done). Parallel execution.
-Last activity: 2026-02-25 -- Plan 04-02 executed (client detail page with info, stats, tabs, breadcrumbs)
+Plan: 04-02 complete (client detail page), 04-03 complete, 05-01 complete, 05-02 complete, 05-03 complete.
+Status: Phase 4 in progress (04-01, 04-02, 04-03 done), Phase 5 in progress (05-01, 05-02, 05-03 done). Parallel execution.
+Last activity: 2026-02-25 -- Plan 05-02 executed (activity log / Gemini-style timer)
 
 Progress: [==================]░░ ~28%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: 3.0 min
-- Total execution time: ~0.95 hours
+- Total execution time: ~0.98 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [==================]░░ ~28%
 | 02-core-data | 4/4 | 12 min | 3.0 min |
 | 03-frontend | 4/4 | 11 min | 2.8 min |
 | 04-client-task | 4/5 | 11 min | 2.8 min |
-| 05-advanced-time-logging | 2/5 | 5 min | 2.5 min |
+| 05-advanced-time-logging | 3/5 | 7 min | 2.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (2 min), 02-04 (3 min), 03-03 (2 min), 02-03 (3 min), 03-04 (3 min)
+- Last 5 plans: 05-02 (2 min), 04-02 (2 min), 02-04 (3 min), 03-03 (2 min), 02-03 (3 min)
 - Trend: consistently fast ~2-3 min/plan
 
 ## Accumulated Context
@@ -105,7 +105,10 @@ Recent decisions affecting current work:
 - **05-01:** is_billable defaults to True -- most agency work is billable
 - **05-01:** Quick re-entry pattern: form clears task/description/times on success but keeps date and client
 - **05-01:** Duration calculated client-side for instant feedback; server still calculates authoritatively
-
+- **05-02:** Timer onStop callback delegates API POST to parent (TimePage) for centralized data flow
+- **05-02:** Timer and form maintain separate task lists to avoid coupling their client selections
+- **05-02:** ActivityLog sorts chronologically ascending for natural top-to-bottom timeline reading
+- **05-02:** Grid uses 3/5 + 2/5 column split (lg:grid-cols-5) for balanced form/log proportion
 ### Deferred Issues
 
 None yet.
