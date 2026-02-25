@@ -106,6 +106,11 @@ app.include_router(agents_router, prefix="/agents", tags=["agents"])
 app.include_router(chats_router, prefix="/chats", tags=["chats"])
 app.include_router(documents_router, prefix="/documents", tags=["documents"])
 
+# Phase 10: OpsAI Intelligence
+from app.api.opsai import router as opsai_router
+
+app.include_router(opsai_router, prefix="/opsai", tags=["opsai"])
+
 
 # --- Routes ---
 
