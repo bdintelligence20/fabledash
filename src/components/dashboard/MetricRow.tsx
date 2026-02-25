@@ -1,36 +1,59 @@
 import { TrendingUp, Activity, Users, Wallet } from 'lucide-react';
 import { StatCard } from '../ui';
 
-const metrics = [
-  {
-    title: 'Monthly Revenue',
-    value: '1,247,500',
-    prefix: 'R ',
-    change: { value: 12.5, direction: 'up' as const },
-    icon: <TrendingUp className="h-5 w-5" />,
-  },
-  {
-    title: 'Utilization Rate',
-    value: '78%',
-    change: { value: 3.2, direction: 'up' as const },
-    icon: <Activity className="h-5 w-5" />,
-  },
-  {
-    title: 'Active Clients',
-    value: '24',
-    change: { value: 2, direction: 'up' as const },
-    icon: <Users className="h-5 w-5" />,
-  },
-  {
-    title: 'Cash Position',
-    value: '271,340',
-    prefix: 'R ',
-    change: { value: 1.8, direction: 'down' as const },
-    icon: <Wallet className="h-5 w-5" />,
-  },
-] as const;
+interface MetricData {
+  revenue?: number | null;
+  utilization?: number | null;
+  activeClients?: number | null;
+  cashPosition?: number | null;
+}
 
-export function MetricRow() {
+interface MetricRowProps {
+  data?: MetricData;
+  loading?: boolean;
+}
+
+function formatCurrency(value: number | null | undefined): string {
+  if (value == null) return '\u2014';
+  return value.toLocaleString('en-ZA', { maximumFractionDigits: 0 });
+}
+
+function formatPercent(value: number | null | undefined): string {
+  if (value == null) return '\u2014';
+  return `${Math.round(value)}%`;
+}
+
+function formatCount(value: number | null | undefined): string {
+  if (value == null) return '\u2014';
+  return String(value);
+}
+
+export function MetricRow({ data, loading = false }: MetricRowProps) {
+  const metrics = [
+    {
+      title: 'Monthly Revenue',
+      value: formatCurrency(data?.revenue),
+      prefix: data?.revenue != null ? 'R ' : '',
+      icon: <TrendingUp className="h-5 w-5" />,
+    },
+    {
+      title: 'Utilization Rate',
+      value: formatPercent(data?.utilization),
+      icon: <Activity className="h-5 w-5" />,
+    },
+    {
+      title: 'Active Clients',
+      value: formatCount(data?.activeClients),
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: 'Cash Position',
+      value: formatCurrency(data?.cashPosition),
+      prefix: data?.cashPosition != null ? 'R ' : '',
+      icon: <Wallet className="h-5 w-5" />,
+    },
+  ] as const;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {metrics.map((metric) => (
@@ -39,8 +62,8 @@ export function MetricRow() {
           title={metric.title}
           value={metric.value}
           prefix={metric.prefix}
-          change={metric.change}
           icon={metric.icon}
+          loading={loading}
         />
       ))}
     </div>

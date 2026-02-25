@@ -1,83 +1,83 @@
-import { UserPlus, FileText, Clock, Mic, AlertTriangle } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { Card } from '../ui';
 
-interface ActivityItem {
+interface TimeLogEntry {
   id: string;
   description: string;
-  timestamp: string;
-  icon: React.ReactNode;
-  iconBg: string;
+  date: string;
+  duration_minutes: number;
+  client_id?: string;
+  client_name?: string;
 }
 
-const activities: ActivityItem[] = [
-  {
-    id: '1',
-    description: 'New client onboarded: Acme Creative',
-    timestamp: '2 hours ago',
-    icon: <UserPlus className="h-4 w-4 text-success-600" />,
-    iconBg: 'bg-success-50',
-  },
-  {
-    id: '2',
-    description: 'Invoice #1247 sent to Blue Mountain Co',
-    timestamp: '4 hours ago',
-    icon: <FileText className="h-4 w-4 text-primary-600" />,
-    iconBg: 'bg-primary-50',
-  },
-  {
-    id: '3',
-    description: 'Time log submitted: 6.5h on Meridian project',
-    timestamp: '5 hours ago',
-    icon: <Clock className="h-4 w-4 text-accent-600" />,
-    iconBg: 'bg-accent-50',
-  },
-  {
-    id: '4',
-    description: 'Meeting transcript processed: Q1 Strategy Review',
-    timestamp: 'Yesterday',
-    icon: <Mic className="h-4 w-4 text-primary-600" />,
-    iconBg: 'bg-primary-50',
-  },
-  {
-    id: '5',
-    description: 'Utilization alert: Team dropped below 75%',
-    timestamp: 'Yesterday',
-    icon: <AlertTriangle className="h-4 w-4 text-warning-600" />,
-    iconBg: 'bg-warning-50',
-  },
-];
+interface RecentActivityProps {
+  timeLogs: TimeLogEntry[];
+  loading?: boolean;
+}
 
-export function RecentActivity() {
+function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function relativeDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7) return `${diff} days ago`;
+  return dateStr;
+}
+
+export function RecentActivity({ timeLogs, loading = false }: RecentActivityProps) {
   return (
     <Card padding="none">
       <Card.Header className="flex items-center justify-between">
         <h3 className="text-heading text-base">Recent Activity</h3>
-        <button
-          type="button"
-          className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-default"
-        >
-          View all
-        </button>
+        <span className="text-sm text-surface-400">Time logs</span>
       </Card.Header>
       <Card.Body>
-        <div className="space-y-0">
-          {activities.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-3 py-3 border-b border-surface-100 last:border-0"
-            >
-              <span
-                className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${item.iconBg}`}
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <div className="animate-spin h-5 w-5 rounded-full border-2 border-primary-600 border-t-transparent" />
+          </div>
+        ) : timeLogs.length === 0 ? (
+          <p className="py-6 text-center text-sm text-surface-400">No recent time logs</p>
+        ) : (
+          <div className="space-y-0">
+            {timeLogs.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 py-3 border-b border-surface-100 last:border-0"
               >
-                {item.icon}
-              </span>
-              <p className="text-sm text-surface-700 leading-snug">{item.description}</p>
-              <span className="text-xs text-surface-400 ml-auto flex-shrink-0">
-                {item.timestamp}
-              </span>
-            </div>
-          ))}
-        </div>
+                <span className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 bg-accent-50">
+                  <Clock className="h-4 w-4 text-accent-600" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-surface-700 leading-snug truncate">
+                    {item.description || 'Time logged'}
+                    {item.client_name && (
+                      <span className="text-surface-400"> — {item.client_name}</span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className="text-xs font-medium text-surface-600">
+                    {formatDuration(item.duration_minutes)}
+                  </span>
+                  <span className="text-xs text-surface-400">
+                    {relativeDate(item.date)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card.Body>
     </Card>
   );
