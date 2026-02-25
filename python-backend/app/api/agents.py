@@ -1,10 +1,18 @@
-"""Agent CRUD API endpoints with Firestore persistence."""
+"""Agent CRUD API endpoints with Firestore persistence.
+
+Includes Tier 1 Ops/Traffic Agent endpoints (09-05):
+  POST /ops/brief, POST /ops/dispatch, GET /ops/alerts, GET /ops/daily-summary
+
+Includes Tier 2 Client-Based Agent endpoints (09-06):
+  POST /{agent_id}/execute, POST /{agent_id}/report, GET /{agent_id}/context
+"""
 
 import logging
 import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from app.dependencies.auth import get_current_user, require_ceo
 from app.models.base import ErrorResponse
@@ -19,6 +27,7 @@ from app.models.agent import (
 )
 from app.models.client import COLLECTION_NAME as CLIENTS_COLLECTION
 from app.models.user import CurrentUser
+from app.utils.client_agent import ClientAgent
 from app.utils.firebase_client import get_firestore_client
 
 logger = logging.getLogger(__name__)
@@ -124,6 +133,118 @@ async def create_agent(
             status_code=500,
             detail=ErrorResponse(error="Failed to create agent", detail=str(e)).model_dump(),
         )
+
+
+# ===================================================================
+# Ops/Traffic Agent endpoints (09-05) — MUST be before /{agent_id}
+# ===================================================================
+
+
+class OpsBriefBody(BaseModel):
+    """Request body for POST /ops/brief."""
+
+    topic: str
+    context: dict
+
+
+class OpsDispatchBody(BaseModel):
+    """Request body for POST /ops/dispatch."""
+
+    agent_id: str
+    brief: str
+    instructions: str
+
+
+def _get_ops_agent():
+    """Lazy-load OpsTrafficAgent to avoid import-time side effects."""
+    from app.utils.ops_agent import OpsTrafficAgent
+
+    return OpsTrafficAgent()
+
+
+@router.post("/ops/brief", response_model=dict)
+async def ops_brief(
+    body: OpsBriefBody,
+    user: CurrentUser = Depends(require_ceo),
+):
+    """Generate an ops brief via the Ops/Traffic Agent (CEO only)."""
+    try:
+        agent = _get_ops_agent()
+        result = await agent.compile_brief(topic=body.topic, context=body.context)
+        return {"success": True, "data": {"brief": result}}
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to generate ops brief")
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error="Failed to generate ops brief", detail=str(e)).model_dump(),
+        )
+
+
+@router.post("/ops/dispatch", response_model=dict)
+async def ops_dispatch(
+    body: OpsDispatchBody,
+    user: CurrentUser = Depends(require_ceo),
+):
+    """Dispatch a brief to a client agent via the Ops/Traffic Agent (CEO only)."""
+    try:
+        agent = _get_ops_agent()
+        result = await agent.dispatch_to_client_agent(
+            agent_id=body.agent_id,
+            brief=body.brief,
+            instructions=body.instructions,
+        )
+        return {"success": True, "data": result}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to dispatch to client agent")
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error="Failed to dispatch", detail=str(e)).model_dump(),
+        )
+
+
+@router.get("/ops/alerts", response_model=dict)
+async def ops_alerts(
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Get proactive alerts across tasks and meetings."""
+    try:
+        agent = _get_ops_agent()
+        alerts = await agent.check_alerts()
+        return {"success": True, "data": alerts}
+    except Exception as e:
+        logger.exception("Failed to check ops alerts")
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error="Failed to check alerts", detail=str(e)).model_dump(),
+        )
+
+
+@router.get("/ops/daily-summary", response_model=dict)
+async def ops_daily_summary(
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Get the daily CEO morning summary."""
+    try:
+        agent = _get_ops_agent()
+        summary = await agent.daily_summary()
+        return {"success": True, "data": {"summary": summary}}
+    except Exception as e:
+        logger.exception("Failed to generate daily summary")
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(error="Failed to generate daily summary", detail=str(e)).model_dump(),
+        )
+
+
+# ===================================================================
+# Agent CRUD — individual agent routes
+# ===================================================================
 
 
 @router.get("/{agent_id}", response_model=dict)
