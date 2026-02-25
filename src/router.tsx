@@ -23,6 +23,8 @@ import TimeLogListPage from './pages/TimeLogListPage';
 import TimeAllocationPage from './pages/TimeAllocationPage';
 import UtilizationPage from './pages/UtilizationPage';
 import ReportsPage from './pages/ReportsPage';
+import ComparisonReportPage from './pages/ComparisonReportPage';
+import HealthReportPage from './pages/HealthReportPage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -59,6 +61,8 @@ export const router = createBrowserRouter([
           { path: '/time/allocation', element: <TimeAllocationPage /> },
           { path: '/time/utilization', element: <UtilizationPage /> },
           { path: '/reports', element: <ReportsPage /> },
+          { path: '/reports/comparison', element: <ComparisonReportPage /> },
+          { path: '/reports/health', element: <HealthReportPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },
