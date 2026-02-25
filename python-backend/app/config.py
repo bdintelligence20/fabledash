@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     SAGE_API_BASE_URL: str = "https://api.accounting.sage.com/v3.1"
     SAGE_REDIRECT_URI: str = "http://localhost:8000/sage/callback"
 
+    # Read.AI Meeting Intelligence API
+    READAI_API_KEY: str = ""
+    READAI_API_BASE_URL: str = "https://api.read.ai/v1"
+
+    # Fireflies.ai Meeting Transcription API
+    FIREFLIES_API_KEY: str = ""
+    FIREFLIES_API_BASE_URL: str = "https://api.fireflies.ai/graphql"
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Split CORS_ORIGINS string into a list of origins."""
