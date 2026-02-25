@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 11 (Health & Vitality Reports) — plan 03 complete. Health report frontend with 3-section dashboard.
+**Current focus:** Phase 11 (Health & Vitality Reports) — plan 04 complete. Comparison report page with side-by-side period analysis.
 
 ## Current Position
 
-Phase: 11-health-vitality-reports (plan 03 of 05 complete)
-Plan: 11-03 complete. ReportsPage hub and HealthReportPage with operational efficiency, financial performance, process quality accordion sections and composite health score.
-Status: Health report frontend verified — tsc + vite build pass. /reports/health route live.
-Last activity: 2026-02-25 -- Plan 11-03 complete (health report frontend)
+Phase: 11-health-vitality-reports (plan 04 of 05 complete)
+Plan: 11-04 complete. ComparisonReportPage with QvQ/YTD modes, side-by-side metric display, trend arrows, delta badges, improvements/declines summary.
+Status: Comparison report verified — tsc + vite build pass. /reports/comparison route live.
+Last activity: 2026-02-25 -- Plan 11-04 complete (comparison report page)
 
-Progress: [======================================]░ ~65%
+Progress: [========================================] ~68%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
+- Total plans completed: 29
 - Average duration: 2.8 min
-- Total execution time: ~1.3 hours
+- Total execution time: ~1.4 hours
 
 **By Phase:**
 
@@ -140,6 +140,10 @@ Recent decisions affecting current work:
 - **11-03:** Accordion sections all open by default for immediate visibility
 - **11-03:** Conic-gradient CSS gauge for utilization rate (no chart library added)
 - **11-03:** SectionAccordion, MetricCard, ProgressMetric are local sub-components (not extracted to UI library)
+- **11-04:** ComparisonReportPage uses QvQ and YTD modes with auto-fetch on param change
+- **11-04:** Side-by-side 12-column grid: 3 label + 3 value A + 1 trend arrow + 3 value B + 2 delta badge
+- **11-04:** Delta summary: green bullet list for improvements, red bullet list for declines
+- **11-04:** Three metric sections: Operational, Financial, Process with curated metric subsets
 
 ### Deferred Issues
 
@@ -152,5 +156,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Phase 11 plan 03 complete. Health report frontend with 3-section dashboard live.
-Resume file: .planning/phases/11-health-vitality-reports/11-03-SUMMARY.md
+Stopped at: Phase 11 plan 04 complete. Comparison report page with side-by-side period analysis.
+Resume file: .planning/phases/11-health-vitality-reports/11-04-SUMMARY.md
