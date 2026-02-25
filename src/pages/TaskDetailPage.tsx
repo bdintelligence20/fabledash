@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, X, Paperclip, MessageSquare, Clock } from 'lucide-react';
 import {
   Button,
   Card,
@@ -64,6 +64,15 @@ interface ClientResponse {
   created_at: string;
   updated_at: string;
   created_by: string;
+}
+
+interface TimeLogResponse {
+  id: string;
+  date: string;
+  description: string | null;
+  duration_minutes: number | null;
+  client_id: string;
+  task_id: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -158,6 +167,26 @@ function isOverdue(dateStr: string | null, status: TaskStatus): boolean {
   return new Date(dateStr) < new Date();
 }
 
+function relativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  return formatDate(dateStr);
+}
+
+function formatDuration(minutes: number | null): string {
+  if (minutes == null) return '--';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Component                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -195,6 +224,20 @@ export default function TaskDetailPage() {
   const [deleteConfirming, setDeleteConfirming] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Comments
+  const [commentContent, setCommentContent] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+
+  // Attachments
+  const [attachFilename, setAttachFilename] = useState('');
+  const [attachUrl, setAttachUrl] = useState('');
+  const [attachLoading, setAttachLoading] = useState(false);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+
+  // Time logs
+  const [timeLogs, setTimeLogs] = useState<TimeLogResponse[]>([]);
+
   /* ---- Data fetching ---- */
 
   const fetchTask = useCallback(async () => {
@@ -224,10 +267,22 @@ export default function TaskDetailPage() {
     }
   }, []);
 
+  const fetchTimeLogs = useCallback(async () => {
+    if (!taskId) return;
+    try {
+      const res = await apiClient.get<{ success: boolean; data: TimeLogResponse[] }>(`/time-logs?task_id=${taskId}`);
+      setTimeLogs(res.data);
+    } catch {
+      // Time logs may not support task_id filter yet
+      setTimeLogs([]);
+    }
+  }, [taskId]);
+
   useEffect(() => {
     fetchTask();
     fetchClients();
-  }, [fetchTask, fetchClients]);
+    fetchTimeLogs();
+  }, [fetchTask, fetchClients, fetchTimeLogs]);
 
   // Resolve client name when task or clients load
   useEffect(() => {
@@ -306,6 +361,70 @@ export default function TaskDetailPage() {
       // Error swallowed; user can retry
     } finally {
       setDeleteLoading(false);
+    }
+  }
+
+  /* ---- Comments ---- */
+
+  async function handleAddComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!taskId || !commentContent.trim()) return;
+    setCommentLoading(true);
+    try {
+      await apiClient.post(`/tasks/${taskId}/comments`, { content: commentContent.trim() });
+      setCommentContent('');
+      await fetchTask();
+    } catch {
+      // Error swallowed
+    } finally {
+      setCommentLoading(false);
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    if (!taskId) return;
+    setDeletingCommentId(commentId);
+    try {
+      await apiClient.delete(`/tasks/${taskId}/comments/${commentId}`);
+      await fetchTask();
+    } catch {
+      // Error swallowed
+    } finally {
+      setDeletingCommentId(null);
+    }
+  }
+
+  /* ---- Attachments ---- */
+
+  async function handleAddAttachment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!taskId || !attachFilename.trim() || !attachUrl.trim()) return;
+    setAttachLoading(true);
+    try {
+      await apiClient.post(`/tasks/${taskId}/attachments`, {
+        filename: attachFilename.trim(),
+        url: attachUrl.trim(),
+      });
+      setAttachFilename('');
+      setAttachUrl('');
+      await fetchTask();
+    } catch {
+      // Error swallowed
+    } finally {
+      setAttachLoading(false);
+    }
+  }
+
+  async function handleDeleteAttachment(attachmentId: string) {
+    if (!taskId) return;
+    setDeletingAttachmentId(attachmentId);
+    try {
+      await apiClient.delete(`/tasks/${taskId}/attachments/${attachmentId}`);
+      await fetchTask();
+    } catch {
+      // Error swallowed
+    } finally {
+      setDeletingAttachmentId(null);
     }
   }
 
@@ -491,6 +610,181 @@ export default function TaskDetailPage() {
               <span className="text-sm text-surface-700">{task.attachments.length}</span>
             </div>
           </div>
+        </div>
+      </Card>
+
+      {/* Comments & Attachments -- side by side on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Comments section */}
+        <Card padding="none">
+          <div className="px-6 py-4 border-b border-surface-100 flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-surface-400" />
+            <h2 className="text-base font-semibold text-surface-900">Comments</h2>
+            <Badge variant="default" size="sm">{task.comments.length}</Badge>
+          </div>
+
+          <div className="px-6 py-4 space-y-4">
+            {/* Existing comments */}
+            {task.comments.length === 0 ? (
+              <p className="text-sm text-surface-400">No comments yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {task.comments.map((comment) => (
+                  <div key={comment.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface-50 p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-surface-800">
+                          {comment.author_name || comment.author_uid}
+                        </span>
+                        <span className="text-xs text-surface-400">
+                          {relativeTime(comment.created_at)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-surface-700">{comment.content}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteComment(comment.id)}
+                      disabled={deletingCommentId === comment.id}
+                      className="shrink-0 rounded p-1 text-surface-400 hover:text-danger-600 hover:bg-danger-50 transition-colors disabled:opacity-50"
+                      title="Delete comment"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add comment form */}
+            <form onSubmit={handleAddComment} className="flex items-end gap-2">
+              <div className="flex-1">
+                <Input
+                  placeholder="Write a comment..."
+                  value={commentContent}
+                  onChange={(e) => setCommentContent(e.target.value)}
+                />
+              </div>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                loading={commentLoading}
+                disabled={!commentContent.trim()}
+              >
+                Post
+              </Button>
+            </form>
+          </div>
+        </Card>
+
+        {/* Attachments section */}
+        <Card padding="none">
+          <div className="px-6 py-4 border-b border-surface-100 flex items-center gap-2">
+            <Paperclip className="h-4 w-4 text-surface-400" />
+            <h2 className="text-base font-semibold text-surface-900">Attachments</h2>
+            <Badge variant="default" size="sm">{task.attachments.length}</Badge>
+          </div>
+
+          <div className="px-6 py-4 space-y-4">
+            {/* Existing attachments */}
+            {task.attachments.length === 0 ? (
+              <p className="text-sm text-surface-400">No attachments yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {task.attachments.map((attachment) => (
+                  <div key={attachment.id} className="flex items-center justify-between gap-2 rounded-lg bg-surface-50 p-3">
+                    <div className="min-w-0 flex-1">
+                      {attachment.url ? (
+                        <a
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors truncate block"
+                        >
+                          {attachment.filename}
+                        </a>
+                      ) : (
+                        <span className="text-sm font-medium text-surface-800 truncate block">
+                          {attachment.filename}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {attachment.content_type && (
+                          <span className="text-xs text-surface-400">{attachment.content_type}</span>
+                        )}
+                        <span className="text-xs text-surface-400">
+                          {formatDate(attachment.uploaded_at)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAttachment(attachment.id)}
+                      disabled={deletingAttachmentId === attachment.id}
+                      className="shrink-0 rounded p-1 text-surface-400 hover:text-danger-600 hover:bg-danger-50 transition-colors disabled:opacity-50"
+                      title="Delete attachment"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add attachment form */}
+            <form onSubmit={handleAddAttachment} className="space-y-2">
+              <Input
+                placeholder="Filename"
+                value={attachFilename}
+                onChange={(e) => setAttachFilename(e.target.value)}
+              />
+              <Input
+                placeholder="URL"
+                value={attachUrl}
+                onChange={(e) => setAttachUrl(e.target.value)}
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                loading={attachLoading}
+                disabled={!attachFilename.trim() || !attachUrl.trim()}
+              >
+                Attach
+              </Button>
+            </form>
+          </div>
+        </Card>
+      </div>
+
+      {/* Time Logs section */}
+      <Card padding="none">
+        <div className="px-6 py-4 border-b border-surface-100 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-surface-400" />
+          <h2 className="text-base font-semibold text-surface-900">Time Logs</h2>
+        </div>
+
+        <div className="px-6 py-4">
+          {timeLogs.length === 0 ? (
+            <p className="text-sm text-surface-400">
+              No time logs recorded. Time tracking available in Phase 5.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {timeLogs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between rounded-lg bg-surface-50 p-3">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-surface-700">{formatDate(log.date)}</span>
+                    <span className="text-sm text-surface-600">{log.description || 'No description'}</span>
+                  </div>
+                  <span className="text-sm font-medium text-surface-800">
+                    {formatDuration(log.duration_minutes)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </Card>
 
