@@ -5,34 +5,35 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 1 complete. Phase 2 and Phase 3 in progress (parallel execution).
+**Current focus:** Phase 2 and Phase 3 in progress (parallel execution). 02-01 and 03-01 complete.
 
 ## Current Position
 
-Phase: 3 of 12 (Frontend Architecture) -- IN PROGRESS
-Plan: 03-01 complete (design system tokens)
-Status: Phase 2 and Phase 3 running in parallel. 03-01 done, next: 03-02.
-Last activity: 2026-02-25 — Plan 03-01 executed (design system tokens: colors, typography, shadows, animations, TS exports)
+Phase: 2 & 3 of 12 -- IN PROGRESS (parallel)
+Plan: 02-01 complete (core data models), 03-01 complete (design system tokens)
+Status: Phase 2 and Phase 3 running in parallel. 02-01 done, 03-01 done. Next: 02-02/03/04 (CRUD endpoints), 03-02 (layout components).
+Last activity: 2026-02-25 — Plan 02-01 executed (Pydantic models for clients, tasks, time logs)
 
-Progress: [=======]░░░ ~12%
+Progress: [========]░░ ~14%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 3.5 min
-- Total execution time: ~0.35 hours
+- Total plans completed: 7
+- Average duration: 3.4 min
+- Total execution time: ~0.40 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 5/5 | 18 min | 3.6 min |
+| 02-core-data | 1/4 | 3 min | 3.0 min |
 | 03-frontend | 1/4 | 3 min | 3.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (3 min), 01-04 (3 min), 01-03 (2 min), 01-05 (2 min), 03-01 (3 min)
-- Trend: consistently fast
+- Last 5 plans: 01-04 (3 min), 01-03 (2 min), 01-05 (2 min), 03-01 (3 min), 02-01 (3 min)
+- Trend: consistently fast ~3 min/plan
 
 ## Accumulated Context
 
@@ -58,6 +59,11 @@ Recent decisions affecting current work:
 - **01-05:** Firebase error codes mapped centrally in AuthContext (not in UI layer)
 - **01-05:** ProtectedRoute is a layout route wrapping AppLayout (not a per-route wrapper)
 - **01-05:** No registration flow -- team members created via Firebase Console or /auth/set-role API
+- **02-01:** Used `import datetime as dt` in time_log.py to avoid Pydantic field name shadowing with date/time types
+- **02-01:** COLLECTION_NAME constants at module level for simple Firestore collection lookups
+- **02-01:** TaskComment/TaskAttachment are embedded models within task documents (not separate Firestore collections)
+- **02-01:** duration_minutes excluded from TimeLogCreate -- calculated server-side, stored for query efficiency
+- **02-01:** Model hierarchy pattern: Base -> Create -> Update (all Optional) -> Response (with id, timestamps, created_by)
 - **03-01:** Surface palette uses warm stone tones (not cold grays) for human-centric feel
 - **03-01:** tokens.ts mirrors tailwind.config.js exactly -- Tailwind config is single source of truth
 - **03-01:** chartColors has categorical (6-color), sequential, and diverging palettes for Recharts
@@ -74,5 +80,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 03-01 complete. Phase 2 and Phase 3 running in parallel. Next for Phase 3: Plan 03-02 (layout components).
-Resume file: .planning/phases/03-frontend-architecture/03-01-SUMMARY.md
+Stopped at: Plans 02-01 and 03-01 complete. Phase 2 and Phase 3 running in parallel. Next: 02-02/03/04 (CRUD endpoints), 03-02 (layout components).
+Resume file: .planning/phases/02-core-data-layer/02-01-SUMMARY.md
