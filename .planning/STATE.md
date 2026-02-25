@@ -5,34 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 2 and Phase 3 in progress (parallel execution). 02-02 and 03-02 complete.
+**Current focus:** Phase 2 and Phase 3 in progress (parallel execution). 02-02, 02-04, 03-02, and 03-03 complete.
 
 ## Current Position
 
 Phase: 2 & 3 of 12 -- IN PROGRESS (parallel)
-Plan: 02-02 complete (client CRUD), 03-02 complete (UI component library), 02-01 complete (core data models), 03-01 complete (design system tokens)
-Status: Phase 2 and Phase 3 running in parallel. 02-01, 02-02, 03-01, 03-02 done. Next: 02-03 (task CRUD), 02-04 (time log CRUD), 03-03 (layout components), 03-04 (dashboard widgets).
-Last activity: 2026-02-25 — Plan 03-02 executed (UI component library: 11 React components)
+Plan: 02-04 complete (time log CRUD), 02-02 complete (client CRUD), 03-02 complete (UI component library), 02-01 complete (core data models), 03-01 complete (design system tokens)
+Status: Phase 2 and Phase 3 running in parallel. 02-01, 02-02, 02-04, 03-01, 03-02 done. 02-03 in progress. Next: 02-03 (task CRUD), 03-03 (layout components), 03-04 (dashboard widgets).
+Last activity: 2026-02-25 — Plan 02-04 executed (time log CRUD with auto-duration)
 
-Progress: [==========]░░ ~18%
+Progress: [===========]░░ ~20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 3.3 min
-- Total execution time: ~0.50 hours
+- Total execution time: ~0.55 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 5/5 | 18 min | 3.6 min |
-| 02-core-data | 2/4 | 6 min | 3.0 min |
+| 02-core-data | 3/4 | 9 min | 3.0 min |
 | 03-frontend | 2/4 | 6 min | 3.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-05 (2 min), 03-01 (3 min), 02-01 (3 min), 02-02 (3 min), 03-02 (3 min)
+- Last 5 plans: 03-01 (3 min), 02-01 (3 min), 02-02 (3 min), 03-02 (3 min), 02-04 (3 min)
 - Trend: consistently fast ~3 min/plan
 
 ## Accumulated Context
@@ -71,6 +71,10 @@ Recent decisions affecting current work:
 - **03-01:** tokens.ts mirrors tailwind.config.js exactly -- Tailwind config is single source of truth
 - **03-01:** chartColors has categorical (6-color), sequential, and diverging palettes for Recharts
 - **03-01:** Only extended fontSize with `display` -- preserved all Tailwind defaults
+- **02-04:** Hard delete for time logs (leaf entities) -- no downstream referential dependencies
+- **02-04:** ISO string serialization for date/time Firestore storage with Python type conversion on read
+- **02-04:** Duration auto-recalculated on update when either start_time or end_time changes
+- **02-04:** Hyphenated /time-logs URL prefix for REST convention; underscored time_logs for Firestore collection
 - **03-02:** No external dependencies added -- class merging via template literals, no clsx/tailwind-merge
 - **03-02:** Compound components (Card, Table) use Object.assign pattern for dot-notation API
 - **03-02:** Modal uses React Portal to document.body with Escape key and backdrop click close
@@ -87,5 +91,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 03-02 complete. Phase 2 and Phase 3 running in parallel. Next: 02-03 (task CRUD), 02-04 (time log CRUD), 03-03 (layout components), 03-04 (dashboard widgets).
-Resume file: .planning/phases/03-frontend-architecture/03-02-SUMMARY.md
+Stopped at: Plan 02-04 complete. Phase 2 and Phase 3 running in parallel. Next: 02-03 (task CRUD), 03-03 (layout components), 03-04 (dashboard widgets).
+Resume file: .planning/phases/02-core-data-layer/02-04-SUMMARY.md
