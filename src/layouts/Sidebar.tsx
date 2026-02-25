@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   ChevronDown,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -63,6 +64,7 @@ const navSections: NavSection[] = [
         ],
       },
       { to: '/agents', label: 'AI Agents', icon: Bot },
+      { to: '/meetings', label: 'Meetings', icon: MessageSquare },
       { to: '/reports', label: 'Reports', icon: BarChart2 },
     ],
   },
