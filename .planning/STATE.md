@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 10 (OpsAI Intelligence) plans 01-04 complete. Plan 05 remains.
+**Current focus:** Phase 10 (OpsAI Intelligence) complete (all 5 plans done). Ready for next phase.
 
 ## Current Position
 
-Phase: 10-opsai-intelligence (plan 04 of 05 complete)
-Plan: 10-04 complete. 10-05 next.
-Status: OpsAI engine (10-01), proactive alerts (10-02), chat UI (10-03), and dashboard wiring (10-04) complete. Alert configuration UI remains.
-Last activity: 2026-02-25 -- Plan 10-04 complete (dashboard wired to real API data)
+Phase: 10-opsai-intelligence (plan 05 of 05 complete -- PHASE COMPLETE)
+Plan: 10-05 complete. Phase 10 finished.
+Status: All OpsAI Intelligence plans complete. Engine, alerts, chat UI, dashboard wiring, and navigation integration all done.
+Last activity: 2026-02-25 -- Plan 10-05 complete (OpsAI sidebar nav + dashboard alert banner)
 
-Progress: [=================================]░░░ ~56%
+Progress: [===================================]░░ ~58%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: 2.9 min
 - Total execution time: ~1.2 hours
 
@@ -124,6 +124,9 @@ Recent decisions affecting current work:
 - **10-04:** AlertsPanel severity: high->danger/red, medium->warning/amber, low->primary/blue
 - **10-04:** Client name resolution via parallel /clients fetch + Map<id, name> for RecentActivity
 - **10-04:** Time logs sliced to 5 client-side (API has no limit param, returns DESC sorted)
+- **10-05:** Highlight styling uses accent-50/100 palette (not gradient) for OpsAI sidebar nav item
+- **10-05:** High-severity alert banner shows first alert message with +N more count pattern
+- **10-05:** OpsAI Insights widget conditionally rendered only when alerts exist (no empty state)
 
 ### Deferred Issues
 
@@ -136,5 +139,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 10-04 complete. Plan 10-05 (alert configuration UI) next.
-Resume file: .planning/phases/10-opsai-intelligence/10-04-SUMMARY.md
+Stopped at: Phase 10 complete. All OpsAI Intelligence plans (01-05) done. Next phase ready.
+Resume file: .planning/phases/10-opsai-intelligence/10-05-SUMMARY.md
