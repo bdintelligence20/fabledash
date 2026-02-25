@@ -12,6 +12,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.clients import router as clients_router
+from app.api.sage import router as sage_router
 from app.api.tasks import router as tasks_router
 from app.api.time_logs import router as time_logs_router
 from app.config import get_settings
@@ -88,6 +89,7 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(clients_router, prefix="/clients", tags=["clients"])
 app.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 app.include_router(time_logs_router, prefix="/time-logs", tags=["time-logs"])
+app.include_router(sage_router, prefix="/sage", tags=["sage"])
 
 # Placeholder routers (will be rebuilt in later phases)
 # from app.api.agents import router as agents_router
