@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 10 (OpsAI Intelligence) complete (all 5 plans done). Ready for next phase.
+**Current focus:** Phase 11 (Health & Vitality Reports) — plan 01 complete. Report engine backend operational.
 
 ## Current Position
 
-Phase: 10-opsai-intelligence (plan 05 of 05 complete -- PHASE COMPLETE)
-Plan: 10-05 complete. Phase 10 finished.
-Status: All OpsAI Intelligence plans complete. Engine, alerts, chat UI, dashboard wiring, and navigation integration all done.
-Last activity: 2026-02-25 -- Plan 10-05 complete (OpsAI sidebar nav + dashboard alert banner)
+Phase: 11-health-vitality-reports (plan 01 in progress)
+Plan: 11-01 complete. Report engine with 4 report types + comparison endpoints.
+Status: ReportEngine, ReportComparison, and 7 API endpoints deployed. Backend reports operational.
+Last activity: 2026-02-25 -- Plan 11-01 complete (report engine + API endpoints)
 
-Progress: [===================================]░░ ~58%
+Progress: [====================================]░░ ~60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: 2.9 min
-- Total execution time: ~1.2 hours
+- Total execution time: ~1.3 hours
 
 **By Phase:**
 
@@ -127,6 +127,11 @@ Recent decisions affecting current work:
 - **10-05:** Highlight styling uses accent-50/100 palette (not gradient) for OpsAI sidebar nav item
 - **10-05:** High-severity alert banner shows first alert message with +N more count pattern
 - **10-05:** OpsAI Insights widget conditionally rendered only when alerts exist (no empty state)
+- **11-01:** Productivity score is composite: 60% utilization + 40% completion rate
+- **11-01:** Cost/benefit rankings use ZAR-per-hour as primary ranking metric
+- **11-01:** Report engine methods accept date objects (not strings) for type safety
+- **11-01:** Comparison engine uses higher_is_better semantics per metric for direction labeling
+- **11-01:** Time entry consistency calculates working days (Mon-Fri) for accurate denominator
 
 ### Deferred Issues
 
@@ -139,5 +144,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Phase 10 complete. All OpsAI Intelligence plans (01-05) done. Next phase ready.
-Resume file: .planning/phases/10-opsai-intelligence/10-05-SUMMARY.md
+Stopped at: Phase 11 plan 01 complete. Report engine backend with 7 endpoints operational.
+Resume file: .planning/phases/11-health-vitality-reports/11-01-SUMMARY.md
