@@ -48,6 +48,45 @@ def _resolve_client_name(db, client_id: str | None) -> str | None:
     return None
 
 
+def _load_client_agent(db, agent_id: str) -> ClientAgent:
+    """Load an agent document and return a ClientAgent instance.
+
+    Raises HTTPException 404 if the agent does not exist and 422 if it has no
+    client_id (i.e. it is not a Tier 2 client-based agent).
+    """
+    doc = db.collection(COLLECTION_NAME).document(agent_id).get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    agent_data = doc.to_dict()
+    agent_data["id"] = doc.id
+
+    if not agent_data.get("client_id"):
+        raise HTTPException(
+            status_code=422,
+            detail="Agent is not a client-based (Tier 2) agent — no client_id",
+        )
+
+    return ClientAgent(agent_data)
+
+
+# ------------------------------------------------------------------
+# Request body schemas for Tier 2 client-agent endpoints (09-06)
+# ------------------------------------------------------------------
+
+
+class ExecuteTaskBody(BaseModel):
+    """Request body for POST /{agent_id}/execute."""
+
+    task_description: str
+
+
+class GenerateReportBody(BaseModel):
+    """Request body for POST /{agent_id}/report."""
+
+    report_type: str = "status"
+
+
 @router.get("/", response_model=dict)
 async def list_agents(
     tier: AgentTier | None = None,
@@ -239,6 +278,95 @@ async def ops_daily_summary(
         raise HTTPException(
             status_code=500,
             detail=ErrorResponse(error="Failed to generate daily summary", detail=str(e)).model_dump(),
+        )
+
+
+# ===================================================================
+# Tier 2 Client-Based Agent endpoints (09-06) — before /{agent_id}
+# ===================================================================
+
+
+@router.post("/{agent_id}/execute", response_model=dict)
+async def execute_agent_task(
+    agent_id: str,
+    body: ExecuteTaskBody,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Execute a task with a Tier 2 client agent.
+
+    Uses RAG retrieval and client context to generate a deliverable.
+    """
+    try:
+        db = get_firestore_client()
+        client_agent = _load_client_agent(db, agent_id)
+        result = await client_agent.execute_task(body.task_description)
+        return {"success": True, "data": {"result": result}}
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to execute task for agent %s", agent_id)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="Failed to execute agent task", detail=str(e)
+            ).model_dump(),
+        )
+
+
+@router.post("/{agent_id}/report", response_model=dict)
+async def generate_agent_report(
+    agent_id: str,
+    body: GenerateReportBody,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Generate a client report via a Tier 2 client agent.
+
+    Supported report types: ``status``, ``financial``, ``activity``.
+    """
+    try:
+        db = get_firestore_client()
+        client_agent = _load_client_agent(db, agent_id)
+        report = await client_agent.generate_client_report(body.report_type)
+        return {"success": True, "data": {"report": report, "report_type": body.report_type}}
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to generate report for agent %s", agent_id)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="Failed to generate client report", detail=str(e)
+            ).model_dump(),
+        )
+
+
+@router.get("/{agent_id}/context", response_model=dict)
+async def get_agent_context(
+    agent_id: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Return the current client context for a Tier 2 client agent.
+
+    Useful for debugging and reviewing the data the agent has access to.
+    """
+    try:
+        db = get_firestore_client()
+        client_agent = _load_client_agent(db, agent_id)
+        context = await client_agent.get_client_context()
+        return {"success": True, "data": context}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to get context for agent %s", agent_id)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="Failed to get agent context", detail=str(e)
+            ).model_dump(),
         )
 
 
