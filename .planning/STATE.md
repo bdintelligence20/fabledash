@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 10 (OpsAI Intelligence) plans 01-03 complete. Plans 04-05 remain.
+**Current focus:** Phase 10 (OpsAI Intelligence) plans 01-04 complete. Plan 05 remains.
 
 ## Current Position
 
-Phase: 10-opsai-intelligence (plan 03 of 05 complete)
-Plan: 10-03 complete. 10-04 next.
-Status: OpsAI engine (10-01), proactive alerts (10-02), and chat UI (10-03) complete. Dashboard alerts integration and configuration UI remain.
-Last activity: 2026-02-25 -- Plan 10-03 complete (OpsAI conversational chat page)
+Phase: 10-opsai-intelligence (plan 04 of 05 complete)
+Plan: 10-04 complete. 10-05 next.
+Status: OpsAI engine (10-01), proactive alerts (10-02), chat UI (10-03), and dashboard wiring (10-04) complete. Alert configuration UI remains.
+Last activity: 2026-02-25 -- Plan 10-04 complete (dashboard wired to real API data)
 
-Progress: [================================]░░░░ ~54%
+Progress: [=================================]░░░ ~56%
 
 ## Performance Metrics
 
@@ -120,6 +120,10 @@ Recent decisions affecting current work:
 - **10-03:** Session-local message history (no persistence -- fresh each session)
 - **10-03:** QuickActions updated with navigate() for all actions, not just OpsAI
 - **10-03:** Sparkles icon for OpsAI branding (accent color palette) vs Bot icon for agents
+- **10-04:** Promise.allSettled for parallel dashboard API calls — each widget degrades independently
+- **10-04:** AlertsPanel severity: high->danger/red, medium->warning/amber, low->primary/blue
+- **10-04:** Client name resolution via parallel /clients fetch + Map<id, name> for RecentActivity
+- **10-04:** Time logs sliced to 5 client-side (API has no limit param, returns DESC sorted)
 
 ### Deferred Issues
 
@@ -132,5 +136,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Plan 10-03 complete. Plan 10-04 (dashboard alerts integration) next.
-Resume file: .planning/phases/10-opsai-intelligence/10-03-SUMMARY.md
+Stopped at: Plan 10-04 complete. Plan 10-05 (alert configuration UI) next.
+Resume file: .planning/phases/10-opsai-intelligence/10-04-SUMMARY.md
