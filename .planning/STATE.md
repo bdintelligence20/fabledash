@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plans 01-05 of 06 complete: Google integrations + Integrations UI + Docker deployment + error handling.
+**Current focus:** Phase 12 (Integration & Deployment) — COMPLETE. All 6/6 plans done: Google integrations + Integrations UI + Docker deployment + error handling + final polish.
 
 ## Current Position
 
-Phase: 12-integration-deployment (plans 01-05 of 06 complete)
-Plan: 12-05 complete. ErrorBoundary, LoadingPage, Suspense wrapper for app root.
-Status: Google integrations live + IntegrationsPage UI + Docker deployment + error handling/loading states.
-Last activity: 2026-02-26 -- Plan 12-05 complete (Error boundaries and loading states)
+Phase: 12-integration-deployment (6/6 complete -- PHASE DONE)
+Plan: 12-06 complete. Time sub-nav, improved 404 page, System nav section, all routes verified.
+Status: Phase 12 fully complete. Application production-ready with all navigation, error handling, and deployment.
+Last activity: 2026-02-26 -- Plan 12-06 complete (Final polish — navigation completeness, 404 improvement)
 
-Progress: [================================================] ~83%
+Progress: [==================================================] ~85%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 33
+- Total plans completed: 34
 - Average duration: 2.8 min
-- Total execution time: ~1.5 hours
+- Total execution time: ~1.6 hours
 
 **By Phase:**
 
@@ -164,6 +164,10 @@ Recent decisions affecting current work:
 - **12-05:** ErrorBoundary uses native HTML button/anchor (not Button component) to avoid dependency chain in error state
 - **12-05:** ErrorBoundary placed outside AuthProvider so auth errors are also caught
 - **12-05:** LoadingPage reuses existing Spinner component for design system consistency
+- **12-06:** Time sub-nav uses same expandable chevron pattern as Finances/Reports for consistency
+- **12-06:** Integrations moved from Intelligence to dedicated System nav section for clearer IA
+- **12-06:** 404 quick links: Dashboard, Tasks, Clients, OpsAI — most common user destinations
+- **12-06:** Go Back button uses useNavigate(-1) for browser history navigation
 
 ### Deferred Issues
 
@@ -176,5 +180,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 12 plans 01-05 complete. Error boundaries and loading states added.
-Resume file: .planning/phases/12-integration-deployment/12-05-SUMMARY.md
+Stopped at: Phase 12 COMPLETE (6/6 plans). All navigation, error handling, deployment ready.
+Resume file: .planning/phases/12-integration-deployment/12-06-SUMMARY.md
