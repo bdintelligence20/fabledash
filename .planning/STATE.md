@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 11 (Health & Vitality Reports) — plan 04 complete. Comparison report page with side-by-side period analysis.
+**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plan 02 of 06 complete: Gmail/Calendar clients and integration endpoints.
 
 ## Current Position
 
-Phase: 11-health-vitality-reports (plan 04 of 05 complete)
-Plan: 11-04 complete. ComparisonReportPage with QvQ/YTD modes, side-by-side metric display, trend arrows, delta badges, improvements/declines summary.
-Status: Comparison report verified — tsc + vite build pass. /reports/comparison route live.
-Last activity: 2026-02-25 -- Plan 11-04 complete (comparison report page)
+Phase: 12-integration-deployment (plan 02 of 06 complete)
+Plan: 12-02 complete. GmailClient and CalendarClient with communication stats and meeting density endpoints.
+Status: Gmail/Calendar integration clients and API live. Imports verified.
+Last activity: 2026-02-26 -- Plan 12-02 complete (Gmail & Calendar integration)
 
-Progress: [========================================] ~68%
+Progress: [=============================================] ~75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29
+- Total plans completed: 30
 - Average duration: 2.8 min
 - Total execution time: ~1.4 hours
 
@@ -144,6 +144,10 @@ Recent decisions affecting current work:
 - **11-04:** Side-by-side 12-column grid: 3 label + 3 value A + 1 trend arrow + 3 value B + 2 delta badge
 - **11-04:** Delta summary: green bullet list for improvements, red bullet list for declines
 - **11-04:** Three metric sections: Operational, Financial, Process with curated metric subsets
+- **12-02:** Gmail/Calendar clients accept credentials dict (not OAuth flow yet) — ready for future Google OAuth
+- **12-02:** Clients return empty/unconfigured responses when no credentials — graceful degradation pattern
+- **12-02:** Singleton get_gmail_client/get_calendar_client matches existing Fireflies/Sage client pattern
+- **12-02:** Integrations router under /integrations prefix with /gmail/* and /calendar/* sub-paths
 
 ### Deferred Issues
 
@@ -155,6 +159,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-25
-Stopped at: Phase 11 plan 04 complete. Comparison report page with side-by-side period analysis.
-Resume file: .planning/phases/11-health-vitality-reports/11-04-SUMMARY.md
+Last session: 2026-02-26
+Stopped at: Phase 12 plan 02 complete. Gmail and Calendar clients with integration endpoints.
+Resume file: .planning/phases/12-integration-deployment/12-02-SUMMARY.md
