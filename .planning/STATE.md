@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plans 01-02 and 04 of 06 complete: Google integrations + Docker deployment pipeline.
+**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plans 01-04 of 06 complete: Google integrations + Integrations UI + Docker deployment.
 
 ## Current Position
 
-Phase: 12-integration-deployment (plans 01-02, 04 of 06 complete)
-Plan: 12-04 complete. Docker deployment configs, Compose for local dev, nginx API proxy.
-Status: Google integrations live + Docker deployment pipeline ready.
-Last activity: 2026-02-26 -- Plan 12-04 complete (GCP deployment pipeline)
+Phase: 12-integration-deployment (plans 01-04 of 06 complete)
+Plan: 12-03 complete. IntegrationsPage with service status, communication overhead, connected service tabs.
+Status: Google integrations live + IntegrationsPage UI + Docker deployment pipeline ready.
+Last activity: 2026-02-26 -- Plan 12-03 complete (Integrations management page)
 
 Progress: [===============================================] ~80%
 
@@ -152,6 +152,11 @@ Recent decisions affecting current work:
 - **12-01:** GoogleDriveClient uses lazy service init and singleton pattern
 - **12-01:** Client folder lookup resolves client name from Firestore before searching Drive
 - **12-01:** Unconfigured Drive returns 503 (service unavailable) for clear error signaling
+- **12-03:** Promise.allSettled for 5 parallel integration status calls — each service degrades independently
+- **12-03:** Email volume creep detection: compares last 7 vs previous 7 days, warns at >15% increase
+- **12-03:** Sage/ReadAI/Fireflies status fetched from existing /sage/status and /meetings/status endpoints
+- **12-03:** Connected service tabs load data lazily on tab switch (not all at mount)
+- **12-03:** Sidebar Plug icon in Intelligence section for Integrations nav item
 - **12-04:** Backend port standardized to 8000 (Cloud Run overrides via PORT env var)
 - **12-04:** Frontend Dockerfile is multi-stage: node:20-alpine build + nginx:alpine serve
 - **12-04:** nginx proxies /api/ to backend:8000; SPA routing via try_files for all other paths
@@ -168,5 +173,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 12 plans 01-02, 04 complete. Google integrations + Docker deployment pipeline.
-Resume file: .planning/phases/12-integration-deployment/12-04-SUMMARY.md
+Stopped at: Phase 12 plans 01-04 complete. Google integrations + IntegrationsPage UI + Docker deployment.
+Resume file: .planning/phases/12-integration-deployment/12-03-SUMMARY.md
