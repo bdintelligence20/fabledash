@@ -14,6 +14,7 @@ import {
   ChevronDown,
   MessageSquare,
   Sparkles,
+  Plug,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -77,6 +78,7 @@ const navSections: NavSection[] = [
           { to: '/reports/comparison', label: 'Period Comparison' },
         ],
       },
+      { to: '/integrations', label: 'Integrations', icon: Plug },
     ],
   },
 ];

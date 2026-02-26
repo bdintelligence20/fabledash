@@ -25,6 +25,7 @@ import UtilizationPage from './pages/UtilizationPage';
 import ReportsPage from './pages/ReportsPage';
 import ComparisonReportPage from './pages/ComparisonReportPage';
 import HealthReportPage from './pages/HealthReportPage';
+import IntegrationsPage from './pages/IntegrationsPage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
           { path: '/reports', element: <ReportsPage /> },
           { path: '/reports/comparison', element: <ComparisonReportPage /> },
           { path: '/reports/health', element: <HealthReportPage /> },
+          { path: '/integrations', element: <IntegrationsPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },
