@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plan 02 of 06 complete: Gmail/Calendar clients and integration endpoints.
+**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plans 01 and 02 of 06 complete: Google Drive, Gmail, and Calendar integration endpoints.
 
 ## Current Position
 
-Phase: 12-integration-deployment (plan 02 of 06 complete)
-Plan: 12-02 complete. GmailClient and CalendarClient with communication stats and meeting density endpoints.
-Status: Gmail/Calendar integration clients and API live. Imports verified.
-Last activity: 2026-02-26 -- Plan 12-02 complete (Gmail & Calendar integration)
+Phase: 12-integration-deployment (plans 01-02 of 06 complete)
+Plan: 12-01 complete. GoogleDriveClient with file browsing/search and 4 Drive API endpoints.
+Status: Drive + Gmail + Calendar integration clients and API live. Imports verified.
+Last activity: 2026-02-26 -- Plan 12-01 complete (Google Drive integration)
 
-Progress: [=============================================] ~75%
+Progress: [=============================================] ~77%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
+- Total plans completed: 31
 - Average duration: 2.8 min
-- Total execution time: ~1.4 hours
+- Total execution time: ~1.5 hours
 
 **By Phase:**
 
@@ -148,6 +148,10 @@ Recent decisions affecting current work:
 - **12-02:** Clients return empty/unconfigured responses when no credentials — graceful degradation pattern
 - **12-02:** Singleton get_gmail_client/get_calendar_client matches existing Fireflies/Sage client pattern
 - **12-02:** Integrations router under /integrations prefix with /gmail/* and /calendar/* sub-paths
+- **12-01:** Drive endpoints added to shared integrations.py router (alongside Gmail/Calendar)
+- **12-01:** GoogleDriveClient uses lazy service init and singleton pattern
+- **12-01:** Client folder lookup resolves client name from Firestore before searching Drive
+- **12-01:** Unconfigured Drive returns 503 (service unavailable) for clear error signaling
 
 ### Deferred Issues
 
@@ -160,5 +164,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 12 plan 02 complete. Gmail and Calendar clients with integration endpoints.
-Resume file: .planning/phases/12-integration-deployment/12-02-SUMMARY.md
+Stopped at: Phase 12 plans 01-02 complete. Google Drive, Gmail, and Calendar integration endpoints.
+Resume file: .planning/phases/12-integration-deployment/12-01-SUMMARY.md
