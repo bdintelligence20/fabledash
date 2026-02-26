@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plans 01 and 02 of 06 complete: Google Drive, Gmail, and Calendar integration endpoints.
+**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plans 01-02 and 04 of 06 complete: Google integrations + Docker deployment pipeline.
 
 ## Current Position
 
-Phase: 12-integration-deployment (plans 01-02 of 06 complete)
-Plan: 12-01 complete. GoogleDriveClient with file browsing/search and 4 Drive API endpoints.
-Status: Drive + Gmail + Calendar integration clients and API live. Imports verified.
-Last activity: 2026-02-26 -- Plan 12-01 complete (Google Drive integration)
+Phase: 12-integration-deployment (plans 01-02, 04 of 06 complete)
+Plan: 12-04 complete. Docker deployment configs, Compose for local dev, nginx API proxy.
+Status: Google integrations live + Docker deployment pipeline ready.
+Last activity: 2026-02-26 -- Plan 12-04 complete (GCP deployment pipeline)
 
-Progress: [=============================================] ~77%
+Progress: [===============================================] ~80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31
+- Total plans completed: 32
 - Average duration: 2.8 min
 - Total execution time: ~1.5 hours
 
@@ -152,6 +152,10 @@ Recent decisions affecting current work:
 - **12-01:** GoogleDriveClient uses lazy service init and singleton pattern
 - **12-01:** Client folder lookup resolves client name from Firestore before searching Drive
 - **12-01:** Unconfigured Drive returns 503 (service unavailable) for clear error signaling
+- **12-04:** Backend port standardized to 8000 (Cloud Run overrides via PORT env var)
+- **12-04:** Frontend Dockerfile is multi-stage: node:20-alpine build + nginx:alpine serve
+- **12-04:** nginx proxies /api/ to backend:8000; SPA routing via try_files for all other paths
+- **12-04:** Preserved tesseract-ocr/poppler-utils system deps in backend Dockerfile for OCR/PDF
 
 ### Deferred Issues
 
@@ -164,5 +168,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 12 plans 01-02 complete. Google Drive, Gmail, and Calendar integration endpoints.
-Resume file: .planning/phases/12-integration-deployment/12-01-SUMMARY.md
+Stopped at: Phase 12 plans 01-02, 04 complete. Google integrations + Docker deployment pipeline.
+Resume file: .planning/phases/12-integration-deployment/12-04-SUMMARY.md
