@@ -30,3 +30,7 @@ export type { AvatarProps } from './Avatar';
 
 export { Spinner } from './Spinner';
 export type { SpinnerProps } from './Spinner';
+
+export { ErrorBoundary } from './ErrorBoundary';
+
+export { LoadingPage } from './LoadingPage';
