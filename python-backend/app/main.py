@@ -116,6 +116,11 @@ from app.api.reports import router as reports_router
 
 app.include_router(reports_router, prefix="/reports", tags=["reports"])
 
+# Phase 12: Integration & Deployment
+from app.api.integrations import router as integrations_router
+
+app.include_router(integrations_router, prefix="/integrations", tags=["integrations"])
+
 
 # --- Routes ---
 

@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     SAGE_API_BASE_URL: str = "https://api.accounting.sage.com/v3.1"
     SAGE_REDIRECT_URI: str = "http://localhost:8000/sage/callback"
 
+    # Google Drive Integration
+    GOOGLE_DRIVE_CREDENTIALS_PATH: str = ""
+    GOOGLE_DRIVE_FOLDER_ID: str = ""
+
     # Read.AI Meeting Intelligence API
     READAI_API_KEY: str = ""
     READAI_API_BASE_URL: str = "https://api.read.ai/v1"
