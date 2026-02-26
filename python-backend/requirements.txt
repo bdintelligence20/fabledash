@@ -8,6 +8,7 @@ firebase-admin
 google-cloud-firestore
 python-dotenv
 pytest
+pytest-asyncio
 httpx>=0.24.0
 pdf2image
 pytesseract
