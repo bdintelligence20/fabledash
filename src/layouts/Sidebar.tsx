@@ -47,7 +47,17 @@ const navSections: NavSection[] = [
     items: [
       { to: '/clients', label: 'Clients', icon: UserCircle },
       { to: '/tasks', label: 'Tasks', icon: CheckSquare },
-      { to: '/time', label: 'Time', icon: Clock },
+      {
+        to: '/time',
+        label: 'Time',
+        icon: Clock,
+        subItems: [
+          { to: '/time', label: 'Log Time' },
+          { to: '/time/logs', label: 'Time Logs' },
+          { to: '/time/allocation', label: 'Allocation' },
+          { to: '/time/utilization', label: 'Utilization' },
+        ],
+      },
     ],
   },
   {
@@ -67,8 +77,8 @@ const navSections: NavSection[] = [
           { to: '/finances', label: 'Data Sources' },
         ],
       },
-      { to: '/agents', label: 'AI Agents', icon: Bot },
       { to: '/meetings', label: 'Meetings', icon: MessageSquare },
+      { to: '/agents', label: 'AI Agents', icon: Bot },
       {
         to: '/reports',
         label: 'Reports',
@@ -78,8 +88,11 @@ const navSections: NavSection[] = [
           { to: '/reports/comparison', label: 'Period Comparison' },
         ],
       },
-      { to: '/integrations', label: 'Integrations', icon: Plug },
     ],
+  },
+  {
+    label: 'System',
+    items: [{ to: '/integrations', label: 'Integrations', icon: Plug }],
   },
 ];
 
@@ -100,6 +113,7 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
   const initialExpanded = new Set<string>();
   if (location.pathname.startsWith('/finances')) initialExpanded.add('/finances');
   if (location.pathname.startsWith('/reports')) initialExpanded.add('/reports');
+  if (location.pathname.startsWith('/time')) initialExpanded.add('/time');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(initialExpanded);
 
   const toggleExpanded = (to: string) => {
