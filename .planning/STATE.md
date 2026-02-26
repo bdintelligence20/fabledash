@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The CEO can ask "How's the business doing?" at any moment and get a real, data-backed answer — while AI agents autonomously handle repeatable client work.
-**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plans 01-04 of 06 complete: Google integrations + Integrations UI + Docker deployment.
+**Current focus:** Phase 12 (Integration & Deployment) — IN PROGRESS. Plans 01-05 of 06 complete: Google integrations + Integrations UI + Docker deployment + error handling.
 
 ## Current Position
 
-Phase: 12-integration-deployment (plans 01-04 of 06 complete)
-Plan: 12-03 complete. IntegrationsPage with service status, communication overhead, connected service tabs.
-Status: Google integrations live + IntegrationsPage UI + Docker deployment pipeline ready.
-Last activity: 2026-02-26 -- Plan 12-03 complete (Integrations management page)
+Phase: 12-integration-deployment (plans 01-05 of 06 complete)
+Plan: 12-05 complete. ErrorBoundary, LoadingPage, Suspense wrapper for app root.
+Status: Google integrations live + IntegrationsPage UI + Docker deployment + error handling/loading states.
+Last activity: 2026-02-26 -- Plan 12-05 complete (Error boundaries and loading states)
 
-Progress: [===============================================] ~80%
+Progress: [================================================] ~83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32
+- Total plans completed: 33
 - Average duration: 2.8 min
 - Total execution time: ~1.5 hours
 
@@ -161,6 +161,9 @@ Recent decisions affecting current work:
 - **12-04:** Frontend Dockerfile is multi-stage: node:20-alpine build + nginx:alpine serve
 - **12-04:** nginx proxies /api/ to backend:8000; SPA routing via try_files for all other paths
 - **12-04:** Preserved tesseract-ocr/poppler-utils system deps in backend Dockerfile for OCR/PDF
+- **12-05:** ErrorBoundary uses native HTML button/anchor (not Button component) to avoid dependency chain in error state
+- **12-05:** ErrorBoundary placed outside AuthProvider so auth errors are also caught
+- **12-05:** LoadingPage reuses existing Spinner component for design system consistency
 
 ### Deferred Issues
 
@@ -173,5 +176,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 12 plans 01-04 complete. Google integrations + IntegrationsPage UI + Docker deployment.
-Resume file: .planning/phases/12-integration-deployment/12-03-SUMMARY.md
+Stopped at: Phase 12 plans 01-05 complete. Error boundaries and loading states added.
+Resume file: .planning/phases/12-integration-deployment/12-05-SUMMARY.md
