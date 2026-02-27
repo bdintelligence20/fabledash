@@ -58,10 +58,10 @@ interface GmailStatsData {
 interface CalendarDensityData {
   configured: boolean;
   meetings_per_day?: number;
-  busiest_day?: string;
+  busiest_day?: { date: string; meetings: number } | string | null;
   total_meetings?: number;
-  total_hours?: number;
-  daily_breakdown?: { date: string; count: number }[];
+  total_meeting_hours?: number;
+  daily_breakdown?: { date: string; meetings: number }[];
 }
 
 /* Calendar meetings */
@@ -546,9 +546,9 @@ export default function IntegrationsPage() {
                   <p className="text-xl font-bold text-surface-800 mt-1">
                     {densityData.total_meetings ?? '--'}
                   </p>
-                  {densityData.total_hours !== undefined && (
+                  {densityData.total_meeting_hours !== undefined && (
                     <p className="text-xs text-surface-400 mt-0.5">
-                      {densityData.total_hours.toFixed(1)} hours in meetings
+                      {densityData.total_meeting_hours.toFixed(1)} hours in meetings
                     </p>
                   )}
                 </div>
@@ -556,7 +556,9 @@ export default function IntegrationsPage() {
                   <p className="text-xs text-surface-500">Busiest Day</p>
                   <p className="text-sm font-semibold text-primary-600 mt-1">
                     {densityData.busiest_day
-                      ? DAY_LABELS[densityData.busiest_day] || densityData.busiest_day
+                      ? typeof densityData.busiest_day === 'string'
+                        ? DAY_LABELS[densityData.busiest_day] || densityData.busiest_day
+                        : `${densityData.busiest_day.date} (${densityData.busiest_day.meetings})`
                       : '--'}
                   </p>
                 </div>
