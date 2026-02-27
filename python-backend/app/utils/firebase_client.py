@@ -1,7 +1,10 @@
 """Firebase Admin SDK initialization and Firestore client utility."""
 
+import base64
+import json
 import logging
 import os
+import tempfile
 from pathlib import Path
 
 import firebase_admin
@@ -14,12 +17,37 @@ logger = logging.getLogger(__name__)
 _db = None
 
 
+def _resolve_credentials_path(settings) -> Path:
+    """Resolve Firebase credentials, decoding from env var if needed.
+
+    If FIREBASE_CREDENTIALS_JSON (base64) is set and the credentials
+    file doesn't exist on disk, decode it and write to a temp file.
+    """
+    cred_path = Path(settings.FIREBASE_CREDENTIALS_PATH)
+    if cred_path.is_file():
+        return cred_path
+
+    b64_json = os.environ.get("FIREBASE_CREDENTIALS_JSON", "")
+    if b64_json:
+        try:
+            decoded = base64.b64decode(b64_json)
+            json.loads(decoded)  # validate it's real JSON
+            cred_path.parent.mkdir(parents=True, exist_ok=True)
+            cred_path.write_bytes(decoded)
+            logger.info("Decoded FIREBASE_CREDENTIALS_JSON to %s", cred_path)
+            return cred_path
+        except Exception:
+            logger.exception("Failed to decode FIREBASE_CREDENTIALS_JSON")
+
+    return cred_path
+
+
 def initialize_firebase() -> None:
     """Initialize Firebase Admin SDK.
 
     Credential resolution order:
-    1. FIREBASE_CREDENTIALS_PATH if file exists -> Certificate credentials
-    2. GOOGLE_APPLICATION_CREDENTIALS env var set -> Application Default Credentials
+    1. FIREBASE_CREDENTIALS_PATH / FIREBASE_CREDENTIALS_JSON -> Certificate
+    2. GOOGLE_APPLICATION_CREDENTIALS env var -> Application Default Credentials
     3. No credentials -> default initialization (for GCP environments with ADC)
     """
     if firebase_admin._apps:
@@ -27,7 +55,7 @@ def initialize_firebase() -> None:
         return
 
     settings = get_settings()
-    cred_path = Path(settings.FIREBASE_CREDENTIALS_PATH)
+    cred_path = _resolve_credentials_path(settings)
 
     try:
         options = {}
