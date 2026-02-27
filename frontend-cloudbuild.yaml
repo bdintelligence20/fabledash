@@ -23,13 +23,25 @@ steps:
         echo "VITE_API_URL=${_API_URL}" > .env
         echo "VITE_SUPABASE_URL=${_SUPABASE_URL}" >> .env
         echo "VITE_SUPABASE_ANON_KEY=${_SUPABASE_KEY}" >> .env
-        
+        echo "VITE_FIREBASE_API_KEY=${_FIREBASE_API_KEY}" >> .env
+        echo "VITE_FIREBASE_AUTH_DOMAIN=${_FIREBASE_AUTH_DOMAIN}" >> .env
+        echo "VITE_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}" >> .env
+        echo "VITE_FIREBASE_STORAGE_BUCKET=${_FIREBASE_STORAGE_BUCKET}" >> .env
+        echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${_FIREBASE_MESSAGING_SENDER_ID}" >> .env
+        echo "VITE_FIREBASE_APP_ID=${_FIREBASE_APP_ID}" >> .env
+
         # Build the app
         npm run build
     env:
       - 'VITE_API_URL=${_API_URL}'
       - 'VITE_SUPABASE_URL=${_SUPABASE_URL}'
       - 'VITE_SUPABASE_ANON_KEY=${_SUPABASE_KEY}'
+      - 'VITE_FIREBASE_API_KEY=${_FIREBASE_API_KEY}'
+      - 'VITE_FIREBASE_AUTH_DOMAIN=${_FIREBASE_AUTH_DOMAIN}'
+      - 'VITE_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}'
+      - 'VITE_FIREBASE_STORAGE_BUCKET=${_FIREBASE_STORAGE_BUCKET}'
+      - 'VITE_FIREBASE_MESSAGING_SENDER_ID=${_FIREBASE_MESSAGING_SENDER_ID}'
+      - 'VITE_FIREBASE_APP_ID=${_FIREBASE_APP_ID}'
     id: 'build-frontend'
     waitFor: ['install-dependencies']
 
@@ -80,6 +92,12 @@ substitutions:
   _API_URL: 'https://fabledash-backend-73351471156.us-central1.run.app'
   _SUPABASE_URL: 'https://your-supabase-project.supabase.co'
   _SUPABASE_KEY: 'your-supabase-anon-key'
+  _FIREBASE_API_KEY: ''
+  _FIREBASE_AUTH_DOMAIN: ''
+  _FIREBASE_PROJECT_ID: ''
+  _FIREBASE_STORAGE_BUCKET: ''
+  _FIREBASE_MESSAGING_SENDER_ID: ''
+  _FIREBASE_APP_ID: ''
 
 # Timeout for the build
 timeout: '1800s'
