@@ -32,8 +32,8 @@ class ClientAgent:
 
         Args:
             agent_config: Dict containing at minimum ``client_id``.  Optional
-                keys: ``model``, ``system_prompt``, ``document_ids``, ``id``
-                (the agent's own Firestore ID).
+                keys: ``model``, ``system_prompt``, ``document_ids``, ``id``,
+                ``data_sources`` (the agent's own Firestore ID).
         """
         self.config = agent_config
         self.client_id: str = agent_config["client_id"]
@@ -41,6 +41,7 @@ class ClientAgent:
         self.model: str = agent_config.get("model", "gemini-2.5-flash")
         self.system_prompt: str | None = agent_config.get("system_prompt")
         self.document_ids: list[str] = agent_config.get("document_ids", [])
+        self.data_sources: list[str] = agent_config.get("data_sources", ["firestore"])
 
         settings = get_settings()
         api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
@@ -125,13 +126,50 @@ class ClientAgent:
             d["id"] = doc.id
             invoices.append(d)
 
-        return {
+        context = {
             "client": client_data,
             "tasks": tasks,
             "time_logs": time_logs,
             "meetings": meetings,
             "invoices": invoices,
         }
+
+        # Conditionally fetch integration data based on data_sources
+        client_email = client_data.get("contact_email") if client_data else None
+        client_name = client_data.get("name") if client_data else None
+
+        if "calendar" in self.data_sources:
+            try:
+                from app.utils.integrations.calendar_client import get_calendar_client
+                cal = get_calendar_client()
+                cal_meetings = await cal.get_upcoming_meetings(days_ahead=7, days_back=7)
+                # Filter to client-related meetings if possible
+                context["calendar_meetings"] = cal_meetings[:10] if cal_meetings else []
+            except Exception as exc:
+                logger.debug("Calendar data unavailable for agent %s: %s", self.agent_id, exc)
+                context["calendar_meetings"] = []
+
+        if "gmail" in self.data_sources and client_email:
+            try:
+                from app.utils.integrations.gmail_client import get_gmail_client
+                gmail = get_gmail_client()
+                emails = await gmail.get_emails_with_contact(client_email, days=14)
+                context["client_emails"] = emails[:10] if emails else []
+            except Exception as exc:
+                logger.debug("Gmail data unavailable for agent %s: %s", self.agent_id, exc)
+                context["client_emails"] = []
+
+        if "drive" in self.data_sources and client_name:
+            try:
+                from app.utils.integrations.gdrive_client import get_gdrive_client
+                drive = get_gdrive_client()
+                files = await drive.search_files(client_name)
+                context["drive_files"] = files[:10] if files else []
+            except Exception as exc:
+                logger.debug("Drive data unavailable for agent %s: %s", self.agent_id, exc)
+                context["drive_files"] = []
+
+        return context
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -191,6 +229,35 @@ class ClientAgent:
                     f"[{inv.get('status', '?')}] due {inv.get('due_date', '?')}"
                 )
             parts.append("## Recent Invoices\n" + "\n".join(inv_lines))
+
+        # Integration data sections
+        cal_meetings = context.get("calendar_meetings", [])
+        if cal_meetings:
+            cal_lines = []
+            for cm in cal_meetings:
+                summary = cm.get("summary", "Untitled")
+                start = cm.get("start", "?")
+                cal_lines.append(f"- {start}: {summary}")
+            parts.append("## Upcoming Calendar Events\n" + "\n".join(cal_lines))
+
+        client_emails = context.get("client_emails", [])
+        if client_emails:
+            email_lines = []
+            for em in client_emails:
+                subj = em.get("subject", "No subject")
+                date = em.get("date", "?")
+                sender = em.get("from", "?")
+                email_lines.append(f"- {date}: {subj} (from: {sender})")
+            parts.append("## Recent Client Emails\n" + "\n".join(email_lines))
+
+        drive_files = context.get("drive_files", [])
+        if drive_files:
+            file_lines = []
+            for f in drive_files:
+                name = f.get("name", "Untitled")
+                modified = f.get("modifiedTime", "?")
+                file_lines.append(f"- {name} (modified: {modified})")
+            parts.append("## Related Drive Files\n" + "\n".join(file_lines))
 
         return "\n\n".join(parts) if parts else "No client context available."
 

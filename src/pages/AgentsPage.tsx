@@ -8,6 +8,10 @@ import {
   AlertTriangle,
   Cpu,
   Users,
+  Database,
+  Calendar,
+  Mail,
+  HardDrive,
 } from 'lucide-react';
 import { Button, Card, Input, Select, Badge, Modal, Spinner } from '../components/ui';
 import type { SelectOption } from '../components/ui';
@@ -16,6 +20,8 @@ import { apiClient } from '../lib/api';
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                      */
 /* -------------------------------------------------------------------------- */
+
+type DataSource = 'firestore' | 'calendar' | 'gmail' | 'drive';
 
 interface AgentResponse {
   id: string;
@@ -29,6 +35,7 @@ interface AgentResponse {
   system_prompt: string | null;
   capabilities: string[];
   document_ids: string[];
+  data_sources: DataSource[];
   conversation_count: number;
   created_at: string;
   updated_at: string;
@@ -169,6 +176,13 @@ function AgentCard({ agent, onClick }: { agent: AgentResponse; onClick: () => vo
 /*  CreateAgentModal                                                           */
 /* -------------------------------------------------------------------------- */
 
+const DATA_SOURCE_OPTIONS: { value: DataSource; label: string; icon: typeof Database }[] = [
+  { value: 'firestore', label: 'Firestore', icon: Database },
+  { value: 'calendar', label: 'Calendar', icon: Calendar },
+  { value: 'gmail', label: 'Gmail', icon: Mail },
+  { value: 'drive', label: 'Drive', icon: HardDrive },
+];
+
 interface CreateFormState {
   name: string;
   description: string;
@@ -176,6 +190,7 @@ interface CreateFormState {
   client_id: string;
   model: string;
   system_prompt: string;
+  data_sources: DataSource[];
 }
 
 const emptyForm: CreateFormState = {
@@ -185,6 +200,7 @@ const emptyForm: CreateFormState = {
   client_id: '',
   model: 'gpt-4o-mini',
   system_prompt: '',
+  data_sources: ['firestore'],
 };
 
 function CreateAgentModal({
@@ -234,6 +250,7 @@ function CreateAgentModal({
         tier: form.tier,
         model: form.model,
         system_prompt: form.system_prompt.trim() || null,
+        data_sources: form.data_sources,
       };
       if (form.tier === 'client_based' && form.client_id) {
         body.client_id = form.client_id;
@@ -305,6 +322,42 @@ function CreateAgentModal({
           onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
           options={MODEL_OPTIONS}
         />
+
+        <div className="w-full">
+          <label className="block text-label mb-1.5">Data Sources</label>
+          <div className="flex flex-wrap gap-2">
+            {DATA_SOURCE_OPTIONS.map((ds) => {
+              const Icon = ds.icon;
+              const checked = form.data_sources.includes(ds.value);
+              return (
+                <label
+                  key={ds.value}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-default ${
+                    checked
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-surface-200 bg-white text-surface-600 hover:border-surface-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={checked}
+                    onChange={() => {
+                      setForm((f) => ({
+                        ...f,
+                        data_sources: checked
+                          ? f.data_sources.filter((s) => s !== ds.value)
+                          : [...f.data_sources, ds.value],
+                      }));
+                    }}
+                  />
+                  <Icon className="h-3.5 w-3.5" />
+                  {ds.label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="w-full">
           <label htmlFor="system-prompt" className="block text-label mb-1.5">

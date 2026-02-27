@@ -122,6 +122,78 @@ OPSAI_FUNCTION_DECLARATIONS = [
             required=["metric"],
         ),
     ),
+    # --- Integration data tools (Calendar, Gmail, Drive via Composio) ---
+    genai.protos.FunctionDeclaration(
+        name="get_upcoming_calendar_events",
+        description="Get upcoming calendar meetings for the next N days from Google Calendar.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "days_ahead": genai.protos.Schema(
+                    type=genai.protos.Type.INTEGER,
+                    description="Number of days to look ahead. Defaults to 7.",
+                ),
+            },
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_email_stats",
+        description="Get email communication statistics (sent, received, top correspondents) from Gmail for the last N days.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "days": genai.protos.Schema(
+                    type=genai.protos.Type.INTEGER,
+                    description="Number of days to look back. Defaults to 30.",
+                ),
+            },
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_client_emails",
+        description="Get emails exchanged with a specific client email address from Gmail in the last N days.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "client_email": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="The client's email address to search for.",
+                ),
+                "days": genai.protos.Schema(
+                    type=genai.protos.Type.INTEGER,
+                    description="Number of days to look back. Defaults to 30.",
+                ),
+            },
+            required=["client_email"],
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_drive_files",
+        description="Search for files in Google Drive matching a query string.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "query": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="Search query to find files by name or content.",
+                ),
+            },
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_client_drive_files",
+        description="Get files from a specific client's Google Drive folder.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "client_name": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="Client name to search for files.",
+                ),
+            },
+            required=["client_name"],
+        ),
+    ),
 ]
 
 OPSAI_TOOLS = [genai.protos.Tool(function_declarations=OPSAI_FUNCTION_DECLARATIONS)]
@@ -486,6 +558,114 @@ class OpsAIEngine:
             return {"error": "Failed to query top clients"}
 
     # ------------------------------------------------------------------
+    # Integration tools (Calendar, Gmail, Drive via Composio)
+    # ------------------------------------------------------------------
+
+    async def _tool_get_upcoming_calendar_events(self, days_ahead: int = 7) -> dict:
+        """Fetch upcoming meetings from Google Calendar."""
+        try:
+            from app.utils.calendar_client import get_calendar_client
+
+            cal = get_calendar_client()
+            if not cal.is_configured():
+                return {"error": "Google Calendar not configured"}
+            meetings = await cal.get_meetings(days_ahead=days_ahead, days_back=0)
+            return {
+                "count": len(meetings),
+                "meetings": [
+                    {
+                        "summary": m.get("summary", "Untitled"),
+                        "start": m.get("start", ""),
+                        "end": m.get("end", ""),
+                        "attendee_count": m.get("attendee_count", 0),
+                    }
+                    for m in meetings[:20]
+                ],
+            }
+        except Exception:
+            logger.exception("OpsAI: get_upcoming_calendar_events failed")
+            return {"error": "Failed to fetch calendar events"}
+
+    async def _tool_get_email_stats(self, days: int = 30) -> dict:
+        """Fetch email statistics from Gmail."""
+        try:
+            from app.utils.gmail_client import get_gmail_client
+
+            gmail = get_gmail_client()
+            if not gmail.is_configured():
+                return {"error": "Gmail not configured"}
+            stats = await gmail.get_stats(days=days)
+            return stats
+        except Exception:
+            logger.exception("OpsAI: get_email_stats failed")
+            return {"error": "Failed to fetch email stats"}
+
+    async def _tool_get_client_emails(self, client_email: str, days: int = 30) -> dict:
+        """Fetch emails with a specific client from Gmail."""
+        try:
+            from app.utils.gmail_client import get_gmail_client
+
+            gmail = get_gmail_client()
+            if not gmail.is_configured():
+                return {"error": "Gmail not configured"}
+            emails = await gmail.get_client_emails(client_email, days=days)
+            return {"count": len(emails), "emails": emails[:20]}
+        except Exception:
+            logger.exception("OpsAI: get_client_emails failed")
+            return {"error": "Failed to fetch client emails"}
+
+    async def _tool_get_drive_files(self, query: str = "") -> dict:
+        """Search files in Google Drive."""
+        try:
+            from app.utils.gdrive_client import get_gdrive_client
+
+            drive = get_gdrive_client()
+            if not drive.is_configured():
+                return {"error": "Google Drive not configured"}
+            files = await drive.list_files(query=query or None)
+            return {
+                "count": len(files),
+                "files": [
+                    {
+                        "name": f.get("name", ""),
+                        "mimeType": f.get("mimeType", ""),
+                        "modifiedTime": f.get("modifiedTime", ""),
+                        "webViewLink": f.get("webViewLink", ""),
+                    }
+                    for f in files[:20]
+                ],
+            }
+        except Exception:
+            logger.exception("OpsAI: get_drive_files failed")
+            return {"error": "Failed to search Drive files"}
+
+    async def _tool_get_client_drive_files(self, client_name: str) -> dict:
+        """Fetch files from a client's Drive folder."""
+        try:
+            from app.utils.gdrive_client import get_gdrive_client
+
+            drive = get_gdrive_client()
+            if not drive.is_configured():
+                return {"error": "Google Drive not configured"}
+            result = await drive.get_client_files(client_name)
+            files = result.get("files", [])
+            return {
+                "client_name": client_name,
+                "count": len(files),
+                "files": [
+                    {
+                        "name": f.get("name", ""),
+                        "mimeType": f.get("mimeType", ""),
+                        "modifiedTime": f.get("modifiedTime", ""),
+                    }
+                    for f in files[:20]
+                ],
+            }
+        except Exception:
+            logger.exception("OpsAI: get_client_drive_files failed")
+            return {"error": "Failed to fetch client Drive files"}
+
+    # ------------------------------------------------------------------
     # Tool dispatch
     # ------------------------------------------------------------------
 
@@ -514,6 +694,8 @@ class OpsAIEngine:
             "You are OpsAI, the data-query planner for FableDash — a CEO operations intelligence hub. "
             "Given the user's question, decide which data-retrieval tool(s) to call. "
             "You may call multiple tools if the question spans several data domains. "
+            "You have access to: Firestore business data (clients, tasks, finances, time logs, meetings) "
+            "AND live integration data (Google Calendar, Gmail, Google Drive via Composio). "
             "Today's date is " + date.today().isoformat() + ". "
             "All currency values are in South African Rand (ZAR)."
         )
@@ -641,6 +823,12 @@ OpsAIEngine._TOOL_MAP = {
     "get_overdue_tasks": OpsAIEngine._tool_get_overdue_tasks,
     "get_cash_position": OpsAIEngine._tool_get_cash_position,
     "get_top_clients": OpsAIEngine._tool_get_top_clients,
+    # Integration tools
+    "get_upcoming_calendar_events": OpsAIEngine._tool_get_upcoming_calendar_events,
+    "get_email_stats": OpsAIEngine._tool_get_email_stats,
+    "get_client_emails": OpsAIEngine._tool_get_client_emails,
+    "get_drive_files": OpsAIEngine._tool_get_drive_files,
+    "get_client_drive_files": OpsAIEngine._tool_get_client_drive_files,
 }
 
 

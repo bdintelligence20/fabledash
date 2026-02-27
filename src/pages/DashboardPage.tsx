@@ -3,7 +3,16 @@ import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { BarChart2, AlertTriangle, Sparkles } from 'lucide-react';
 import { Card, Tabs } from '../components/ui';
-import { MetricRow, RecentActivity, AlertsPanel, QuickActions } from '../components/dashboard';
+import {
+  MetricRow,
+  RecentActivity,
+  AlertsPanel,
+  QuickActions,
+  UpcomingMeetings,
+  EmailSummary,
+  MeetingDensity,
+  RecentMeetings,
+} from '../components/dashboard';
 import { apiClient } from '../lib/api';
 import type { ProactiveAlert } from '../components/dashboard/AlertsPanel';
 
@@ -56,6 +65,47 @@ interface AlertsApiResponse {
   [key: string]: unknown;
 }
 
+interface CalendarMeeting {
+  id?: string;
+  summary: string;
+  start: string;
+  end: string;
+  status?: string;
+  attendee_count?: number;
+}
+
+interface CalendarMeetingsResponse {
+  configured: boolean;
+  meetings: CalendarMeeting[];
+  count: number;
+}
+
+interface EmailStatsResponse {
+  configured: boolean;
+  sent_count?: number;
+  received_count?: number;
+  total_count?: number;
+  top_correspondents?: { email: string; count: number }[];
+}
+
+interface CalendarDensityResponse {
+  configured: boolean;
+  total_meetings?: number;
+  meetings_per_day?: number;
+  total_meeting_hours?: number;
+  busiest_day?: { date: string; meetings: number } | string | null;
+}
+
+interface InternalMeeting {
+  id: string;
+  title: string;
+  date: string;
+  client_name?: string;
+  source?: string;
+  action_items?: string[];
+  summary?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -70,7 +120,7 @@ export default function DashboardPage() {
   const [activeRevenueTab, setActiveRevenueTab] = useState('monthly');
   const today = format(new Date(), 'EEEE, d MMM yyyy');
 
-  // API state
+  // Core metrics state
   const [alerts, setAlerts] = useState<ProactiveAlert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
 
@@ -84,6 +134,20 @@ export default function DashboardPage() {
     { id: string; description: string; date: string; duration_minutes: number; client_name?: string }[]
   >([]);
   const [activityLoading, setActivityLoading] = useState(true);
+
+  // Integration data state
+  const [upcomingMeetings, setUpcomingMeetings] = useState<CalendarMeeting[]>([]);
+  const [upcomingLoading, setUpcomingLoading] = useState(true);
+  const [calendarConfigured, setCalendarConfigured] = useState(true);
+
+  const [emailStats, setEmailStats] = useState<EmailStatsResponse | null>(null);
+  const [emailLoading, setEmailLoading] = useState(true);
+
+  const [meetingDensity, setMeetingDensity] = useState<CalendarDensityResponse | null>(null);
+  const [densityLoading, setDensityLoading] = useState(true);
+
+  const [recentMeetings, setRecentMeetings] = useState<InternalMeeting[]>([]);
+  const [recentMeetingsLoading, setRecentMeetingsLoading] = useState(true);
 
   // Fetch alerts
   useEffect(() => {
@@ -116,7 +180,6 @@ export default function DashboardPage() {
 
         if (cancelled) return;
 
-        // Financial summary -> revenue + cash
         if (finRes.status === 'fulfilled' && finRes.value.success) {
           const snap = finRes.value.data.snapshot;
           if (snap) {
@@ -125,12 +188,10 @@ export default function DashboardPage() {
           }
         }
 
-        // Utilization
         if (utilRes.status === 'fulfilled' && utilRes.value.success) {
           setUtilization(utilRes.value.data.utilization_pct ?? null);
         }
 
-        // Active clients
         if (clientRes.status === 'fulfilled' && clientRes.value.success) {
           const all = clientRes.value.data || [];
           const active = all.filter((c) => c.is_active !== false);
@@ -150,7 +211,6 @@ export default function DashboardPage() {
     let cancelled = false;
     (async () => {
       try {
-        // Fetch recent time logs and clients for name resolution
         const [logsRes, clientRes] = await Promise.allSettled([
           apiClient.get<{ success: boolean; data: TimeLogEntry[] }>('/time-logs/'),
           apiClient.get<{ success: boolean; data: ClientEntry[] }>('/clients'),
@@ -158,7 +218,6 @@ export default function DashboardPage() {
 
         if (cancelled) return;
 
-        // Build client name map
         const clientMap = new Map<string, string>();
         if (clientRes.status === 'fulfilled' && clientRes.value.success) {
           for (const c of clientRes.value.data || []) {
@@ -181,6 +240,47 @@ export default function DashboardPage() {
       } finally {
         if (!cancelled) setActivityLoading(false);
       }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch integration data (calendar, email, density, internal meetings)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [calRes, gmailRes, densityRes, mtgRes] = await Promise.allSettled([
+        apiClient.get<{ success: boolean; data: CalendarMeetingsResponse }>('/integrations/calendar/meetings?days_ahead=7&days_back=0'),
+        apiClient.get<{ success: boolean; data: EmailStatsResponse }>('/integrations/gmail/stats?days=7'),
+        apiClient.get<{ success: boolean; data: CalendarDensityResponse }>('/integrations/calendar/density?days=7'),
+        apiClient.get<{ success: boolean; data: InternalMeeting[] }>('/meetings/'),
+      ]);
+
+      if (cancelled) return;
+
+      // Calendar meetings
+      if (calRes.status === 'fulfilled' && calRes.value.success) {
+        setUpcomingMeetings(calRes.value.data.meetings || []);
+        setCalendarConfigured(calRes.value.data.configured !== false);
+      }
+      if (!cancelled) setUpcomingLoading(false);
+
+      // Email stats
+      if (gmailRes.status === 'fulfilled' && gmailRes.value.success) {
+        setEmailStats(gmailRes.value.data);
+      }
+      if (!cancelled) setEmailLoading(false);
+
+      // Meeting density
+      if (densityRes.status === 'fulfilled' && densityRes.value.success) {
+        setMeetingDensity(densityRes.value.data);
+      }
+      if (!cancelled) setDensityLoading(false);
+
+      // Internal meetings
+      if (mtgRes.status === 'fulfilled' && mtgRes.value.success) {
+        setRecentMeetings((mtgRes.value.data || []).slice(0, 5));
+      }
+      if (!cancelled) setRecentMeetingsLoading(false);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -244,13 +344,20 @@ export default function DashboardPage() {
         className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 animate-up"
         style={{ animationDelay: '200ms' }}
       >
-        {/* Left column — recent activity */}
-        <div className="lg:col-span-2">
+        {/* Left column — upcoming meetings + recent activity */}
+        <div className="lg:col-span-2 space-y-6">
+          <UpcomingMeetings
+            meetings={upcomingMeetings}
+            loading={upcomingLoading}
+            configured={calendarConfigured}
+          />
           <RecentActivity timeLogs={recentLogs} loading={activityLoading} />
         </div>
 
-        {/* Right column — alerts + OpsAI summary + quick actions */}
+        {/* Right column — density + email + alerts + OpsAI + quick actions */}
         <div className="lg:col-span-1 space-y-6">
+          <MeetingDensity density={meetingDensity} loading={densityLoading} />
+          <EmailSummary stats={emailStats} loading={emailLoading} />
           <AlertsPanel alerts={alerts} loading={alertsLoading} />
 
           {/* OpsAI alert summary widget */}
@@ -291,6 +398,13 @@ export default function DashboardPage() {
           <QuickActions />
         </div>
       </div>
+
+      {/* Recent meetings (full width) */}
+      {(recentMeetingsLoading || recentMeetings.length > 0) && (
+        <div className="mt-6 animate-up" style={{ animationDelay: '250ms' }}>
+          <RecentMeetings meetings={recentMeetings} loading={recentMeetingsLoading} />
+        </div>
+      )}
 
       {/* Bottom section — revenue chart placeholder */}
       <div className="mt-6 animate-up" style={{ animationDelay: '300ms' }}>

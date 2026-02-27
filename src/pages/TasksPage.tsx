@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Trash2, Pencil, X, List, Columns3, Calendar } from 'lucide-react';
+import { Plus, Search, Trash2, Pencil, X, List, Columns3, Calendar, Upload } from 'lucide-react';
 import {
   Button,
   Card,
@@ -13,6 +13,7 @@ import {
 } from '../components/ui';
 import type { SelectOption } from '../components/ui';
 import { apiClient } from '../lib/api';
+import { BulkImportModal } from '../components/ui/BulkImportModal';
 import KanbanBoard from '../components/tasks/KanbanBoard';
 import CalendarView from '../components/tasks/CalendarView';
 
@@ -202,6 +203,7 @@ export default function TasksPage() {
 
   // Create modal state
   const [createOpen, setCreateOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [newTask, setNewTask] = useState({
@@ -436,6 +438,9 @@ export default function TasksPage() {
               <Calendar className="h-4 w-4" />
             </button>
           </div>
+          <Button variant="secondary" icon={<Upload className="h-4 w-4" />} onClick={() => setBulkImportOpen(true)}>
+            Import
+          </Button>
           <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
             New Task
           </Button>
@@ -738,6 +743,26 @@ export default function TasksPage() {
           </Button>
         </div>
       </Modal>
+
+      {/* Bulk import modal */}
+      <BulkImportModal
+        isOpen={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onSuccess={fetchTasks}
+        title="Import Tasks"
+        endpoint="/tasks/bulk"
+        bodyKey="tasks"
+        columns={[
+          { key: 'title', label: 'Title', required: true },
+          { key: 'client_id', label: 'Client ID', required: true },
+          { key: 'description', label: 'Description' },
+          { key: 'status', label: 'Status' },
+          { key: 'priority', label: 'Priority' },
+          { key: 'due_date', label: 'Due Date' },
+          { key: 'assigned_to', label: 'Assigned To' },
+        ]}
+        sampleCsv="title,client_id,description,status,priority,due_date,assigned_to&#10;Update branding,CLIENT_ID_HERE,Refresh visual identity,todo,medium,,&#10;Review contract,CLIENT_ID_HERE,Annual review,todo,high,2026-04-01,"
+      />
     </div>
   );
 }

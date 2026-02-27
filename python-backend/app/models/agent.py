@@ -32,6 +32,15 @@ class AgentModel(str, Enum):
     CLAUDE_HAIKU = "claude-haiku-4-5"
 
 
+class AgentDataSource(str, Enum):
+    """Available data sources for agent context."""
+
+    FIRESTORE = "firestore"
+    CALENDAR = "calendar"
+    GMAIL = "gmail"
+    DRIVE = "drive"
+
+
 class AgentCreate(BaseModel):
     """Request body for creating a new agent."""
 
@@ -44,6 +53,7 @@ class AgentCreate(BaseModel):
     system_prompt: str | None = None
     capabilities: list[str] = []
     document_ids: list[str] = []
+    data_sources: list[AgentDataSource] = [AgentDataSource.FIRESTORE]
 
 
 class AgentUpdate(BaseModel):
@@ -58,6 +68,7 @@ class AgentUpdate(BaseModel):
     system_prompt: str | None = None
     capabilities: list[str] | None = None
     document_ids: list[str] | None = None
+    data_sources: list[AgentDataSource] | None = None
 
 
 class AgentResponse(BaseModel):
@@ -75,6 +86,7 @@ class AgentResponse(BaseModel):
     system_prompt: str | None = None
     capabilities: list[str] = []
     document_ids: list[str] = []
+    data_sources: list[AgentDataSource] = [AgentDataSource.FIRESTORE]
     conversation_count: int = 0
     created_at: datetime
     updated_at: datetime

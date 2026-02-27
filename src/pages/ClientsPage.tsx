@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, ToggleLeft, ToggleRight, Search } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, Search, Upload } from 'lucide-react';
 import { Button, Input, Select, Table, Badge, Modal, Spinner } from '../components/ui';
+import { BulkImportModal } from '../components/ui/BulkImportModal';
 import type { SelectOption } from '../components/ui';
 import { apiClient } from '../lib/api';
 
@@ -227,6 +228,7 @@ export default function ClientsPage() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientResponse | null>(null);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   async function fetchClients(partnerGroup?: string) {
     setLoading(true);
@@ -277,9 +279,14 @@ export default function ClientsPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-surface-900">Clients</h1>
-        <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={handleNewClient}>
-          New Client
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" icon={<Upload className="h-4 w-4" />} onClick={() => setBulkImportOpen(true)}>
+            Import
+          </Button>
+          <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={handleNewClient}>
+            New Client
+          </Button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -403,6 +410,24 @@ export default function ClientsPage() {
         onClose={() => setModalOpen(false)}
         onSuccess={() => fetchClients(partnerGroupFilter || undefined)}
         editingClient={editingClient}
+      />
+
+      {/* Bulk import modal */}
+      <BulkImportModal
+        isOpen={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onSuccess={() => fetchClients(partnerGroupFilter || undefined)}
+        title="Import Clients"
+        endpoint="/clients/bulk"
+        bodyKey="clients"
+        columns={[
+          { key: 'name', label: 'Name', required: true },
+          { key: 'partner_group', label: 'Partner Group', required: true },
+          { key: 'contact_email', label: 'Email' },
+          { key: 'contact_phone', label: 'Phone' },
+          { key: 'description', label: 'Description' },
+        ]}
+        sampleCsv="name,partner_group,contact_email,contact_phone,description&#10;Acme Corp,direct_clients,acme@example.com,+27123456789,Strategy consulting&#10;Beta Inc,collab,beta@example.com,,Product design"
       />
     </div>
   );

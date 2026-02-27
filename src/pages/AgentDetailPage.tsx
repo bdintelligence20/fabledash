@@ -22,6 +22,8 @@ import { apiClient } from '../lib/api';
 /*  Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
+type DataSource = 'firestore' | 'calendar' | 'gmail' | 'drive';
+
 interface AgentResponse {
   id: string;
   name: string;
@@ -34,11 +36,19 @@ interface AgentResponse {
   system_prompt: string | null;
   capabilities: string[];
   document_ids: string[];
+  data_sources: DataSource[];
   conversation_count: number;
   created_at: string;
   updated_at: string;
   created_by: string;
 }
+
+const DATA_SOURCE_LABELS: Record<DataSource, string> = {
+  firestore: 'Firestore',
+  calendar: 'Calendar',
+  gmail: 'Gmail',
+  drive: 'Drive',
+};
 
 interface AgentSingleResponse {
   success: boolean;
@@ -440,6 +450,18 @@ export default function AgentDetailPage() {
             <div>
               <p className="text-sm text-surface-500">Client</p>
               <p className="font-medium text-surface-900">{agent.client_name}</p>
+            </div>
+          )}
+          {agent.data_sources && agent.data_sources.length > 0 && (
+            <div className="md:col-span-2">
+              <p className="text-sm text-surface-500 mb-1">Data Sources</p>
+              <div className="flex flex-wrap gap-1.5">
+                {agent.data_sources.map((ds) => (
+                  <Badge key={ds} variant="primary" size="sm">
+                    {DATA_SOURCE_LABELS[ds] ?? ds}
+                  </Badge>
+                ))}
+              </div>
             </div>
           )}
           {agent.capabilities.length > 0 && (
