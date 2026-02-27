@@ -30,17 +30,21 @@ def initialize_firebase() -> None:
     cred_path = Path(settings.FIREBASE_CREDENTIALS_PATH)
 
     try:
+        options = {}
+        if settings.FIREBASE_PROJECT_ID:
+            options["projectId"] = settings.FIREBASE_PROJECT_ID
+
         if cred_path.is_file():
             cred = credentials.Certificate(str(cred_path))
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, options=options or None)
             logger.info("Firebase initialized with service account credentials from %s", cred_path)
         elif os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
             cred = credentials.ApplicationDefault()
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, options=options or None)
             logger.info("Firebase initialized with Application Default Credentials")
         else:
-            firebase_admin.initialize_app()
-            logger.info("Firebase initialized with default credentials (GCP environment)")
+            firebase_admin.initialize_app(options=options or None)
+            logger.info("Firebase initialized with default credentials (GCP environment, project=%s)", settings.FIREBASE_PROJECT_ID)
     except Exception:
         logger.exception("Failed to initialize Firebase Admin SDK")
         raise
