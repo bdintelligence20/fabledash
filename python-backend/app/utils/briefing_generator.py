@@ -7,16 +7,13 @@ with client context, action items, and next steps — the "Fable Ops Gem".
 import logging
 from datetime import datetime
 
+import google.generativeai as genai
+
 from app.config import get_settings
 from app.models.meeting import BRIEFING_COLLECTION, MeetingBriefing
 from app.utils.firebase_client import get_firestore_client
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# OpenAI model used for briefing generation
-# ---------------------------------------------------------------------------
-_MODEL = "gpt-4o-mini"
 
 
 class BriefingGenerator:
@@ -24,19 +21,18 @@ class BriefingGenerator:
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._api_key = settings.OPENAI_API_KEY
-        self._client = None
+        api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
+        self._configured = False
 
-        if self._api_key:
+        if api_key:
             try:
-                from openai import AsyncOpenAI
-
-                self._client = AsyncOpenAI(api_key=self._api_key)
+                genai.configure(api_key=api_key)
+                self._configured = True
             except Exception:
-                logger.exception("Failed to initialise OpenAI client")
+                logger.exception("Failed to initialise Gemini client")
         else:
             logger.warning(
-                "OPENAI_API_KEY not set — briefing generation will be unavailable"
+                "Gemini API key not set — briefing generation will be unavailable"
             )
 
     # ------------------------------------------------------------------
@@ -44,24 +40,26 @@ class BriefingGenerator:
     # ------------------------------------------------------------------
 
     def _ensure_client(self) -> None:
-        """Raise if the OpenAI client is not available."""
-        if self._client is None:
+        """Raise if the Gemini client is not available."""
+        if not self._configured:
             raise RuntimeError(
-                "OpenAI client is not configured. Set the OPENAI_API_KEY environment variable."
+                "Gemini client is not configured. Set the GEMINI_API_KEY environment variable."
             )
 
     async def _chat(self, system: str, user: str) -> str:
-        """Send a chat completion request and return the assistant message content."""
+        """Send a chat request to Gemini and return the response text."""
         self._ensure_client()
-        response = await self._client.chat.completions.create(
-            model=_MODEL,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0.3,
+
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system,
         )
-        return response.choices[0].message.content or ""
+
+        response = await model.generate_content_async(
+            user,
+            generation_config=genai.GenerationConfig(temperature=0.3),
+        )
+        return response.text or ""
 
     async def _fetch_client_context(self, client_id: str) -> dict | None:
         """Fetch client details from Firestore for context injection."""

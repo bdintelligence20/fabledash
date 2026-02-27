@@ -107,10 +107,13 @@ async def list_agents(
         if status is not None:
             query = query.where("status", "==", status.value)
 
-        query = query.order_by("created_at", direction="DESCENDING").limit(limit)
+        # Sort in Python to avoid Firestore composite index requirements
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("created_at", ""), reverse=True)
+        docs = docs[:limit]
 
         agents = []
-        for doc in query.stream():
+        for doc in docs:
             doc_dict = doc.to_dict()
             doc_dict["id"] = doc.id
             if "client_name" not in doc_dict:

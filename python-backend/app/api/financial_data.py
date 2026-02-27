@@ -89,13 +89,13 @@ async def financial_summary(
     # 3. Latest P&L upload for the period
     pnl_summary = None
     try:
-        pnl_query = db.collection(PNL_COLLECTION).order_by(
-            "uploaded_at", direction="DESCENDING"
-        )
+        pnl_query = db.collection(PNL_COLLECTION)
         if period:
             pnl_query = pnl_query.where(filter=FieldFilter("period", "==", period))
-        pnl_query = pnl_query.limit(1)
+        # Sort in Python to avoid Firestore composite index requirements
         pnl_docs = list(pnl_query.stream())
+        pnl_docs.sort(key=lambda d: d.to_dict().get("uploaded_at", ""), reverse=True)
+        pnl_docs = pnl_docs[:1]
         if pnl_docs:
             pnl_data = pnl_docs[0].to_dict()
             pnl_summary = {

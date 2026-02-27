@@ -2,7 +2,9 @@
 
 import logging
 
-from app.utils.openai_client import get_openai_client
+import google.generativeai as genai
+
+from app.utils.openai_client import get_ai_client
 
 logger = logging.getLogger(__name__)
 
@@ -99,34 +101,35 @@ class ReportExporter:
         return "\n".join(lines)
 
     async def generate_ai_summary(self, report_data: dict) -> str:
-        """Use OpenAI to generate an executive summary of the report (2-3 paragraphs)."""
+        """Use Gemini to generate an executive summary of the report (2-3 paragraphs)."""
         try:
-            client = get_openai_client()
+            model = get_ai_client()
+            if model is None:
+                return "AI summary generation unavailable — Gemini API key not configured."
 
             # Build a condensed data snapshot for the prompt
             text_report = await self.generate_text_report(report_data)
 
-            response = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a business analyst summarising a health & vitality report for a CEO. "
-                            "Write a concise executive summary in 2-3 paragraphs. Use professional language. "
-                            "Highlight key strengths, areas of concern, and actionable recommendations. "
-                            "Use specific numbers from the data. Currency is South African Rand (ZAR)."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Please summarise this report:\n\n{text_report}",
-                    },
-                ],
-                temperature=0.4,
-                max_tokens=500,
+            system_instruction = (
+                "You are a business analyst summarising a health & vitality report for a CEO. "
+                "Write a concise executive summary in 2-3 paragraphs. Use professional language. "
+                "Highlight key strengths, areas of concern, and actionable recommendations. "
+                "Use specific numbers from the data. Currency is South African Rand (ZAR)."
             )
-            return response.choices[0].message.content or "Unable to generate summary."
+
+            summary_model = genai.GenerativeModel(
+                "gemini-2.5-flash",
+                system_instruction=system_instruction,
+            )
+
+            response = await summary_model.generate_content_async(
+                f"Please summarise this report:\n\n{text_report}",
+                generation_config=genai.GenerationConfig(
+                    temperature=0.4,
+                    max_output_tokens=500,
+                ),
+            )
+            return response.text or "Unable to generate summary."
         except Exception:
             logger.exception("Failed to generate AI summary")
             return "AI summary generation failed. Please try again later."

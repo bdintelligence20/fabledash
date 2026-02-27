@@ -51,7 +51,7 @@ class MeetingSyncService:
         errors: list[str] = []
 
         if not self.readai.is_configured():
-            return {"synced": 0, "errors": ["Read.AI API key not configured"]}
+            return {"synced": 0, "errors": ["Read.AI OAuth not configured"]}
 
         try:
             raw_meetings = await self.readai.get_meetings(since=since)
@@ -61,11 +61,23 @@ class MeetingSyncService:
 
         for raw in raw_meetings:
             try:
+                # Fetch rich detail (summary, action items, topics) via MCP
+                source_id = raw.get("id", "")
+                if source_id:
+                    try:
+                        detail = await self.readai.get_meeting_detail(
+                            source_id,
+                            expand=["summary", "action_items", "topics"],
+                        )
+                        if detail:
+                            raw["_detail"] = detail
+                    except Exception:
+                        logger.debug("Could not fetch Read.AI detail for %s", source_id)
+
                 meeting = self._map_readai_meeting(raw)
                 await self._upsert_meeting(meeting)
 
                 # Attempt to pull transcript
-                source_id = raw.get("id", "")
                 if source_id:
                     await self._sync_readai_transcript(meeting.id, source_id)
 
@@ -198,38 +210,64 @@ class MeetingSyncService:
 
         Uses ``source`` + ``source_id`` as the deterministic Firestore
         document ID so repeated syncs upsert instead of duplicating.
+
+        The Read.AI API returns timestamps as epoch milliseconds
+        (``start_time_ms`` / ``end_time_ms``) and participants as objects
+        with ``name`` and ``email`` fields.
         """
         source_id = raw.get("id", "")
         doc_id = f"readai_{source_id}" if source_id else f"readai_{datetime.utcnow().timestamp()}"
 
+        # Participants
         participants = raw.get("participants", [])
         if isinstance(participants, list) and participants and isinstance(participants[0], dict):
             participants = [p.get("name") or p.get("email", "") for p in participants]
 
-        summary_data = raw.get("summary", {})
-        summary_text = ""
-        if isinstance(summary_data, str):
-            summary_text = summary_data
-        elif isinstance(summary_data, dict):
-            summary_text = summary_data.get("overview", summary_data.get("text", ""))
+        # Date — convert epoch ms to ISO string
+        date_str = ""
+        start_ms = raw.get("start_time_ms")
+        if start_ms:
+            date_str = datetime.utcfromtimestamp(start_ms / 1000).isoformat()
+        else:
+            date_str = raw.get("date", raw.get("start_time", ""))
 
-        action_items = raw.get("action_items", [])
+        # Duration — derive from start/end epoch ms
+        duration_minutes = raw.get("duration_minutes")
+        if duration_minutes is None:
+            end_ms = raw.get("end_time_ms")
+            if start_ms and end_ms:
+                duration_minutes = int((end_ms - start_ms) / 60_000)
+
+        # Rich data from MCP detail (if fetched), fallback to listing fields
+        detail = raw.get("_detail", {})
+
+        summary_text = ""
+        if detail.get("summary"):
+            summary_text = detail["summary"]
+        else:
+            summary_data = raw.get("summary", {})
+            if isinstance(summary_data, str):
+                summary_text = summary_data
+            elif isinstance(summary_data, dict):
+                summary_text = summary_data.get("overview", summary_data.get("text", ""))
+
+        action_items = detail.get("action_items") or raw.get("action_items", [])
         if isinstance(action_items, list) and action_items and isinstance(action_items[0], dict):
             action_items = [item.get("text", str(item)) for item in action_items]
 
-        key_topics = raw.get("key_topics", raw.get("topics", []))
+        key_topics = detail.get("topics") or raw.get("key_topics", raw.get("topics", []))
         if isinstance(key_topics, list) and key_topics and isinstance(key_topics[0], dict):
             key_topics = [t.get("name", str(t)) for t in key_topics]
 
         return MeetingResponse(
             id=doc_id,
             title=raw.get("title", "Untitled Meeting"),
-            date=raw.get("date", raw.get("start_time", "")),
-            duration_minutes=raw.get("duration_minutes", raw.get("duration")),
+            date=date_str,
+            duration_minutes=duration_minutes,
             participants=participants,
             source=MeetingSource.READ_AI,
             source_id=source_id,
-            has_transcript=raw.get("has_transcript", False),
+            has_transcript=True,  # Read.AI meetings generally have transcripts
             action_items=action_items,
             key_topics=key_topics,
             summary=summary_text or None,
@@ -336,31 +374,43 @@ class MeetingSyncService:
     # ------------------------------------------------------------------
 
     async def _sync_readai_transcript(self, meeting_doc_id: str, source_id: str) -> None:
-        """Pull transcript from Read.AI and store in Firestore."""
+        """Pull transcript from Read.AI (via MCP) and store in Firestore.
+
+        The Read.AI MCP ``get_meeting_by_id`` tool returns transcript data
+        with the shape ``{"speakers": [...], "turns": [...], "text": "..."}``.
+        ``turns`` is a list of ``{"start_time_ms", "end_time_ms", "speaker": {"name"}, "text"}``.
+        ``text`` is the full pre-formatted transcript string.
+        """
         try:
             raw = await self.readai.get_transcript(source_id)
             if not raw:
                 return
 
-            segments_raw = raw.get("segments", raw.get("transcript", []))
+            # Parse turns into TranscriptSegment objects
+            turns = raw.get("turns", [])
             segments = []
-            full_parts: list[str] = []
+            for turn in turns:
+                if isinstance(turn, dict):
+                    speaker_obj = turn.get("speaker", {})
+                    speaker = speaker_obj.get("name", "Unknown") if isinstance(speaker_obj, dict) else str(speaker_obj)
+                    text = turn.get("text", "")
+                    # Convert ms timestamps to seconds for consistency
+                    start_ms = turn.get("start_time_ms")
+                    end_ms = turn.get("end_time_ms")
+                    segments.append(TranscriptSegment(
+                        speaker=speaker,
+                        text=text,
+                        start_time=start_ms / 1000 if start_ms else None,
+                        end_time=end_ms / 1000 if end_ms else None,
+                    ))
 
-            if isinstance(segments_raw, list):
-                for seg in segments_raw:
-                    if isinstance(seg, dict):
-                        text = seg.get("text", "")
-                        segments.append(TranscriptSegment(
-                            speaker=seg.get("speaker", seg.get("speaker_name", "Unknown")),
-                            text=text,
-                            start_time=seg.get("start_time"),
-                            end_time=seg.get("end_time"),
-                        ))
-                        full_parts.append(text)
-            elif isinstance(segments_raw, str):
-                full_parts.append(segments_raw)
+            # Use the pre-formatted full text, or build from turns
+            full_text = raw.get("text", "")
+            if not full_text and segments:
+                full_text = "\n".join(
+                    f"[{seg.speaker}]: {seg.text}" for seg in segments
+                )
 
-            full_text = "\n".join(full_parts)
             transcript = MeetingTranscript(
                 id=f"transcript_{meeting_doc_id}",
                 meeting_id=meeting_doc_id,

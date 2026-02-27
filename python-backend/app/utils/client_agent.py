@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 
-from openai import AsyncOpenAI
+import google.generativeai as genai
 
 from app.config import get_settings
 from app.models.client import COLLECTION_NAME as CLIENTS_COLLECTION
@@ -38,16 +38,18 @@ class ClientAgent:
         self.config = agent_config
         self.client_id: str = agent_config["client_id"]
         self.agent_id: str | None = agent_config.get("id")
-        self.model: str = agent_config.get("model", "gpt-4o-mini")
+        self.model: str = agent_config.get("model", "gemini-2.5-flash")
         self.system_prompt: str | None = agent_config.get("system_prompt")
         self.document_ids: list[str] = agent_config.get("document_ids", [])
 
         settings = get_settings()
-        if settings.OPENAI_API_KEY:
-            self._openai = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
+        if api_key:
+            genai.configure(api_key=api_key)
+            self._gemini_configured = True
         else:
-            self._openai = None
-            logger.warning("OPENAI_API_KEY not set — ClientAgent LLM calls will fail")
+            self._gemini_configured = False
+            logger.warning("Gemini API key not set — ClientAgent LLM calls will fail")
 
         self._rag = get_rag_engine()
 
@@ -192,13 +194,12 @@ class ClientAgent:
 
         return "\n\n".join(parts) if parts else "No client context available."
 
-    async def _ensure_openai(self) -> AsyncOpenAI:
-        """Return the OpenAI client or raise a clear error."""
-        if self._openai is None:
+    def _ensure_gemini(self) -> None:
+        """Raise a clear error if Gemini is not configured."""
+        if not self._gemini_configured:
             raise RuntimeError(
-                "ClientAgent: OpenAI client unavailable (OPENAI_API_KEY not set)"
+                "ClientAgent: Gemini client unavailable (API key not set)"
             )
-        return self._openai
 
     # ------------------------------------------------------------------
     # Task execution
@@ -213,7 +214,7 @@ class ClientAgent:
         Returns:
             The generated deliverable / response text.
         """
-        client = await self._ensure_openai()
+        self._ensure_gemini()
         context = await self.get_client_context()
         context_prompt = self._build_context_prompt(context)
 
@@ -239,14 +240,13 @@ class ClientAgent:
             f"---\n\n# Task\n{task_description}"
         )
 
-        response = await client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user_content},
-            ],
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system,
         )
-        return response.choices[0].message.content or ""
+
+        response = await model.generate_content_async(user_content)
+        return response.text or ""
 
     # ------------------------------------------------------------------
     # Query answering
@@ -266,7 +266,7 @@ class ClientAgent:
         Returns:
             Dict with ``answer`` (str) and ``sources`` (list).
         """
-        client = await self._ensure_openai()
+        self._ensure_gemini()
         context = await self.get_client_context()
         context_prompt = self._build_context_prompt(context)
 
@@ -287,33 +287,31 @@ class ClientAgent:
             )
         )
 
-        messages: list[dict] = [{"role": "system", "content": system}]
-
-        # Inject context as the first user turn
-        messages.append({
-            "role": "user",
-            "content": (
-                f"# Client Context\n{context_prompt}\n\n"
-                f"# Relevant Documents\n{rag_context or 'No documents found.'}"
-            ),
-        })
-        messages.append({
-            "role": "assistant",
-            "content": "Understood. I have the client context loaded. How can I help?",
-        })
+        # Build the full prompt with context and conversation history
+        full_prompt_parts = [
+            f"# Client Context\n{context_prompt}\n\n"
+            f"# Relevant Documents\n{rag_context or 'No documents found.'}\n\n"
+            f"---\n\n"
+        ]
 
         # Replay conversation history
         if conversation_history:
-            messages.extend(conversation_history)
+            full_prompt_parts.append("# Conversation History\n")
+            for msg in conversation_history:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                full_prompt_parts.append(f"**{role}**: {content}\n")
+            full_prompt_parts.append("\n---\n\n")
 
-        # Current query
-        messages.append({"role": "user", "content": query})
+        full_prompt_parts.append(f"# Current Question\n{query}")
 
-        response = await client.chat.completions.create(
-            model=self.model,
-            messages=messages,
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system,
         )
-        answer = response.choices[0].message.content or ""
+
+        response = await model.generate_content_async("".join(full_prompt_parts))
+        answer = response.text or ""
 
         sources = [
             {
@@ -342,7 +340,7 @@ class ClientAgent:
         Returns:
             The generated report text.
         """
-        client = await self._ensure_openai()
+        self._ensure_gemini()
         context = await self.get_client_context()
         context_prompt = self._build_context_prompt(context)
 
@@ -383,11 +381,10 @@ class ClientAgent:
             f"Type: {report_type}\n\n{instruction}"
         )
 
-        response = await client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user_content},
-            ],
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system,
         )
-        return response.choices[0].message.content or ""
+
+        response = await model.generate_content_async(user_content)
+        return response.text or ""

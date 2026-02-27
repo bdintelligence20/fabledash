@@ -1,12 +1,14 @@
 """AI-powered transcript processing for meeting intelligence.
 
-Uses OpenAI gpt-4o-mini to extract entities, generate summaries,
+Uses Google Gemini to extract entities, generate summaries,
 and identify action items from meeting transcripts.
 """
 
 import json
 import logging
 from datetime import datetime
+
+import google.generativeai as genai
 
 from app.config import get_settings
 from app.models.client import COLLECTION_NAME as CLIENTS_COLLECTION
@@ -16,67 +18,63 @@ from app.utils.firebase_client import get_firestore_client
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# OpenAI model to use for all transcript processing tasks
-# ---------------------------------------------------------------------------
-_MODEL = "gpt-4o-mini"
-
 
 class TranscriptProcessor:
     """Orchestrates AI extraction, entity matching, and summarisation of meeting transcripts."""
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._api_key = settings.OPENAI_API_KEY
-        self._client = None
+        api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
+        self._configured = False
 
-        if self._api_key:
+        if api_key:
             try:
-                from openai import AsyncOpenAI
-
-                self._client = AsyncOpenAI(api_key=self._api_key)
+                genai.configure(api_key=api_key)
+                self._configured = True
             except Exception:
-                logger.exception("Failed to initialise OpenAI client")
+                logger.exception("Failed to initialise Gemini client")
         else:
-            logger.warning("OPENAI_API_KEY not set — transcript processing will be unavailable")
+            logger.warning("Gemini API key not set — transcript processing will be unavailable")
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
     def _ensure_client(self) -> None:
-        """Raise if the OpenAI client is not available."""
-        if self._client is None:
+        """Raise if the Gemini client is not available."""
+        if not self._configured:
             raise RuntimeError(
-                "OpenAI client is not configured. Set the OPENAI_API_KEY environment variable."
+                "Gemini client is not configured. Set the GEMINI_API_KEY environment variable."
             )
 
     async def _chat(self, system: str, user: str) -> str:
-        """Send a chat completion request and return the assistant message content."""
+        """Send a chat request to Gemini and return the response text."""
         self._ensure_client()
-        response = await self._client.chat.completions.create(
-            model=_MODEL,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0.3,
+
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system,
         )
-        return response.choices[0].message.content or ""
+
+        response = await model.generate_content_async(
+            user,
+            generation_config=genai.GenerationConfig(temperature=0.3),
+        )
+        return response.text or ""
 
     # ------------------------------------------------------------------
     # Public extraction methods
     # ------------------------------------------------------------------
 
     async def extract_entities(self, text: str) -> dict:
-        """Extract structured entities from transcript text via OpenAI.
+        """Extract structured entities from transcript text via Gemini.
 
         Returns a dict with keys:
-            client_names  – list[str]
-            task_refs     – list[str]   (project/task references)
-            people        – list[str]
-            dates         – list[str]
-            action_items  – list[str]
+            client_names  -- list[str]
+            task_refs     -- list[str]   (project/task references)
+            people        -- list[str]
+            dates         -- list[str]
+            action_items  -- list[str]
         """
         system = (
             "You are an expert meeting analyst. Extract structured entities from "
@@ -217,7 +215,7 @@ class TranscriptProcessor:
         """Run the full processing pipeline on a meeting transcript.
 
         Steps:
-            1. Extract entities via OpenAI
+            1. Extract entities via Gemini
             2. Fuzzy-match entities to Firestore clients/tasks
             3. Generate a bullet-point summary
             4. Extract action items

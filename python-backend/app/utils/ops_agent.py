@@ -4,7 +4,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from openai import AsyncOpenAI
+import google.generativeai as genai
 
 from app.config import get_settings
 from app.models.agent import COLLECTION_NAME as AGENTS_COLLECTION
@@ -29,7 +29,7 @@ class OpsTrafficAgent:
     """Tier 1 Ops/Traffic Agent for CEO-level operations intelligence.
 
     Capabilities:
-    - Compile briefs from structured context via OpenAI
+    - Compile briefs from structured context via Gemini
     - Dispatch briefs to client agents (create conversation + send message)
     - Check for proactive alerts across tasks, meetings, time logs
     - Generate a daily CEO morning summary
@@ -38,25 +38,26 @@ class OpsTrafficAgent:
     def __init__(self) -> None:
         settings = get_settings()
         self.db = get_firestore_client()
-        self._openai: AsyncOpenAI | None = None
+        self._gemini_configured = False
 
-        if settings.OPENAI_API_KEY:
-            self._openai = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
+        if api_key:
+            genai.configure(api_key=api_key)
+            self._gemini_configured = True
         else:
-            logger.warning("OPENAI_API_KEY not configured — OpsTrafficAgent AI features disabled")
+            logger.warning("Gemini API key not configured — OpsTrafficAgent AI features disabled")
 
-    def _require_openai(self) -> AsyncOpenAI:
-        """Return the OpenAI client or raise if unavailable."""
-        if self._openai is None:
-            raise RuntimeError("OpenAI API key is not configured")
-        return self._openai
+    def _require_gemini(self) -> None:
+        """Raise if Gemini is not configured."""
+        if not self._gemini_configured:
+            raise RuntimeError("Gemini API key is not configured")
 
     # ------------------------------------------------------------------
     # compile_brief
     # ------------------------------------------------------------------
 
     async def compile_brief(self, topic: str, context: dict) -> str:
-        """Use OpenAI to compile an ops brief from provided context.
+        """Use Gemini to compile an ops brief from provided context.
 
         Args:
             topic: The brief's subject (e.g., "Client X onboarding status").
@@ -65,36 +66,35 @@ class OpsTrafficAgent:
         Returns:
             A formatted operations brief string.
         """
-        client = self._require_openai()
+        self._require_gemini()
 
         context_text = "\n".join(f"- {k}: {v}" for k, v in context.items())
 
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are the Ops/Traffic Agent for FableDash, a CEO intelligence platform. "
-                    "Compile a concise, actionable executive brief. Use bullet points. "
-                    "Highlight risks, blockers, and recommended next steps."
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Topic: {topic}\n\n"
-                    f"Context:\n{context_text}\n\n"
-                    "Compile this into an executive operations brief."
-                ),
-            },
-        ]
-
-        completion = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            temperature=0.4,
-            max_tokens=2000,
+        system_instruction = (
+            "You are the Ops/Traffic Agent for FableDash, a CEO intelligence platform. "
+            "Compile a concise, actionable executive brief. Use bullet points. "
+            "Highlight risks, blockers, and recommended next steps."
         )
-        return completion.choices[0].message.content or ""
+
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system_instruction,
+        )
+
+        prompt = (
+            f"Topic: {topic}\n\n"
+            f"Context:\n{context_text}\n\n"
+            "Compile this into an executive operations brief."
+        )
+
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=0.4,
+                max_output_tokens=2000,
+            ),
+        )
+        return response.text or ""
 
     # ------------------------------------------------------------------
     # dispatch_to_client_agent
@@ -127,7 +127,6 @@ class OpsTrafficAgent:
 
         agent_data = agent_doc.to_dict()
         agent_name = agent_data.get("name", "Agent")
-        agent_model = agent_data.get("model", "gpt-4o-mini")
         system_prompt = agent_data.get("system_prompt") or "You are a helpful AI assistant."
 
         # --- Create conversation ---
@@ -159,24 +158,21 @@ class OpsTrafficAgent:
         # --- Generate AI response ---
         assistant_content = ""
         try:
-            client = self._require_openai()
+            self._require_gemini()
 
-            model_for_openai = agent_model
-            if "claude" in model_for_openai:
-                model_for_openai = "gpt-4o-mini"
-
-            openai_messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
-            ]
-
-            completion = await client.chat.completions.create(
-                model=model_for_openai,
-                messages=openai_messages,
-                temperature=0.7,
-                max_tokens=4000,
+            model = genai.GenerativeModel(
+                "gemini-2.5-flash",
+                system_instruction=system_prompt,
             )
-            assistant_content = completion.choices[0].message.content or ""
+
+            response = await model.generate_content_async(
+                user_content,
+                generation_config=genai.GenerationConfig(
+                    temperature=0.7,
+                    max_output_tokens=4000,
+                ),
+            )
+            assistant_content = response.text or ""
         except Exception:
             logger.warning("Failed to generate dispatch response for agent %s", agent_id)
             assistant_content = "[Ops Agent] Dispatch delivered. AI response unavailable."
@@ -307,7 +303,7 @@ class OpsTrafficAgent:
         - Alert count
 
         Returns:
-            Formatted daily summary string (via OpenAI if available, plaintext fallback).
+            Formatted daily summary string (via Gemini if available, plaintext fallback).
         """
         now = datetime.now(timezone.utc)
         today_str = now.strftime("%Y-%m-%d")
@@ -393,31 +389,28 @@ class OpsTrafficAgent:
             + f"\n\nALERTS: {alert_count} total ({high_alerts} high severity)"
         )
 
-        # --- Format via OpenAI if available ---
-        if self._openai is not None:
+        # --- Format via Gemini if available ---
+        if self._gemini_configured:
             try:
-                completion = await self._openai.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are the Ops/Traffic Agent for FableDash. "
-                                "Format the following raw data into a concise CEO morning briefing. "
-                                "Use clear sections, bullet points, and highlight anything urgent. "
-                                "Keep it professional and actionable."
-                            ),
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Generate the CEO morning briefing from this data:\n\n{summary_data}",
-                        },
-                    ],
-                    temperature=0.3,
-                    max_tokens=2000,
+                model = genai.GenerativeModel(
+                    "gemini-2.5-flash",
+                    system_instruction=(
+                        "You are the Ops/Traffic Agent for FableDash. "
+                        "Format the following raw data into a concise CEO morning briefing. "
+                        "Use clear sections, bullet points, and highlight anything urgent. "
+                        "Keep it professional and actionable."
+                    ),
                 )
-                return completion.choices[0].message.content or summary_data
+
+                response = await model.generate_content_async(
+                    f"Generate the CEO morning briefing from this data:\n\n{summary_data}",
+                    generation_config=genai.GenerationConfig(
+                        temperature=0.3,
+                        max_output_tokens=2000,
+                    ),
+                )
+                return response.text or summary_data
             except Exception:
-                logger.warning("OpenAI formatting failed for daily summary — returning raw data")
+                logger.warning("Gemini formatting failed for daily summary — returning raw data")
 
         return summary_data

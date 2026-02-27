@@ -98,10 +98,13 @@ async def list_documents(
         if status is not None:
             query = query.where("status", "==", status.value)
 
-        query = query.order_by("uploaded_at", direction="DESCENDING").limit(limit)
+        # Sort in Python to avoid Firestore composite index requirements
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("uploaded_at", ""), reverse=True)
+        docs = docs[:limit]
 
         documents = []
-        for doc in query.stream():
+        for doc in docs:
             doc_dict = doc.to_dict()
             doc_dict["id"] = doc.id
             documents.append(DocumentResponse(**doc_dict).model_dump(mode="json"))
@@ -158,15 +161,17 @@ async def get_document_chunks(
         if not doc.exists:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        # Fetch chunks
+        # Fetch chunks — sort in Python to avoid Firestore composite index requirements
         chunks_query = (
             db.collection(CHUNKS_COLLECTION)
             .where("document_id", "==", document_id)
-            .order_by("chunk_index")
         )
 
+        chunk_docs = list(chunks_query.stream())
+        chunk_docs.sort(key=lambda d: d.to_dict().get("chunk_index", 0))
+
         chunks = []
-        for chunk_doc in chunks_query.stream():
+        for chunk_doc in chunk_docs:
             chunk_dict = chunk_doc.to_dict()
             chunk_dict["id"] = chunk_doc.id
             chunks.append(DocumentChunk(**chunk_dict).model_dump(mode="json"))

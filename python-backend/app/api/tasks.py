@@ -127,10 +127,12 @@ async def list_tasks(
         if assigned_to is not None:
             query = query.where("assigned_to", "==", assigned_to)
 
-        query = query.order_by("created_at", direction="DESCENDING")
+        # Sort in Python to avoid Firestore composite index requirements
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("created_at", ""), reverse=True)
 
         tasks = []
-        for doc in query.stream():
+        for doc in docs:
             tasks.append(_doc_to_task(doc))
 
         return {"success": True, "data": tasks}

@@ -2,7 +2,7 @@
 
 Provides conversation CRUD and message send/receive with optional RAG-augmented
 AI responses.  The RAG engine (09-03) may not be available yet; when it is
-missing the endpoint falls back to a plain OpenAI chat completion.
+missing the endpoint falls back to a plain Gemini text generation.
 """
 
 import logging
@@ -10,7 +10,8 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from openai import AsyncOpenAI
+
+import google.generativeai as genai
 
 from app.config import get_settings
 from app.dependencies.auth import get_current_user
@@ -51,7 +52,7 @@ def _get_rag_engine():
         _rag_engine = RAGEngine()
         logger.info("RAG engine loaded successfully")
     except Exception:
-        logger.warning("RAG engine not available — falling back to direct OpenAI")
+        logger.warning("RAG engine not available — falling back to direct Gemini")
         _rag_engine = None
     _rag_checked = True
     return _rag_engine
@@ -80,12 +81,16 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _get_openai_client() -> AsyncOpenAI:
-    """Return an AsyncOpenAI client using the configured API key."""
+def _get_gemini_model(system_prompt: str | None = None) -> genai.GenerativeModel:
+    """Return a Gemini GenerativeModel using the configured API key."""
     settings = get_settings()
-    if not settings.OPENAI_API_KEY:
-        raise HTTPException(status_code=500, detail="OpenAI API key is not configured")
-    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Gemini API key is not configured")
+    genai.configure(api_key=api_key)
+    if system_prompt:
+        return genai.GenerativeModel("gemini-2.5-flash", system_instruction=system_prompt)
+    return genai.GenerativeModel("gemini-2.5-flash")
 
 
 # ===================================================================
@@ -107,10 +112,13 @@ async def list_conversations(
         if agent_id is not None:
             query = query.where("agent_id", "==", agent_id)
 
-        query = query.order_by("created_at", direction="DESCENDING").limit(limit)
+        # Sort in Python to avoid Firestore composite index requirements
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("created_at", ""), reverse=True)
+        docs = docs[:limit]
 
         conversations = []
-        for doc in query.stream():
+        for doc in docs:
             doc_dict = doc.to_dict()
             doc_dict["id"] = doc.id
             if "agent_name" not in doc_dict:
@@ -281,15 +289,18 @@ async def list_messages(
         if conv_doc.to_dict().get("created_by") != user.uid:
             raise HTTPException(status_code=403, detail="Not authorized")
 
+        # Sort in Python to avoid Firestore composite index requirements
         query = (
             db.collection(MESSAGES_COLLECTION)
             .where("conversation_id", "==", conversation_id)
-            .order_by("created_at")
-            .limit(limit)
         )
 
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("created_at", ""))
+        docs = docs[:limit]
+
         messages = []
-        for doc in query.stream():
+        for doc in docs:
             doc_dict = doc.to_dict()
             doc_dict["id"] = doc.id
             messages.append(ChatMessage(**doc_dict).model_dump(mode="json"))
@@ -318,7 +329,7 @@ async def send_message(
     2. Fetch agent config (model, system_prompt, document_ids).
     3. Fetch conversation history (last 20 messages).
     4. Attempt to use RAGEngine for response generation.
-    5. If RAG unavailable, fall back to direct OpenAI completion.
+    5. If RAG unavailable, fall back to direct Gemini generation.
     6. Save assistant message to Firestore.
     7. Update conversation metadata (message_count, last_message_at).
     8. Return both user and assistant messages.
@@ -356,26 +367,28 @@ async def send_message(
             raise HTTPException(status_code=404, detail="Agent not found")
 
         agent_data = agent_doc.to_dict()
-        agent_model = agent_data.get("model", "gpt-4o-mini")
         system_prompt = agent_data.get("system_prompt") or "You are a helpful AI assistant."
         document_ids = agent_data.get("document_ids", [])
 
         # --- 3. Fetch conversation history (last 20) ---
+        # Sort in Python to avoid Firestore composite index requirements
         history_query = (
             db.collection(MESSAGES_COLLECTION)
             .where("conversation_id", "==", conversation_id)
-            .order_by("created_at")
-            .limit(20)
         )
+        history_docs = list(history_query.stream())
+        history_docs.sort(key=lambda d: d.to_dict().get("created_at", ""))
+        history_docs = history_docs[:20]
+
         history_messages = []
-        for msg_doc in history_query.stream():
+        for msg_doc in history_docs:
             msg = msg_doc.to_dict()
             history_messages.append({
                 "role": msg["role"],
                 "content": msg["content"],
             })
 
-        # --- 4 & 5. Generate AI response (RAG or direct OpenAI) ---
+        # --- 4 & 5. Generate AI response (RAG or direct Gemini) ---
         assistant_content = ""
         sources: list[dict] = []
 
@@ -390,32 +403,34 @@ async def send_message(
                     document_ids=document_ids,
                     system_prompt=system_prompt,
                     chat_history=history_messages,
-                    model=agent_model,
+                    model="gemini-2.5-flash",
                 )
                 assistant_content = rag_result.get("answer", "")
                 sources = rag_result.get("sources", [])
             except Exception:
-                logger.warning("RAG query failed — falling back to direct OpenAI", exc_info=True)
+                logger.warning("RAG query failed — falling back to direct Gemini", exc_info=True)
                 rag = None  # fall through to direct path
 
         if not assistant_content:
-            # --- 5. Direct OpenAI fallback ---
-            openai_messages = [{"role": "system", "content": system_prompt}]
-            openai_messages.extend(history_messages)
+            # --- 5. Direct Gemini fallback ---
+            # Build the prompt from conversation history
+            history_text_parts = []
+            for msg in history_messages:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                history_text_parts.append(f"**{role}**: {content}")
 
-            # Ensure the model string is OpenAI-compatible for the fallback
-            model_for_openai = agent_model
-            if "claude" in model_for_openai:
-                model_for_openai = "gpt-4o-mini"
+            full_prompt = "\n\n".join(history_text_parts) if history_text_parts else body.content
 
-            client = _get_openai_client()
-            completion = await client.chat.completions.create(
-                model=model_for_openai,
-                messages=openai_messages,
-                temperature=0.7,
-                max_tokens=4000,
+            model = _get_gemini_model(system_prompt=system_prompt)
+            response = await model.generate_content_async(
+                full_prompt,
+                generation_config=genai.GenerationConfig(
+                    temperature=0.7,
+                    max_output_tokens=4000,
+                ),
             )
-            assistant_content = completion.choices[0].message.content or ""
+            assistant_content = response.text or ""
 
         # --- 6. Save assistant message ---
         asst_now = _now_iso()

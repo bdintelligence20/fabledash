@@ -2,7 +2,7 @@
 
 import logging
 
-from openai import AsyncOpenAI
+import google.generativeai as genai
 
 from app.config import get_settings
 from app.utils.vector_store import get_vector_store, VectorStore
@@ -19,24 +19,23 @@ class RAGEngine:
         1. Accept a user query.
         2. Retrieve relevant document chunks from the VectorStore.
         3. Build a prompt with the retrieved context.
-        4. Generate a response via OpenAI chat completions.
+        4. Generate a response via Google Gemini.
     """
 
     def __init__(
         self,
         vector_store: VectorStore | None = None,
-        openai_client: AsyncOpenAI | None = None,
     ) -> None:
         self._vector_store = vector_store or get_vector_store()
         settings = get_settings()
 
-        if openai_client is not None:
-            self._client = openai_client
-        elif settings.OPENAI_API_KEY:
-            self._client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
+        if api_key:
+            genai.configure(api_key=api_key)
+            self._configured = True
         else:
-            self._client = None
-            logger.warning("OPENAI_API_KEY not set — RAGEngine will be non-functional")
+            self._configured = False
+            logger.warning("Gemini API key not set — RAGEngine will be non-functional")
 
     # ------------------------------------------------------------------
     # Context retrieval
@@ -84,7 +83,7 @@ class RAGEngine:
         query: str,
         context: str,
         system_prompt: str | None = None,
-        model: str = "gpt-4o-mini",
+        model: str = "gemini-2.5-flash",
     ) -> str:
         """Generate an LLM response using the provided context.
 
@@ -92,16 +91,16 @@ class RAGEngine:
             query: The user's original question.
             context: Retrieved document context to ground the answer.
             system_prompt: Optional custom system prompt.
-            model: OpenAI model identifier.
+            model: Gemini model identifier (ignored, uses gemini-2.5-flash).
 
         Returns:
             The assistant's generated answer text.
 
         Raises:
-            RuntimeError: If the OpenAI client is not available.
+            RuntimeError: If the Gemini client is not available.
         """
-        if self._client is None:
-            raise RuntimeError("RAGEngine: OpenAI client unavailable (missing API key)")
+        if not self._configured:
+            raise RuntimeError("RAGEngine: Gemini client unavailable (missing API key)")
 
         default_system = (
             "You are a helpful assistant. Use the provided context to answer "
@@ -109,23 +108,19 @@ class RAGEngine:
             "enough information, say so honestly."
         )
 
-        messages = [
-            {"role": "system", "content": system_prompt or default_system},
-            {
-                "role": "user",
-                "content": (
-                    f"Context:\n{context}\n\n---\n\nQuestion: {query}"
-                    if context
-                    else query
-                ),
-            },
-        ]
-
-        response = await self._client.chat.completions.create(
-            model=model,
-            messages=messages,
+        gemini_model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system_prompt or default_system,
         )
-        return response.choices[0].message.content or ""
+
+        user_content = (
+            f"Context:\n{context}\n\n---\n\nQuestion: {query}"
+            if context
+            else query
+        )
+
+        response = await gemini_model.generate_content_async(user_content)
+        return response.text or ""
 
     # ------------------------------------------------------------------
     # Orchestrator
@@ -137,7 +132,7 @@ class RAGEngine:
         agent_id: str | None = None,
         client_id: str | None = None,
         system_prompt: str | None = None,
-        model: str = "gpt-4o-mini",
+        model: str = "gemini-2.5-flash",
     ) -> dict:
         """End-to-end RAG: retrieve context then generate a response.
 
@@ -146,7 +141,7 @@ class RAGEngine:
             agent_id: Optional scope filter.
             client_id: Optional scope filter.
             system_prompt: Optional custom system prompt.
-            model: OpenAI model identifier.
+            model: Gemini model identifier.
 
         Returns:
             A dict with ``answer`` (str) and ``sources`` (list of source

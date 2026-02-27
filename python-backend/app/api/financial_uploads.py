@@ -110,8 +110,10 @@ async def list_pnl_uploads(
         if period:
             query = query.where("period", "==", period)
 
-        query = query.order_by("uploaded_at", direction="DESCENDING").limit(limit)
-        docs = query.stream()
+        # Sort in Python to avoid Firestore composite index requirements
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("uploaded_at", ""), reverse=True)
+        docs = docs[:limit]
 
         uploads = []
         for doc in docs:

@@ -1,6 +1,6 @@
 """OpsAI Engine — unified conversational query layer across all FableDash data sources.
 
-Uses OpenAI function calling to dynamically select data-retrieval tools based on the
+Uses Google Gemini function calling to dynamically select data-retrieval tools based on the
 CEO's natural-language question, queries Firestore, and generates a human-friendly answer.
 """
 
@@ -9,7 +9,7 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-from openai import AsyncOpenAI
+import google.generativeai as genai
 
 from app.config import get_settings
 from app.models.client import COLLECTION_NAME as CLIENTS_COLLECTION
@@ -25,137 +25,114 @@ from app.utils.firebase_client import get_firestore_client
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# OpenAI function-tool schemas
+# Gemini function-tool declarations
 # ---------------------------------------------------------------------------
 
-OPSAI_TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_utilization",
-            "description": "Get team utilization data (billable vs total hours) for a date range from time logs.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "date_from": {
-                        "type": "string",
-                        "description": "Start date in YYYY-MM-DD format.",
-                    },
-                    "date_to": {
-                        "type": "string",
-                        "description": "End date in YYYY-MM-DD format.",
-                    },
-                },
-                "required": ["date_from", "date_to"],
+OPSAI_FUNCTION_DECLARATIONS = [
+    genai.protos.FunctionDeclaration(
+        name="get_utilization",
+        description="Get team utilization data (billable vs total hours) for a date range from time logs.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "date_from": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="Start date in YYYY-MM-DD format.",
+                ),
+                "date_to": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="End date in YYYY-MM-DD format.",
+                ),
             },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_revenue",
-            "description": "Get revenue data from financial snapshots and invoices for a given period (e.g. '2026-02' or 'latest').",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "period": {
-                        "type": "string",
-                        "description": "Period string such as 'latest', 'YYYY-MM', or 'YYYY'.",
-                    },
-                },
-                "required": ["period"],
+            required=["date_from", "date_to"],
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_revenue",
+        description="Get revenue data from financial snapshots and invoices for a given period (e.g. '2026-02' or 'latest').",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "period": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="Period string such as 'latest', 'YYYY-MM', or 'YYYY'.",
+                ),
             },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_client_info",
-            "description": "Look up a client by name and return their details, linked tasks, and recent time logs.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "client_name": {
-                        "type": "string",
-                        "description": "Full or partial client name to search for.",
-                    },
-                },
-                "required": ["client_name"],
+            required=["period"],
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_client_info",
+        description="Look up a client by name and return their details, linked tasks, and recent time logs.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "client_name": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="Full or partial client name to search for.",
+                ),
             },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_recent_meetings",
-            "description": "Get meetings from the last N days, including summaries and action items.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "days": {
-                        "type": "integer",
-                        "description": "Number of days to look back. Defaults to 7.",
-                    },
-                },
-                "required": [],
+            required=["client_name"],
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_recent_meetings",
+        description="Get meetings from the last N days, including summaries and action items.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "days": genai.protos.Schema(
+                    type=genai.protos.Type.INTEGER,
+                    description="Number of days to look back. Defaults to 7.",
+                ),
             },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_overdue_tasks",
-            "description": "Get all tasks that are overdue (due date in the past and not done).",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": [],
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_overdue_tasks",
+        description="Get all tasks that are overdue (due date in the past and not done).",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={},
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_cash_position",
+        description="Get the latest cash-on-hand, accounts receivable, and accounts payable from financial snapshots.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={},
+        ),
+    ),
+    genai.protos.FunctionDeclaration(
+        name="get_top_clients",
+        description="Get the top clients ranked by a given metric (revenue or hours) with an optional limit.",
+        parameters=genai.protos.Schema(
+            type=genai.protos.Type.OBJECT,
+            properties={
+                "metric": genai.protos.Schema(
+                    type=genai.protos.Type.STRING,
+                    description="Metric to rank clients by. Must be 'revenue' or 'hours'.",
+                ),
+                "limit": genai.protos.Schema(
+                    type=genai.protos.Type.INTEGER,
+                    description="Number of top clients to return. Defaults to 5.",
+                ),
             },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_cash_position",
-            "description": "Get the latest cash-on-hand, accounts receivable, and accounts payable from financial snapshots.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_top_clients",
-            "description": "Get the top clients ranked by a given metric (revenue or hours) with an optional limit.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "metric": {
-                        "type": "string",
-                        "enum": ["revenue", "hours"],
-                        "description": "Metric to rank clients by.",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Number of top clients to return. Defaults to 5.",
-                    },
-                },
-                "required": ["metric"],
-            },
-        },
-    },
+            required=["metric"],
+        ),
+    ),
 ]
+
+OPSAI_TOOLS = [genai.protos.Tool(function_declarations=OPSAI_FUNCTION_DECLARATIONS)]
 
 
 class OpsAIEngine:
-    """Conversational intelligence engine that queries FableDash data via OpenAI function calling.
+    """Conversational intelligence engine that queries FableDash data via Gemini function calling.
 
     Workflow:
-        1. ``query_data`` sends the user's question to OpenAI with function tools.
-        2. OpenAI selects which tool(s) to call and provides arguments.
+        1. ``query_data`` sends the user's question to Gemini with function tools.
+        2. Gemini selects which tool(s) to call and provides arguments.
         3. The engine executes the corresponding Firestore queries.
         4. ``generate_answer`` produces a natural-language response from the data.
         5. ``ask`` orchestrates the full pipeline and returns a structured result.
@@ -164,23 +141,24 @@ class OpsAIEngine:
     def __init__(self) -> None:
         settings = get_settings()
         self.db = get_firestore_client()
-        self._openai: AsyncOpenAI | None = None
+        self._gemini_configured = False
+        self._api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
 
-        if settings.OPENAI_API_KEY:
-            self._openai = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        if self._api_key:
+            genai.configure(api_key=self._api_key)
+            self._gemini_configured = True
         else:
-            logger.warning("OPENAI_API_KEY not configured — OpsAI engine AI features disabled")
+            logger.warning("Gemini API key not configured — OpsAI engine AI features disabled")
 
     @property
     def openai_configured(self) -> bool:
-        """Whether an OpenAI client is available."""
-        return self._openai is not None
+        """Whether an AI client is available. Kept for backwards compatibility."""
+        return self._gemini_configured
 
-    def _require_openai(self) -> AsyncOpenAI:
-        """Return the OpenAI client or raise if unavailable."""
-        if self._openai is None:
-            raise RuntimeError("OpenAI API key is not configured")
-        return self._openai
+    def _require_gemini(self) -> None:
+        """Raise if Gemini is not configured."""
+        if not self._gemini_configured:
+            raise RuntimeError("Gemini API key is not configured")
 
     # ------------------------------------------------------------------
     # Tool implementations — each returns a JSON-serialisable dict
@@ -525,55 +503,62 @@ class OpsAIEngine:
     # ------------------------------------------------------------------
 
     async def query_data(self, question: str) -> dict:
-        """Send the question to OpenAI with function tools and execute selected tools.
+        """Send the question to Gemini with function tools and execute selected tools.
 
         Returns:
             Dict with ``results`` (tool name -> output) and ``tools_used`` list.
         """
-        client = self._require_openai()
+        self._require_gemini()
 
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are OpsAI, the data-query planner for FableDash — a CEO operations intelligence hub. "
-                    "Given the user's question, decide which data-retrieval tool(s) to call. "
-                    "You may call multiple tools if the question spans several data domains. "
-                    "Today's date is " + date.today().isoformat() + ". "
-                    "All currency values are in South African Rand (ZAR)."
-                ),
-            },
-            {"role": "user", "content": question},
-        ]
-
-        completion = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            tools=OPSAI_TOOLS,
-            tool_choice="auto",
-            temperature=0.1,
+        system_instruction = (
+            "You are OpsAI, the data-query planner for FableDash — a CEO operations intelligence hub. "
+            "Given the user's question, decide which data-retrieval tool(s) to call. "
+            "You may call multiple tools if the question spans several data domains. "
+            "Today's date is " + date.today().isoformat() + ". "
+            "All currency values are in South African Rand (ZAR)."
         )
 
-        response_message = completion.choices[0].message
-        tool_calls = response_message.tool_calls
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system_instruction,
+            tools=OPSAI_TOOLS,
+        )
 
-        if not tool_calls:
-            # No tools selected — OpenAI answered directly
+        response = await model.generate_content_async(
+            question,
+            generation_config=genai.GenerationConfig(temperature=0.1),
+        )
+
+        # Check if Gemini wants to call functions
+        function_calls = []
+        if response.candidates and response.candidates[0].content.parts:
+            for part in response.candidates[0].content.parts:
+                if part.function_call and part.function_call.name:
+                    function_calls.append(part.function_call)
+
+        if not function_calls:
+            # No tools selected — Gemini answered directly
+            direct_text = ""
+            try:
+                direct_text = response.text
+            except (ValueError, AttributeError):
+                if response.candidates and response.candidates[0].content.parts:
+                    for part in response.candidates[0].content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            direct_text = part.text
+                            break
             return {
-                "results": {"direct_answer": response_message.content or ""},
+                "results": {"direct_answer": direct_text or ""},
                 "tools_used": [],
             }
 
-        # Execute each tool call
+        # Execute each function call
         results: dict = {}
         tools_used: list[str] = []
 
-        for tool_call in tool_calls:
-            fn_name = tool_call.function.name
-            try:
-                fn_args = json.loads(tool_call.function.arguments)
-            except json.JSONDecodeError:
-                fn_args = {}
+        for fc in function_calls:
+            fn_name = fc.name
+            fn_args = dict(fc.args) if fc.args else {}
 
             tools_used.append(fn_name)
             result = await self._execute_tool(fn_name, fn_args)
@@ -582,7 +567,7 @@ class OpsAIEngine:
         return {"results": results, "tools_used": tools_used}
 
     async def generate_answer(self, question: str, data: dict) -> str:
-        """Use OpenAI to produce a natural-language answer from queried data.
+        """Use Gemini to produce a natural-language answer from queried data.
 
         Args:
             question: The original user question.
@@ -591,7 +576,7 @@ class OpsAIEngine:
         Returns:
             A formatted, human-friendly answer string.
         """
-        client = self._require_openai()
+        self._require_gemini()
 
         # Check if there's a direct answer (no tools were called)
         if "direct_answer" in data.get("results", {}):
@@ -599,35 +584,34 @@ class OpsAIEngine:
 
         data_text = json.dumps(data.get("results", {}), indent=2, default=str)
 
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are OpsAI, the conversational intelligence assistant for FableDash — "
-                    "a CEO operations hub for a South African creative agency. "
-                    "Answer the CEO's question using the data provided. "
-                    "Be concise, professional, and actionable. "
-                    "Format currency as ZAR with thousands separators (e.g. R 125,000.00). "
-                    "Use bullet points for lists. Highlight key insights and risks. "
-                    "If data is missing or unavailable, say so clearly."
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Question: {question}\n\n"
-                    f"Data from FableDash:\n{data_text}"
-                ),
-            },
-        ]
-
-        completion = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=2000,
+        system_instruction = (
+            "You are OpsAI, the conversational intelligence assistant for FableDash — "
+            "a CEO operations hub for a South African creative agency. "
+            "Answer the CEO's question using the data provided. "
+            "Be concise, professional, and actionable. "
+            "Format currency as ZAR with thousands separators (e.g. R 125,000.00). "
+            "Use bullet points for lists. Highlight key insights and risks. "
+            "If data is missing or unavailable, say so clearly."
         )
-        return completion.choices[0].message.content or "I couldn't generate an answer from the available data."
+
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system_instruction,
+        )
+
+        prompt = (
+            f"Question: {question}\n\n"
+            f"Data from FableDash:\n{data_text}"
+        )
+
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=0.3,
+                max_output_tokens=2000,
+            ),
+        )
+        return response.text or "I couldn't generate an answer from the available data."
 
     async def ask(self, question: str) -> dict:
         """Full OpsAI pipeline: query relevant data, then generate an answer.

@@ -93,8 +93,8 @@ class FirefliesClient:
             return []
 
         query = """
-        query GetTranscripts($since: DateTime) {
-            transcripts(since: $since) {
+        query GetTranscripts($fromDate: DateTime, $limit: Int) {
+            transcripts(fromDate: $fromDate, limit: $limit) {
                 id
                 title
                 date
@@ -109,11 +109,11 @@ class FirefliesClient:
             }
         }
         """
-        variables: dict = {}
+        variables: dict = {"limit": 50}
         if since:
-            variables["since"] = since.isoformat()
+            variables["fromDate"] = since.isoformat()
 
-        data = await self._graphql_request(query, variables or None)
+        data = await self._graphql_request(query, variables)
         return data.get("transcripts", [])
 
     async def get_transcript(self, transcript_id: str) -> dict:

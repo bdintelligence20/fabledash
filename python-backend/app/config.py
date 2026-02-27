@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str = ""
     FIREBASE_CREDENTIALS_PATH: str = "./firebase-credentials.json"
     OPENAI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    GOOGLE_AI_API_KEY: str = ""
     PORT: int = 8000
     HOST: str = "0.0.0.0"
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
@@ -26,13 +28,20 @@ class Settings(BaseSettings):
     GOOGLE_DRIVE_CREDENTIALS_PATH: str = ""
     GOOGLE_DRIVE_FOLDER_ID: str = ""
 
-    # Read.AI Meeting Intelligence API
-    READAI_API_KEY: str = ""
+    # Read.AI Meeting Intelligence API (OAuth 2.0)
+    READAI_CLIENT_ID: str = ""
+    READAI_CLIENT_SECRET: str = ""
+    READAI_REFRESH_TOKEN: str = ""
     READAI_API_BASE_URL: str = "https://api.read.ai/v1"
+    READAI_TOKEN_URL: str = "https://authn.read.ai/oauth2/token"
 
     # Fireflies.ai Meeting Transcription API
     FIREFLIES_API_KEY: str = ""
     FIREFLIES_API_BASE_URL: str = "https://api.fireflies.ai/graphql"
+
+    # Composio MCP (Gmail, Drive, Docs, Sheets, Calendar)
+    COMPOSIO_MCP_URL: str = ""
+    COMPOSIO_API_KEY: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

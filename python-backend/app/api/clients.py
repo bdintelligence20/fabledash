@@ -72,10 +72,12 @@ async def list_clients(
         if is_active is not None:
             query = query.where("is_active", "==", is_active)
 
-        query = query.order_by("created_at", direction="DESCENDING")
+        # Sort in Python to avoid Firestore composite index requirements
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("created_at", ""), reverse=True)
 
         clients = []
-        for doc in query.stream():
+        for doc in docs:
             doc_dict = doc.to_dict()
             doc_dict["id"] = doc.id
             clients.append(ClientResponse(**doc_dict).model_dump(mode="json"))

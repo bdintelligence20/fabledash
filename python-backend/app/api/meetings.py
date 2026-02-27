@@ -143,10 +143,13 @@ async def list_meetings(
         if date_to:
             query = query.where("date", "<=", date_to)
 
-        query = query.order_by("date", direction="DESCENDING").limit(limit)
+        # Sort in Python to avoid Firestore composite index requirements
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("date", ""), reverse=True)
+        docs = docs[:limit]
 
         meetings = []
-        for doc in query.stream():
+        for doc in docs:
             doc_dict = doc.to_dict()
             doc_dict["id"] = doc.id
             meetings.append(MeetingResponse(**doc_dict).model_dump(mode="json"))
@@ -314,14 +317,17 @@ async def list_briefings(
             raise HTTPException(status_code=404, detail="Meeting not found")
 
         # Query briefings for this meeting
+        # Sort in Python to avoid Firestore composite index requirements
         query = (
             db.collection(BRIEFING_COLLECTION)
             .where("meeting_id", "==", meeting_id)
-            .order_by("generated_at", direction="DESCENDING")
         )
 
+        docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("generated_at", ""), reverse=True)
+
         briefings = []
-        for doc in query.stream():
+        for doc in docs:
             doc_dict = doc.to_dict()
             doc_dict["id"] = doc.id
             briefings.append(

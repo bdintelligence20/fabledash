@@ -188,9 +188,10 @@ async def list_invoices(
         if date_to:
             query = query.where(filter=FieldFilter("issued_date", "<=", date_to))
 
-        query = query.order_by("issued_date", direction="DESCENDING").limit(limit)
-
+        # Sort in Python to avoid Firestore composite index requirements
         docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("issued_date", ""), reverse=True)
+        docs = docs[:limit]
         invoices = [doc.to_dict() for doc in docs]
 
         return {
@@ -223,9 +224,10 @@ async def list_payments(
         if date_to:
             query = query.where(filter=FieldFilter("payment_date", "<=", date_to))
 
-        query = query.order_by("payment_date", direction="DESCENDING").limit(limit)
-
+        # Sort in Python to avoid Firestore composite index requirements
         docs = list(query.stream())
+        docs.sort(key=lambda d: d.to_dict().get("payment_date", ""), reverse=True)
+        docs = docs[:limit]
         payments = [doc.to_dict() for doc in docs]
 
         return {

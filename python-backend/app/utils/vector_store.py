@@ -1,10 +1,11 @@
-"""Vector store using OpenAI embeddings and Firestore for storage."""
+"""Vector store using Google Gemini embeddings and Firestore for storage."""
 
+import asyncio
 import logging
 from typing import Any
 
 import numpy as np
-from openai import AsyncOpenAI
+import google.generativeai as genai
 
 from app.config import get_settings
 from app.utils.firebase_client import get_firestore_client
@@ -12,13 +13,13 @@ from app.utils.firebase_client import get_firestore_client
 logger = logging.getLogger(__name__)
 
 EMBEDDINGS_COLLECTION = "embeddings"
-EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_MODEL = "models/text-embedding-004"
 
 _vector_store = None
 
 
 class VectorStore:
-    """Manages vector embeddings via OpenAI and stores them in Firestore.
+    """Manages vector embeddings via Google Gemini and stores them in Firestore.
 
     Uses brute-force cosine similarity for search. Suitable for small-to-medium
     document sets per agent/client scope. For production scale, swap in a
@@ -27,13 +28,15 @@ class VectorStore:
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client: AsyncOpenAI | None = None
+        self._configured = False
+        api_key = settings.GEMINI_API_KEY or settings.GOOGLE_AI_API_KEY
 
-        if not settings.OPENAI_API_KEY:
-            logger.warning("OPENAI_API_KEY not set — VectorStore will be non-functional")
+        if not api_key:
+            logger.warning("Gemini API key not set — VectorStore will be non-functional")
         else:
-            self._client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-            logger.info("VectorStore initialised with OpenAI client")
+            genai.configure(api_key=api_key)
+            self._configured = True
+            logger.info("VectorStore initialised with Google Gemini embeddings")
 
     # ------------------------------------------------------------------
     # Embedding generation
@@ -49,16 +52,18 @@ class VectorStore:
             A list of floats representing the embedding vector.
 
         Raises:
-            RuntimeError: If the OpenAI client is not available.
+            RuntimeError: If the Gemini client is not available.
         """
-        if self._client is None:
-            raise RuntimeError("VectorStore: OpenAI client unavailable (missing API key)")
+        if not self._configured:
+            raise RuntimeError("VectorStore: Gemini client unavailable (missing API key)")
 
-        response = await self._client.embeddings.create(
+        # genai.embed_content is synchronous, run in thread to avoid blocking
+        result = await asyncio.to_thread(
+            genai.embed_content,
             model=EMBEDDING_MODEL,
-            input=text,
+            content=text,
         )
-        return response.data[0].embedding
+        return result['embedding']
 
     # ------------------------------------------------------------------
     # Storage

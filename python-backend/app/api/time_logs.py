@@ -133,10 +133,16 @@ async def list_time_logs(
         if is_billable is not None:
             query = query.where("is_billable", "==", is_billable)
 
-        query = query.order_by("date", direction="DESCENDING")
-        query = query.order_by("start_time", direction="DESCENDING")
+        # Sort in Python to avoid Firestore composite index requirements
+        docs = list(query.stream())
+        docs.sort(
+            key=lambda d: (
+                d.to_dict().get("date", ""),
+                d.to_dict().get("start_time", ""),
+            ),
+            reverse=True,
+        )
 
-        docs = query.stream()
         time_logs = []
         for doc in docs:
             try:

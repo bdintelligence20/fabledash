@@ -11,7 +11,7 @@ Detects operational anomalies and generates CEO-level alerts:
 import logging
 from datetime import datetime, timedelta
 
-from openai import AsyncOpenAI
+import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +40,15 @@ DEFAULT_THRESHOLDS = {
 class ProactiveEngine:
     """Proactive intelligence engine that analyses Firestore data for operational alerts."""
 
-    def __init__(self, db, openai_client: AsyncOpenAI | None = None):
-        """Initialise engine with Firestore client and optional OpenAI client.
+    def __init__(self, db, gemini_model=None):
+        """Initialise engine with Firestore client and optional Gemini model.
 
         Args:
             db: Firestore client instance.
-            openai_client: Optional AsyncOpenAI client for AI summaries.
+            gemini_model: Optional Gemini GenerativeModel instance for AI summaries.
         """
         self.db = db
-        self.openai_client = openai_client
+        self.gemini_model = gemini_model
         self._thresholds: dict | None = None
 
     # ------------------------------------------------------------------
@@ -501,18 +501,18 @@ class ProactiveEngine:
     # ------------------------------------------------------------------
 
     async def generate_insight_summary(self, alerts: list[dict]) -> str:
-        """Use OpenAI to generate a human-readable CEO briefing from alerts.
+        """Use Gemini to generate a human-readable CEO briefing from alerts.
 
         Args:
             alerts: List of alert dicts from run_all_checks.
 
         Returns:
-            Natural-language summary string, or fallback text if OpenAI unavailable.
+            Natural-language summary string, or fallback text if Gemini unavailable.
         """
         if not alerts:
             return "No operational alerts detected. All systems nominal."
 
-        if self.openai_client is None:
+        if self.gemini_model is None:
             return self._fallback_summary(alerts)
 
         try:
@@ -521,36 +521,35 @@ class ProactiveEngine:
                 for a in alerts
             )
 
-            response = await self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a concise operations intelligence assistant for a CEO. "
-                            "Summarise the following operational alerts into a brief executive "
-                            "briefing (3-5 sentences). Prioritise high-severity items. "
-                            "Use South African Rand (ZAR / R) for currency. Be direct and actionable."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Current operational alerts:\n{alert_text}",
-                    },
-                ],
-                temperature=0.3,
-                max_tokens=300,
+            system_instruction = (
+                "You are a concise operations intelligence assistant for a CEO. "
+                "Summarise the following operational alerts into a brief executive "
+                "briefing (3-5 sentences). Prioritise high-severity items. "
+                "Use South African Rand (ZAR / R) for currency. Be direct and actionable."
             )
 
-            return response.choices[0].message.content or self._fallback_summary(alerts)
+            model = genai.GenerativeModel(
+                "gemini-2.5-flash",
+                system_instruction=system_instruction,
+            )
+
+            response = await model.generate_content_async(
+                f"Current operational alerts:\n{alert_text}",
+                generation_config=genai.GenerationConfig(
+                    temperature=0.3,
+                    max_output_tokens=300,
+                ),
+            )
+
+            return response.text or self._fallback_summary(alerts)
 
         except Exception:
-            logger.exception("OpenAI summary generation failed, using fallback")
+            logger.exception("Gemini summary generation failed, using fallback")
             return self._fallback_summary(alerts)
 
     @staticmethod
     def _fallback_summary(alerts: list[dict]) -> str:
-        """Generate a basic summary without AI when OpenAI is unavailable."""
+        """Generate a basic summary without AI when Gemini is unavailable."""
         high = [a for a in alerts if a.get("severity") == "high"]
         medium = [a for a in alerts if a.get("severity") == "medium"]
 

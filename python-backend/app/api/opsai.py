@@ -51,7 +51,7 @@ async def ask_opsai(
 ):
     """Ask OpsAI a natural-language question about business operations.
 
-    The engine uses OpenAI function calling to select the right data sources,
+    The engine uses Gemini function calling to select the right data sources,
     queries Firestore, and returns a conversational answer.
     """
     if not body.question.strip():
@@ -63,7 +63,7 @@ async def ask_opsai(
         if not engine.openai_configured:
             raise HTTPException(
                 status_code=503,
-                detail="OpsAI is unavailable — OpenAI API key not configured",
+                detail="OpsAI is unavailable — Gemini API key not configured",
             )
 
         result = await engine.ask(body.question.strip())
@@ -112,13 +112,14 @@ async def suggested_questions(
 async def opsai_status(
     user: CurrentUser = Depends(get_current_user),
 ):
-    """Return OpsAI system status — OpenAI configuration and available data sources."""
+    """Return OpsAI system status — AI configuration and available data sources."""
     try:
         engine = get_opsai_engine()
         return {
             "success": True,
             "data": {
-                "openai_configured": engine.openai_configured,
+                "ai_configured": engine.openai_configured,
+                "ai_provider": "google-gemini",
                 "data_sources": [
                     "time_logs",
                     "financial_snapshots",
@@ -174,18 +175,18 @@ class AlertConfigRequest(BaseModel):
 
 
 def _get_proactive_engine() -> ProactiveEngine:
-    """Create a ProactiveEngine with Firestore and optional OpenAI."""
+    """Create a ProactiveEngine with Firestore and optional Gemini model."""
     db = get_firestore_client()
 
-    openai_client = None
+    gemini_model = None
     try:
-        from app.utils.openai_client import get_openai_client
+        from app.utils.openai_client import get_ai_client
 
-        openai_client = get_openai_client()
+        gemini_model = get_ai_client()
     except Exception:
-        logger.warning("OpenAI client unavailable — alert summaries will use fallback")
+        logger.warning("Gemini client unavailable — alert summaries will use fallback")
 
-    return ProactiveEngine(db=db, openai_client=openai_client)
+    return ProactiveEngine(db=db, gemini_model=gemini_model)
 
 
 # ---------------------------------------------------------------------------

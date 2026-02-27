@@ -1,44 +1,29 @@
-"""Google Calendar API client for meeting density metrics and schedule analysis."""
+"""Google Calendar client powered by Composio MCP for meeting density metrics."""
 
 import logging
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-import httpx
-
-from app.config import get_settings
+from app.utils.composio_client import get_composio_client
 
 logger = logging.getLogger(__name__)
 
 _calendar_client: "CalendarClient | None" = None
 
-# Google Calendar API base URL
-CALENDAR_API_BASE = "https://www.googleapis.com/calendar/v3"
-
 
 class CalendarClient:
-    """Async client for the Google Calendar API.
+    """Calendar client that delegates to Composio MCP tools.
 
     Provides methods to analyze meeting patterns: upcoming/recent meetings,
     meeting density per day, and free time slot discovery.
     """
 
-    def __init__(self, credentials: dict | None = None) -> None:
-        self.settings = get_settings()
-        self.credentials = credentials
-        self.http = httpx.AsyncClient(timeout=30.0)
+    def __init__(self) -> None:
+        self.composio = get_composio_client()
 
     def is_configured(self) -> bool:
-        """Check whether Calendar credentials have been provided."""
-        return self.credentials is not None and bool(self.credentials.get("access_token"))
-
-    def _headers(self) -> dict[str, str]:
-        """Return authorization headers for Calendar API requests."""
-        token = self.credentials.get("access_token", "") if self.credentials else ""
-        return {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
+        """Check whether Composio is configured for Calendar access."""
+        return self.composio.is_configured()
 
     async def get_meetings(
         self, days_ahead: int = 7, days_back: int = 7
@@ -61,70 +46,48 @@ class CalendarClient:
         time_max = (now + timedelta(days=days_ahead)).isoformat()
 
         try:
+            result = await self.composio.call_tool("GOOGLECALENDAR_FIND_EVENT", {
+                "calendar_id": "primary",
+                "time_min": time_min,
+                "time_max": time_max,
+                "single_events": True,
+                "order_by": "startTime",
+                "max_results": 250,
+            })
+
+            items = result.get("data", {}).get("items", [])
             all_events: list[dict] = []
-            page_token: str | None = None
 
-            while True:
-                params: dict = {
-                    "timeMin": time_min,
-                    "timeMax": time_max,
-                    "singleEvents": "true",
-                    "orderBy": "startTime",
-                    "maxResults": 250,
-                }
-                if page_token:
-                    params["pageToken"] = page_token
+            for event in items:
+                start = event.get("start", {})
+                end = event.get("end", {})
+                # Skip all-day events for meeting analysis
+                if not start.get("dateTime") and not end.get("dateTime"):
+                    continue
 
-                response = await self.http.get(
-                    f"{CALENDAR_API_BASE}/calendars/primary/events",
-                    headers=self._headers(),
-                    params=params,
-                )
-                response.raise_for_status()
-                data = response.json()
-
-                events = data.get("items", [])
-                for event in events:
-                    # Skip all-day events (no dateTime) for meeting analysis
-                    start = event.get("start", {})
-                    end = event.get("end", {})
-                    if not start.get("dateTime") and not end.get("dateTime"):
-                        continue
-
-                    attendees = event.get("attendees", [])
-                    all_events.append({
-                        "id": event.get("id"),
-                        "summary": event.get("summary", "(no title)"),
-                        "start": start.get("dateTime", start.get("date", "")),
-                        "end": end.get("dateTime", end.get("date", "")),
-                        "status": event.get("status", "confirmed"),
-                        "attendees": [
-                            {
-                                "email": a.get("email", ""),
-                                "name": a.get("displayName", ""),
-                                "response": a.get("responseStatus", "needsAction"),
-                            }
-                            for a in attendees
-                        ],
-                        "attendee_count": len(attendees),
-                        "location": event.get("location", ""),
-                        "hangout_link": event.get("hangoutLink", ""),
-                    })
-
-                page_token = data.get("nextPageToken")
-                if not page_token:
-                    break
+                attendees = event.get("attendees", [])
+                all_events.append({
+                    "id": event.get("id"),
+                    "summary": event.get("summary", "(no title)"),
+                    "start": start.get("dateTime", start.get("date", "")),
+                    "end": end.get("dateTime", end.get("date", "")),
+                    "status": event.get("status", "confirmed"),
+                    "attendees": [
+                        {
+                            "email": a.get("email", ""),
+                            "name": a.get("displayName", ""),
+                            "response": a.get("responseStatus", "needsAction"),
+                        }
+                        for a in attendees
+                    ],
+                    "attendee_count": len(attendees),
+                    "location": event.get("location", ""),
+                    "hangout_link": event.get("hangoutLink", ""),
+                })
 
             return all_events
-        except httpx.HTTPStatusError as exc:
-            logger.error(
-                "Calendar events fetch failed: %s %s",
-                exc.response.status_code,
-                exc.response.text,
-            )
-            return []
-        except httpx.RequestError:
-            logger.exception("Calendar request error")
+        except Exception:
+            logger.exception("Calendar events fetch failed via Composio")
             return []
 
     async def get_meeting_density(self, days: int = 30) -> dict:
@@ -153,7 +116,6 @@ class CalendarClient:
                 "daily_breakdown": [],
             }
 
-        # Count meetings per day and total hours
         meetings_by_day: Counter = Counter()
         total_hours = 0.0
 
@@ -178,10 +140,8 @@ class CalendarClient:
         total_meetings = len(meetings)
         meetings_per_day = total_meetings / max(days, 1)
 
-        # Find busiest day
         busiest_day = meetings_by_day.most_common(1)[0] if meetings_by_day else None
 
-        # Build daily breakdown
         now = datetime.now(timezone.utc)
         daily_breakdown: list[dict] = []
         for i in range(days):
@@ -207,9 +167,6 @@ class CalendarClient:
     async def get_free_slots(self, date: str) -> list[dict]:
         """Find available time slots on a given date.
 
-        Queries the calendar for events on the specified date and returns
-        the gaps between meetings during working hours (08:00-18:00).
-
         Args:
             date: Date string in YYYY-MM-DD format.
 
@@ -225,44 +182,35 @@ class CalendarClient:
             logger.error("Invalid date format: %s (expected YYYY-MM-DD)", date)
             return []
 
-        # Working hours: 08:00 to 18:00
         work_start = target_date.replace(hour=8, minute=0, second=0, tzinfo=timezone.utc)
         work_end = target_date.replace(hour=18, minute=0, second=0, tzinfo=timezone.utc)
 
         try:
-            params = {
-                "timeMin": work_start.isoformat(),
-                "timeMax": work_end.isoformat(),
-                "singleEvents": "true",
-                "orderBy": "startTime",
-            }
+            result = await self.composio.call_tool("GOOGLECALENDAR_FIND_EVENT", {
+                "calendar_id": "primary",
+                "time_min": work_start.isoformat(),
+                "time_max": work_end.isoformat(),
+                "single_events": True,
+                "order_by": "startTime",
+            })
 
-            response = await self.http.get(
-                f"{CALENDAR_API_BASE}/calendars/primary/events",
-                headers=self._headers(),
-                params=params,
-            )
-            response.raise_for_status()
-            data = response.json()
+            items = result.get("data", {}).get("items", [])
 
-            # Extract busy periods
             busy_periods: list[tuple[datetime, datetime]] = []
-            for event in data.get("items", []):
+            for event in items:
                 start = event.get("start", {})
                 end = event.get("end", {})
                 start_dt_str = start.get("dateTime")
                 end_dt_str = end.get("dateTime")
                 if not start_dt_str or not end_dt_str:
                     continue
+                busy_periods.append((
+                    datetime.fromisoformat(start_dt_str),
+                    datetime.fromisoformat(end_dt_str),
+                ))
 
-                start_dt = datetime.fromisoformat(start_dt_str)
-                end_dt = datetime.fromisoformat(end_dt_str)
-                busy_periods.append((start_dt, end_dt))
-
-            # Sort by start time
             busy_periods.sort(key=lambda x: x[0])
 
-            # Find gaps
             free_slots: list[dict] = []
             current = work_start
 
@@ -275,7 +223,6 @@ class CalendarClient:
                     })
                 current = max(current, busy_end)
 
-            # Final slot after last meeting
             if current < work_end:
                 free_slots.append({
                     "start": current.isoformat(),
@@ -284,15 +231,8 @@ class CalendarClient:
                 })
 
             return free_slots
-        except httpx.HTTPStatusError as exc:
-            logger.error(
-                "Calendar free slots fetch failed: %s %s",
-                exc.response.status_code,
-                exc.response.text,
-            )
-            return []
-        except httpx.RequestError:
-            logger.exception("Calendar request error")
+        except Exception:
+            logger.exception("Calendar free slots fetch failed via Composio")
             return []
 
 
