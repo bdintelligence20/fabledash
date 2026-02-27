@@ -24,9 +24,10 @@ RUN mkdir -p uploads
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8000
+ENV PORT=8080
 
-EXPOSE 8000
+EXPOSE 8080
 
 # Gunicorn with Uvicorn workers -- forwarded-allow-ips for Cloud Run proxy headers
-CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--forwarded-allow-ips=*"]
+# Uses shell form so $PORT is expanded at runtime
+CMD gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --forwarded-allow-ips=*
