@@ -7,6 +7,8 @@ export interface StatCardChange {
   direction: 'up' | 'down' | 'flat';
 }
 
+export type StatCardAccent = 'emerald' | 'indigo' | 'amber' | 'violet' | 'default';
+
 export interface StatCardProps {
   title: string;
   value: string | number;
@@ -15,6 +17,7 @@ export interface StatCardProps {
   prefix?: string;
   loading?: boolean;
   className?: string;
+  accent?: StatCardAccent;
 }
 
 const changeStyles = {
@@ -36,6 +39,42 @@ function formatChange(value: number, direction: 'up' | 'down' | 'flat'): string 
   return `${abs}%`;
 }
 
+const accentMap: Record<
+  StatCardAccent,
+  { iconBg: string; iconColor: string; valueColor: string; stripe: string }
+> = {
+  emerald: {
+    iconBg: 'bg-emerald-50',
+    iconColor: 'text-emerald-600',
+    valueColor: 'text-emerald-700',
+    stripe: 'bg-emerald-500',
+  },
+  indigo: {
+    iconBg: 'bg-primary-50',
+    iconColor: 'text-primary-600',
+    valueColor: 'text-primary-700',
+    stripe: 'bg-primary-500',
+  },
+  amber: {
+    iconBg: 'bg-amber-50',
+    iconColor: 'text-amber-600',
+    valueColor: 'text-amber-700',
+    stripe: 'bg-amber-500',
+  },
+  violet: {
+    iconBg: 'bg-violet-50',
+    iconColor: 'text-violet-600',
+    valueColor: 'text-violet-700',
+    stripe: 'bg-violet-500',
+  },
+  default: {
+    iconBg: 'bg-surface-100',
+    iconColor: 'text-surface-500',
+    valueColor: 'text-surface-900',
+    stripe: 'bg-surface-300',
+  },
+};
+
 export function StatCard({
   title,
   value,
@@ -44,34 +83,51 @@ export function StatCard({
   prefix,
   loading = false,
   className = '',
+  accent = 'default',
 }: StatCardProps) {
-  return (
-    <div className={`surface-card p-6 ${className}`}>
-      <div className="flex items-start justify-between">
-        <p className="text-caption">{title}</p>
-        {icon && <span className="text-surface-400">{icon}</span>}
-      </div>
+  const colors = accentMap[accent];
 
-      <div className="mt-2">
-        {loading ? (
-          <Spinner size="md" />
-        ) : (
-          <p className="text-2xl font-bold text-surface-900">
-            {prefix}
-            {value}
-          </p>
+  return (
+    <div className={`bg-white rounded-xl border border-surface-100 shadow-soft overflow-hidden ${className}`}>
+      {/* Top accent stripe */}
+      <div className={`h-0.5 w-full ${colors.stripe}`} />
+
+      <div className="p-5">
+        <div className="flex items-start justify-between">
+          <p className="text-xs font-semibold uppercase tracking-widest text-surface-400">{title}</p>
+          {icon && (
+            <span className={`flex items-center justify-center h-8 w-8 rounded-lg ${colors.iconBg} ${colors.iconColor}`}>
+              {icon}
+            </span>
+          )}
+        </div>
+
+        <div className="mt-3">
+          {loading ? (
+            <Spinner size="md" />
+          ) : (
+            <p className={`text-2xl font-bold tracking-tight ${colors.valueColor}`}>
+              {prefix}
+              {value}
+            </p>
+          )}
+        </div>
+
+        {change && !loading && (
+          <div className={`mt-2 flex items-center gap-1 text-xs ${changeStyles[change.direction]}`}>
+            {(() => {
+              const Icon = changeIcons[change.direction];
+              return <Icon className="h-3.5 w-3.5" />;
+            })()}
+            <span className="font-semibold">{formatChange(change.value, change.direction)}</span>
+            <span className="text-surface-400 font-normal">vs last period</span>
+          </div>
+        )}
+
+        {!change && !loading && (
+          <div className="mt-2 h-4" />
         )}
       </div>
-
-      {change && !loading && (
-        <div className={`mt-2 flex items-center gap-1 text-sm ${changeStyles[change.direction]}`}>
-          {(() => {
-            const Icon = changeIcons[change.direction];
-            return <Icon className="h-4 w-4" />;
-          })()}
-          <span className="font-medium">{formatChange(change.value, change.direction)}</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -34,3 +34,5 @@ export type { SpinnerProps } from './Spinner';
 export { ErrorBoundary } from './ErrorBoundary';
 
 export { LoadingPage } from './LoadingPage';
+
+export { default as Prose } from './Prose';

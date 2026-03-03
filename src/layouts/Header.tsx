@@ -7,7 +7,7 @@ interface HeaderProps {
 
 export default function Header({ onMobileMenuOpen }: HeaderProps) {
   return (
-    <header className="bg-white border-b border-surface-200 px-6 py-3 flex items-center gap-4">
+    <header className="bg-white border-b border-surface-200 px-6 py-3 flex items-center gap-4 shadow-soft">
       {/* Mobile hamburger */}
       <button
         onClick={onMobileMenuOpen}

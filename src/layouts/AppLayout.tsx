@@ -28,7 +28,7 @@ export default function AppLayout() {
   const toggleSidebar = () => setSidebarCollapsed((prev) => !prev);
 
   return (
-    <div className="min-h-screen flex bg-surface-50">
+    <div className="min-h-screen flex" style={{ background: '#F4F5F7' }}>
       {/* Desktop sidebar */}
       <aside
         className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ${

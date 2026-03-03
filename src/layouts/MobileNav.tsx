@@ -22,14 +22,16 @@ export default function MobileNav({ isOpen, onClose, sidebarCollapsed, onSidebar
 
       {/* Drawer */}
       <div
-        className={`fixed inset-y-0 left-0 w-72 bg-white z-50 shadow-strong transform transition-transform duration-300 md:hidden ${
+        className={`fixed inset-y-0 left-0 w-72 z-50 shadow-strong transform transition-transform duration-300 md:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ background: '#0D1117' }}
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 text-surface-400 hover:text-surface-600 hover:bg-surface-100 rounded-lg transition-default z-10"
+          className="absolute top-4 right-4 p-1.5 rounded-lg transition-default z-10"
+          style={{ color: 'rgba(255,255,255,0.4)' }}
           aria-label="Close navigation"
         >
           <X className="h-5 w-5" />

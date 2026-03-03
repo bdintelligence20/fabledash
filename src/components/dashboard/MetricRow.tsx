@@ -34,23 +34,27 @@ export function MetricRow({ data, loading = false }: MetricRowProps) {
       title: 'Monthly Revenue',
       value: formatCurrency(data?.revenue),
       prefix: data?.revenue != null ? 'R ' : '',
-      icon: <TrendingUp className="h-5 w-5" />,
+      icon: <TrendingUp className="h-4 w-4" />,
+      accent: 'emerald' as const,
     },
     {
       title: 'Utilization Rate',
       value: formatPercent(data?.utilization),
-      icon: <Activity className="h-5 w-5" />,
+      icon: <Activity className="h-4 w-4" />,
+      accent: 'indigo' as const,
     },
     {
       title: 'Active Clients',
       value: formatCount(data?.activeClients),
-      icon: <Users className="h-5 w-5" />,
+      icon: <Users className="h-4 w-4" />,
+      accent: 'amber' as const,
     },
     {
       title: 'Cash Position',
       value: formatCurrency(data?.cashPosition),
       prefix: data?.cashPosition != null ? 'R ' : '',
-      icon: <Wallet className="h-5 w-5" />,
+      icon: <Wallet className="h-4 w-4" />,
+      accent: 'violet' as const,
     },
   ] as const;
 
@@ -63,6 +67,7 @@ export function MetricRow({ data, loading = false }: MetricRowProps) {
           value={metric.value}
           prefix={metric.prefix}
           icon={metric.icon}
+          accent={metric.accent}
           loading={loading}
         />
       ))}

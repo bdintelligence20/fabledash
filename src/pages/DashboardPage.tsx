@@ -20,49 +20,15 @@ import type { ProactiveAlert } from '../components/dashboard/AlertsPanel';
 // API response types
 // ---------------------------------------------------------------------------
 
-interface FinancialSummary {
-  snapshot: {
-    total_revenue: number;
-    cash_on_hand: number;
-    accounts_receivable: number;
-    accounts_payable: number;
-    [key: string]: unknown;
-  } | null;
-  invoice_stats: {
-    total_invoiced: number;
-    count: number;
-    [key: string]: unknown;
-  } | null;
-  [key: string]: unknown;
-}
-
-interface UtilizationData {
-  utilization_pct: number;
-  total_hours: number;
-  billable_hours: number;
-  [key: string]: unknown;
-}
-
-interface TimeLogEntry {
-  id: string;
-  description: string;
-  date: string;
-  duration_minutes: number;
-  client_id?: string;
-  [key: string]: unknown;
-}
-
-interface ClientEntry {
-  id: string;
-  name: string;
-  is_active?: boolean;
-  [key: string]: unknown;
-}
-
-interface AlertsApiResponse {
-  alerts: ProactiveAlert[];
-  summary: { total: number; high: number; medium: number };
-  [key: string]: unknown;
+interface DashboardMetrics {
+  revenue: number | null;
+  cash_position: number | null;
+  accounts_receivable: number | null;
+  accounts_payable: number | null;
+  utilization_pct: number | null;
+  total_hours: number | null;
+  billable_hours: number | null;
+  active_clients: number | null;
 }
 
 interface CalendarMeeting {
@@ -74,21 +40,26 @@ interface CalendarMeeting {
   attendee_count?: number;
 }
 
-interface CalendarMeetingsResponse {
-  configured: boolean;
-  meetings: CalendarMeeting[];
-  count: number;
+interface RecentEmail {
+  id?: string;
+  subject: string;
+  date: string;
+  direction: 'sent' | 'received';
+  from_addr?: string;
+  to_addr?: string;
+  snippet?: string;
 }
 
-interface EmailStatsResponse {
+interface EmailStatsData {
   configured: boolean;
   sent_count?: number;
   received_count?: number;
   total_count?: number;
   top_correspondents?: { email: string; count: number }[];
+  recent_emails?: RecentEmail[];
 }
 
-interface CalendarDensityResponse {
+interface MeetingDensityData {
   configured: boolean;
   total_meetings?: number;
   meetings_per_day?: number;
@@ -106,6 +77,33 @@ interface InternalMeeting {
   summary?: string;
 }
 
+interface AlertsData {
+  alerts: ProactiveAlert[];
+  summary: { total: number; high: number; medium: number; low: number };
+}
+
+interface CalendarMeetingsData {
+  configured: boolean;
+  meetings: CalendarMeeting[];
+  count: number;
+}
+
+interface DashboardSummary {
+  metrics: DashboardMetrics;
+  recent_logs: {
+    id: string;
+    description: string;
+    date: string;
+    duration_minutes: number;
+    client_name?: string;
+  }[];
+  calendar_meetings: CalendarMeetingsData;
+  email_stats: EmailStatsData;
+  meeting_density: MeetingDensityData;
+  internal_meetings: InternalMeeting[];
+  alerts: AlertsData;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -120,172 +118,28 @@ export default function DashboardPage() {
   const [activeRevenueTab, setActiveRevenueTab] = useState('monthly');
   const today = format(new Date(), 'EEEE, d MMM yyyy');
 
-  // Core metrics state
-  const [alerts, setAlerts] = useState<ProactiveAlert[]>([]);
-  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [revenue, setRevenue] = useState<number | null>(null);
-  const [cashPosition, setCashPosition] = useState<number | null>(null);
-  const [activeClients, setActiveClients] = useState<number | null>(null);
-  const [utilization, setUtilization] = useState<number | null>(null);
-  const [metricsLoading, setMetricsLoading] = useState(true);
-
-  const [recentLogs, setRecentLogs] = useState<
-    { id: string; description: string; date: string; duration_minutes: number; client_name?: string }[]
-  >([]);
-  const [activityLoading, setActivityLoading] = useState(true);
-
-  // Integration data state
-  const [upcomingMeetings, setUpcomingMeetings] = useState<CalendarMeeting[]>([]);
-  const [upcomingLoading, setUpcomingLoading] = useState(true);
-  const [calendarConfigured, setCalendarConfigured] = useState(true);
-
-  const [emailStats, setEmailStats] = useState<EmailStatsResponse | null>(null);
-  const [emailLoading, setEmailLoading] = useState(true);
-
-  const [meetingDensity, setMeetingDensity] = useState<CalendarDensityResponse | null>(null);
-  const [densityLoading, setDensityLoading] = useState(true);
-
-  const [recentMeetings, setRecentMeetings] = useState<InternalMeeting[]>([]);
-  const [recentMeetingsLoading, setRecentMeetingsLoading] = useState(true);
-
-  // Fetch alerts
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiClient.get<{ success: boolean; data: AlertsApiResponse }>('/opsai/alerts');
+        const res = await apiClient.get<{ success: boolean; data: DashboardSummary }>('/dashboard/summary');
         if (!cancelled && res.success) {
-          setAlerts(res.data.alerts || []);
-        }
-      } catch {
-        // Alerts are non-critical — silently show empty
-      } finally {
-        if (!cancelled) setAlertsLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Fetch metric data (financial summary + utilization + client count)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [finRes, utilRes, clientRes] = await Promise.allSettled([
-          apiClient.get<{ success: boolean; data: FinancialSummary }>('/financial-data/summary'),
-          apiClient.get<{ success: boolean; data: UtilizationData }>('/time-logs/utilization'),
-          apiClient.get<{ success: boolean; data: ClientEntry[] }>('/clients'),
-        ]);
-
-        if (cancelled) return;
-
-        if (finRes.status === 'fulfilled' && finRes.value.success) {
-          const snap = finRes.value.data.snapshot;
-          if (snap) {
-            setRevenue(snap.total_revenue ?? null);
-            setCashPosition(snap.cash_on_hand ?? null);
-          }
-        }
-
-        if (utilRes.status === 'fulfilled' && utilRes.value.success) {
-          setUtilization(utilRes.value.data.utilization_pct ?? null);
-        }
-
-        if (clientRes.status === 'fulfilled' && clientRes.value.success) {
-          const all = clientRes.value.data || [];
-          const active = all.filter((c) => c.is_active !== false);
-          setActiveClients(active.length);
+          setSummary(res.data);
         }
       } catch {
         // Best-effort — leave nulls
       } finally {
-        if (!cancelled) setMetricsLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, []);
 
-  // Fetch recent time logs
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [logsRes, clientRes] = await Promise.allSettled([
-          apiClient.get<{ success: boolean; data: TimeLogEntry[] }>('/time-logs/'),
-          apiClient.get<{ success: boolean; data: ClientEntry[] }>('/clients'),
-        ]);
-
-        if (cancelled) return;
-
-        const clientMap = new Map<string, string>();
-        if (clientRes.status === 'fulfilled' && clientRes.value.success) {
-          for (const c of clientRes.value.data || []) {
-            clientMap.set(c.id, c.name);
-          }
-        }
-
-        if (logsRes.status === 'fulfilled' && logsRes.value.success) {
-          const logs = (logsRes.value.data || []).slice(0, 5).map((tl) => ({
-            id: tl.id,
-            description: tl.description || '',
-            date: typeof tl.date === 'string' ? tl.date : String(tl.date),
-            duration_minutes: tl.duration_minutes || 0,
-            client_name: tl.client_id ? clientMap.get(tl.client_id) : undefined,
-          }));
-          setRecentLogs(logs);
-        }
-      } catch {
-        // Best-effort
-      } finally {
-        if (!cancelled) setActivityLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Fetch integration data (calendar, email, density, internal meetings)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [calRes, gmailRes, densityRes, mtgRes] = await Promise.allSettled([
-        apiClient.get<{ success: boolean; data: CalendarMeetingsResponse }>('/integrations/calendar/meetings?days_ahead=7&days_back=0'),
-        apiClient.get<{ success: boolean; data: EmailStatsResponse }>('/integrations/gmail/stats?days=7'),
-        apiClient.get<{ success: boolean; data: CalendarDensityResponse }>('/integrations/calendar/density?days=7'),
-        apiClient.get<{ success: boolean; data: InternalMeeting[] }>('/meetings/'),
-      ]);
-
-      if (cancelled) return;
-
-      // Calendar meetings
-      if (calRes.status === 'fulfilled' && calRes.value.success) {
-        setUpcomingMeetings(calRes.value.data.meetings || []);
-        setCalendarConfigured(calRes.value.data.configured !== false);
-      }
-      if (!cancelled) setUpcomingLoading(false);
-
-      // Email stats
-      if (gmailRes.status === 'fulfilled' && gmailRes.value.success) {
-        setEmailStats(gmailRes.value.data);
-      }
-      if (!cancelled) setEmailLoading(false);
-
-      // Meeting density
-      if (densityRes.status === 'fulfilled' && densityRes.value.success) {
-        setMeetingDensity(densityRes.value.data);
-      }
-      if (!cancelled) setDensityLoading(false);
-
-      // Internal meetings
-      if (mtgRes.status === 'fulfilled' && mtgRes.value.success) {
-        setRecentMeetings((mtgRes.value.data || []).slice(0, 5));
-      }
-      if (!cancelled) setRecentMeetingsLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Alert severity breakdown
+  const metrics = summary?.metrics ?? null;
+  const alerts = summary?.alerts?.alerts ?? [];
   const highAlerts = alerts.filter((a) => a.severity === 'high');
   const mediumAlerts = alerts.filter((a) => a.severity === 'medium');
   const lowAlerts = alerts.filter((a) => a.severity === 'low');
@@ -330,12 +184,12 @@ export default function DashboardPage() {
       <div className="mt-6 animate-up" style={{ animationDelay: '100ms' }}>
         <MetricRow
           data={{
-            revenue,
-            utilization,
-            activeClients,
-            cashPosition,
+            revenue: metrics?.revenue ?? null,
+            utilization: metrics?.utilization_pct ?? null,
+            activeClients: metrics?.active_clients ?? null,
+            cashPosition: metrics?.cash_position ?? null,
           }}
-          loading={metricsLoading}
+          loading={loading}
         />
       </div>
 
@@ -347,21 +201,21 @@ export default function DashboardPage() {
         {/* Left column — upcoming meetings + recent activity */}
         <div className="lg:col-span-2 space-y-6">
           <UpcomingMeetings
-            meetings={upcomingMeetings}
-            loading={upcomingLoading}
-            configured={calendarConfigured}
+            meetings={summary?.calendar_meetings?.meetings ?? []}
+            loading={loading}
+            configured={summary?.calendar_meetings?.configured !== false}
           />
-          <RecentActivity timeLogs={recentLogs} loading={activityLoading} />
+          <RecentActivity timeLogs={summary?.recent_logs ?? []} loading={loading} />
         </div>
 
         {/* Right column — density + email + alerts + OpsAI + quick actions */}
         <div className="lg:col-span-1 space-y-6">
-          <MeetingDensity density={meetingDensity} loading={densityLoading} />
-          <EmailSummary stats={emailStats} loading={emailLoading} />
-          <AlertsPanel alerts={alerts} loading={alertsLoading} />
+          <MeetingDensity density={summary?.meeting_density ?? null} loading={loading} />
+          <EmailSummary stats={summary?.email_stats ?? null} loading={loading} />
+          <AlertsPanel alerts={alerts} loading={loading} />
 
           {/* OpsAI alert summary widget */}
-          {!alertsLoading && alerts.length > 0 && (
+          {!loading && alerts.length > 0 && (
             <Card padding="none">
               <Card.Body>
                 <Link
@@ -400,9 +254,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent meetings (full width) */}
-      {(recentMeetingsLoading || recentMeetings.length > 0) && (
+      {(loading || (summary?.internal_meetings ?? []).length > 0) && (
         <div className="mt-6 animate-up" style={{ animationDelay: '250ms' }}>
-          <RecentMeetings meetings={recentMeetings} loading={recentMeetingsLoading} />
+          <RecentMeetings meetings={summary?.internal_meetings ?? []} loading={loading} />
         </div>
       )}
 

@@ -108,7 +108,8 @@ export default {
 
       // Typography
       fontFamily: {
-        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+        sans: ['Manrope', ...defaultTheme.fontFamily.sans],
+        display: ['Manrope', ...defaultTheme.fontFamily.sans],
       },
       fontSize: {
         display: ['3rem', { lineHeight: '1.1' }],

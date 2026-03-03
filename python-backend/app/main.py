@@ -121,6 +121,11 @@ from app.api.integrations import router as integrations_router
 
 app.include_router(integrations_router, prefix="/integrations", tags=["integrations"])
 
+# Dashboard summary (parallel data fetch)
+from app.api.dashboard import router as dashboard_router
+
+app.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
+
 
 # --- Routes ---
 

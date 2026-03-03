@@ -11,6 +11,28 @@ logger = logging.getLogger(__name__)
 _gmail_client: "GmailClient | None" = None
 
 
+def _str(val, default: str = "") -> str:
+    """Safely coerce a Composio field value to a plain string.
+
+    Composio sometimes returns structured objects (e.g. {"subject": "...", "body": "..."})
+    instead of plain strings. This helper extracts the most useful string value.
+    """
+    if val is None:
+        return default
+    if isinstance(val, str):
+        return val
+    if isinstance(val, dict):
+        # Try common text keys in priority order
+        for key in ("subject", "body", "text", "content", "value", "snippet", "preview"):
+            v = val.get(key)
+            if isinstance(v, str) and v:
+                return v
+        return default
+    if isinstance(val, (int, float)):
+        return str(val)
+    return default
+
+
 class GmailClient:
     """Gmail client that delegates to Composio MCP tools.
 
@@ -27,11 +49,33 @@ class GmailClient:
 
     @staticmethod
     def _extract_messages(result: dict | str | list) -> list[dict]:
-        """Safely extract messages list from a Composio tool result."""
+        """Safely extract messages list from a Composio tool result.
+
+        Handles multiple Composio response shapes:
+          {"data": {"messages": [...]}}   — nested
+          {"messages": [...]}             — flat dict
+          {"data": [...]}                 — data is the list
+          [...]                           — bare list
+        """
+        if isinstance(result, list):
+            return result
         if isinstance(result, dict):
             data = result.get("data", {})
+            # nested: {"data": {"messages": [...]}}
             if isinstance(data, dict):
-                return data.get("messages", [])
+                for key in ("messages", "emails", "items", "results"):
+                    val = data.get(key)
+                    if isinstance(val, list):
+                        return val
+            # data IS the list
+            if isinstance(data, list):
+                return data
+            # flat: {"messages": [...]}
+            for key in ("messages", "emails", "items", "results"):
+                val = result.get(key)
+                if isinstance(val, list):
+                    return val
+        logger.debug("_extract_messages: unrecognised shape: %s", type(result))
         return []
 
     async def get_email_stats(self, days: int = 30) -> dict:
@@ -70,15 +114,14 @@ class GmailClient:
             correspondent_counter: Counter = Counter()
 
             for msg in sent_msgs[:100]:
-                to_addr = msg.get("to", "")
+                to_addr = _str(msg.get("to"))
                 if to_addr:
-                    # Extract email from "Name <email>" format
                     addr = to_addr.split("<")[-1].rstrip(">").strip()
                     if addr:
                         correspondent_counter[addr] += 1
 
             for msg in recv_msgs[:100]:
-                from_addr = msg.get("sender", "")
+                from_addr = _str(msg.get("sender"))
                 if from_addr:
                     addr = from_addr.split("<")[-1].rstrip(">").strip()
                     if addr:
@@ -127,20 +170,85 @@ class GmailClient:
 
             emails: list[dict] = []
             for msg in messages:
-                from_addr = (msg.get("sender") or "").lower()
+                from_addr = _str(msg.get("sender")).lower()
                 direction = "received" if client_email.lower() in from_addr else "sent"
 
                 emails.append({
-                    "id": msg.get("messageId"),
-                    "subject": msg.get("subject", "(no subject)"),
+                    "id": _str(msg.get("messageId")),
+                    "subject": _str(msg.get("subject"), "(no subject)"),
                     "date": msg.get("messageTimestamp", ""),
                     "direction": direction,
-                    "snippet": msg.get("preview", ""),
+                    "snippet": _str(msg.get("preview")),
                 })
 
             return emails
         except Exception:
             logger.exception("Failed to get client emails via Composio")
+            return []
+
+    async def get_recent_emails(self, days: int = 30, max_results: int = 15) -> list[dict]:
+        """Fetch the most recent emails (sent + received), sorted by date desc.
+
+        Args:
+            days: Number of days to look back.
+            max_results: Maximum total emails to return.
+
+        Returns:
+            List of email dicts with id, subject, date, direction, from_addr, snippet.
+        """
+        if not self.is_configured():
+            return []
+
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        date_str = since.strftime("%Y/%m/%d")
+
+        try:
+            sent_result = await self.composio.call_tool("GMAIL_FETCH_EMAILS", {
+                "user_id": "me",
+                "q": f"in:sent after:{date_str}",
+                "max_results": max_results,
+            })
+            recv_result = await self.composio.call_tool("GMAIL_FETCH_EMAILS", {
+                "user_id": "me",
+                "q": f"in:inbox after:{date_str}",
+                "max_results": max_results,
+            })
+            sent_msgs = self._extract_messages(sent_result)
+            recv_msgs = self._extract_messages(recv_result)
+
+            emails: list[dict] = []
+            for msg in sent_msgs:
+                emails.append({
+                    "id": _str(msg.get("messageId")),
+                    "subject": _str(msg.get("subject"), "(no subject)"),
+                    "date": msg.get("messageTimestamp", ""),
+                    "direction": "sent",
+                    "from_addr": _str(msg.get("sender")),
+                    "to_addr": _str(msg.get("to")),
+                    "snippet": _str(msg.get("preview")),
+                })
+            for msg in recv_msgs:
+                emails.append({
+                    "id": _str(msg.get("messageId")),
+                    "subject": _str(msg.get("subject"), "(no subject)"),
+                    "date": msg.get("messageTimestamp", ""),
+                    "direction": "received",
+                    "from_addr": _str(msg.get("sender")),
+                    "to_addr": _str(msg.get("to")),
+                    "snippet": _str(msg.get("preview")),
+                })
+
+            # Sort by date descending (handles ISO strings and epoch ints)
+            def _sort_key(e: dict):
+                ts = e.get("date", "")
+                if isinstance(ts, (int, float)):
+                    return ts
+                return ts or ""
+
+            emails.sort(key=_sort_key, reverse=True)
+            return emails[:max_results]
+        except Exception:
+            logger.exception("Failed to get recent emails via Composio")
             return []
 
     async def get_volume_trend(self, days: int = 30) -> list[dict]:

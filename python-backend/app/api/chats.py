@@ -47,9 +47,9 @@ def _get_rag_engine():
     if _rag_checked:
         return _rag_engine
     try:
-        from app.services.rag_engine import RAGEngine  # type: ignore[import-untyped]
+        from app.utils.rag_engine import get_rag_engine
 
-        _rag_engine = RAGEngine()
+        _rag_engine = get_rag_engine()
         logger.info("RAG engine loaded successfully")
     except Exception:
         logger.warning("RAG engine not available — falling back to direct Gemini")
@@ -367,8 +367,37 @@ async def send_message(
             raise HTTPException(status_code=404, detail="Agent not found")
 
         agent_data = agent_doc.to_dict()
-        system_prompt = agent_data.get("system_prompt") or "You are a helpful AI assistant."
+        agent_data["id"] = agent_id
+        base_system_prompt = agent_data.get("system_prompt") or "You are a helpful AI assistant."
         document_ids = agent_data.get("document_ids", [])
+        data_sources = agent_data.get("data_sources", [])
+
+        # --- 2b. Load integration context via ClientAgent if data_sources configured ---
+        INTEGRATION_SOURCES = {"drive", "gmail", "calendar"}
+        has_integration_sources = bool(INTEGRATION_SOURCES & set(data_sources))
+        system_prompt = base_system_prompt
+
+        if has_integration_sources and agent_data.get("client_id"):
+            try:
+                from app.utils.client_agent import ClientAgent
+                client_agent = ClientAgent(agent_data)
+                context_data = await client_agent.get_client_context()
+                context_str = client_agent._build_context_prompt(context_data)
+                if context_str:
+                    system_prompt = (
+                        f"{base_system_prompt}\n\n"
+                        "## Live Client Context (fetched now)\n"
+                        f"{context_str}"
+                    )
+                    logger.info(
+                        "Loaded integration context for agent %s (sources: %s)",
+                        agent_id, data_sources,
+                    )
+            except Exception:
+                logger.warning(
+                    "Failed to load integration context for agent %s — using base prompt",
+                    agent_id, exc_info=True,
+                )
 
         # --- 3. Fetch conversation history (last 20) ---
         # Sort in Python to avoid Firestore composite index requirements
@@ -400,9 +429,7 @@ async def send_message(
                 rag_result = await rag.query(
                     query=body.content,
                     agent_id=agent_id,
-                    document_ids=document_ids,
                     system_prompt=system_prompt,
-                    chat_history=history_messages,
                     model="gemini-2.5-flash",
                 )
                 assistant_content = rag_result.get("answer", "")
