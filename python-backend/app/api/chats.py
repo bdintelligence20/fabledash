@@ -372,32 +372,46 @@ async def send_message(
         document_ids = agent_data.get("document_ids", [])
         data_sources = agent_data.get("data_sources", [])
 
-        # --- 2b. Load integration context via ClientAgent if data_sources configured ---
-        INTEGRATION_SOURCES = {"drive", "gmail", "calendar"}
-        has_integration_sources = bool(INTEGRATION_SOURCES & set(data_sources))
+        # --- 2b. Load client context (Firestore + integrations) ---
         system_prompt = base_system_prompt
+        client_id = agent_data.get("client_id")
 
-        if has_integration_sources and agent_data.get("client_id"):
+        if client_id:
             try:
                 from app.utils.client_agent import ClientAgent
                 client_agent = ClientAgent(agent_data)
                 context_data = await client_agent.get_client_context()
                 context_str = client_agent._build_context_prompt(context_data)
-                if context_str:
+                if context_str and context_str != "No client context available.":
                     system_prompt = (
                         f"{base_system_prompt}\n\n"
                         "## Live Client Context (fetched now)\n"
-                        f"{context_str}"
+                        f"{context_str}\n\n"
+                        "IMPORTANT: Use the context above to answer questions. "
+                        "When the user asks about documents, files, projects, emails, "
+                        "or meetings, refer to the data provided above. "
+                        "Do NOT say you are 'just an AI' without access — you have "
+                        "real client data loaded."
                     )
                     logger.info(
-                        "Loaded integration context for agent %s (sources: %s)",
-                        agent_id, data_sources,
+                        "Loaded client context for agent %s (client=%s, sources=%s)",
+                        agent_id, client_id, data_sources,
+                    )
+                else:
+                    logger.warning(
+                        "Client context was empty for agent %s (client=%s, sources=%s)",
+                        agent_id, client_id, data_sources,
                     )
             except Exception:
                 logger.warning(
-                    "Failed to load integration context for agent %s — using base prompt",
-                    agent_id, exc_info=True,
+                    "Failed to load client context for agent %s (client=%s) — using base prompt",
+                    agent_id, client_id, exc_info=True,
                 )
+        else:
+            logger.info(
+                "Agent %s has no client_id — skipping client context loading (data_sources=%s)",
+                agent_id, data_sources,
+            )
 
         # --- 3. Fetch conversation history (last 20) ---
         # Sort in Python to avoid Firestore composite index requirements

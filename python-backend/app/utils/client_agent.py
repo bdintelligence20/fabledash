@@ -140,34 +140,86 @@ class ClientAgent:
 
         if "calendar" in self.data_sources:
             try:
-                from app.utils.integrations.calendar_client import get_calendar_client
+                from app.utils.calendar_client import get_calendar_client
                 cal = get_calendar_client()
-                cal_meetings = await cal.get_upcoming_meetings(days_ahead=7, days_back=7)
-                # Filter to client-related meetings if possible
-                context["calendar_meetings"] = cal_meetings[:10] if cal_meetings else []
+                if cal.is_configured():
+                    cal_meetings = await cal.get_meetings(days_ahead=7, days_back=7)
+                    context["calendar_meetings"] = cal_meetings[:10] if cal_meetings else []
+                    logger.info("Calendar: loaded %d meetings for agent %s", len(context["calendar_meetings"]), self.agent_id)
+                else:
+                    logger.warning("Calendar not configured (missing Composio credentials) for agent %s", self.agent_id)
+                    context["calendar_meetings"] = []
             except Exception as exc:
-                logger.debug("Calendar data unavailable for agent %s: %s", self.agent_id, exc)
+                logger.warning("Calendar data failed for agent %s: %s", self.agent_id, exc)
                 context["calendar_meetings"] = []
 
-        if "gmail" in self.data_sources and client_email:
-            try:
-                from app.utils.integrations.gmail_client import get_gmail_client
-                gmail = get_gmail_client()
-                emails = await gmail.get_emails_with_contact(client_email, days=14)
-                context["client_emails"] = emails[:10] if emails else []
-            except Exception as exc:
-                logger.debug("Gmail data unavailable for agent %s: %s", self.agent_id, exc)
-                context["client_emails"] = []
+        if "gmail" in self.data_sources:
+            if client_email:
+                try:
+                    from app.utils.gmail_client import get_gmail_client
+                    gmail = get_gmail_client()
+                    if gmail.is_configured():
+                        emails = await gmail.get_client_emails(client_email, days=14)
+                        context["client_emails"] = emails[:10] if emails else []
+                        logger.info("Gmail: loaded %d emails for agent %s (client: %s)", len(context["client_emails"]), self.agent_id, client_email)
+                    else:
+                        logger.warning("Gmail not configured (missing Composio credentials) for agent %s", self.agent_id)
+                        context["client_emails"] = []
+                except Exception as exc:
+                    logger.warning("Gmail data failed for agent %s: %s", self.agent_id, exc)
+                    context["client_emails"] = []
+            else:
+                logger.warning("Gmail source configured but client has no contact_email for agent %s", self.agent_id)
 
-        if "drive" in self.data_sources and client_name:
-            try:
-                from app.utils.integrations.gdrive_client import get_gdrive_client
-                drive = get_gdrive_client()
-                files = await drive.search_files(client_name)
-                context["drive_files"] = files[:10] if files else []
-            except Exception as exc:
-                logger.debug("Drive data unavailable for agent %s: %s", self.agent_id, exc)
-                context["drive_files"] = []
+        if "drive" in self.data_sources:
+            if client_name:
+                try:
+                    from app.utils.gdrive_client import get_gdrive_client
+                    drive = get_gdrive_client()
+                    if drive.is_configured():
+                        files = await drive.search_files(client_name)
+                        files = files[:10] if files else []
+                        context["drive_files"] = files
+                        logger.info("Drive: loaded %d files for agent %s (search: %s)", len(files), self.agent_id, client_name)
+
+                        # Load content for top 5 text-readable files
+                        READABLE_TYPES = {
+                            "application/vnd.google-apps.document",
+                            "application/vnd.google-apps.spreadsheet",
+                            "text/plain",
+                            "text/csv",
+                            "application/pdf",
+                        }
+                        drive_contents = []
+                        for f in files[:5]:
+                            fid = f.get("id")
+                            fname = f.get("name", "Untitled")
+                            fmime = f.get("mimeType", "")
+                            if not fid:
+                                continue
+                            # Only attempt readable types
+                            if fmime not in READABLE_TYPES and "google-apps" not in fmime:
+                                continue
+                            try:
+                                content = await drive.get_file_content(fid, fmime)
+                                if content and len(content) > 20:
+                                    # Truncate very large files
+                                    if len(content) > 3000:
+                                        content = content[:3000] + "\n... [truncated]"
+                                    drive_contents.append({"name": fname, "content": content})
+                            except Exception:
+                                logger.debug("Could not read content for Drive file %s", fname)
+                        context["drive_file_contents"] = drive_contents
+                        if drive_contents:
+                            logger.info("Drive: loaded content for %d files for agent %s", len(drive_contents), self.agent_id)
+                    else:
+                        logger.warning("Drive not configured (missing Composio credentials) for agent %s", self.agent_id)
+                        context["drive_files"] = []
+                except Exception as exc:
+                    logger.warning("Drive data failed for agent %s: %s", self.agent_id, exc)
+                    context["drive_files"] = []
+            else:
+                logger.warning("Drive source configured but client has no name for agent %s", self.agent_id)
 
         return context
 
@@ -259,7 +311,26 @@ class ClientAgent:
                 file_lines.append(f"- {name} (modified: {modified})")
             parts.append("## Related Drive Files\n" + "\n".join(file_lines))
 
-        return "\n\n".join(parts) if parts else "No client context available."
+        drive_contents = context.get("drive_file_contents", [])
+        if drive_contents:
+            for dc in drive_contents:
+                parts.append(
+                    f"## Document: {dc['name']}\n"
+                    f"```\n{dc['content']}\n```"
+                )
+
+        if not parts:
+            return "No client context available."
+
+        # Tell the model which data sources are configured
+        configured = self.data_sources or []
+        if configured:
+            parts.append(
+                "## Configured Data Sources\n"
+                f"This agent has access to: {', '.join(configured)}"
+            )
+
+        return "\n\n".join(parts)
 
     def _ensure_gemini(self) -> None:
         """Raise a clear error if Gemini is not configured."""

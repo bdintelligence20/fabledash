@@ -95,6 +95,43 @@ class GoogleDriveClient:
             logger.exception("Failed to search Drive files via Composio")
             return []
 
+    async def get_file_content(self, file_id: str, mime_type: str = "") -> str:
+        """Read the text content of a Drive file.
+
+        For Google Docs/Sheets/Slides, exports as plain text.
+        For other files, attempts to read raw content.
+
+        Args:
+            file_id: The Google Drive file ID.
+            mime_type: The file's MIME type (used to pick export strategy).
+
+        Returns:
+            The file's text content, or empty string on failure.
+        """
+        try:
+            # Google Workspace files need export
+            if "google-apps" in mime_type:
+                export_mime = "text/plain"
+                if "spreadsheet" in mime_type:
+                    export_mime = "text/csv"
+                result = await self.composio.call_tool("GOOGLEDRIVE_EXPORT_FILE", {
+                    "file_id": file_id,
+                    "mime_type": export_mime,
+                })
+            else:
+                result = await self.composio.call_tool("GOOGLEDRIVE_GET_FILE_CONTENT", {
+                    "file_id": file_id,
+                })
+
+            if isinstance(result, str):
+                return result
+            if isinstance(result, dict):
+                return result.get("content", result.get("data", str(result)))
+            return str(result) if result else ""
+        except Exception:
+            logger.warning("Failed to read content for Drive file %s", file_id)
+            return ""
+
     async def get_client_folder(self, client_name: str) -> Optional[dict]:
         """Find a folder matching a client name.
 
