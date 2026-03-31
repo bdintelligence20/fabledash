@@ -75,56 +75,57 @@ class ClientAgent:
             client_data["id"] = client_doc.id
 
         # --- Recent tasks (limit 10) ---
+        # Sort in Python to avoid Firestore composite index requirements
         tasks_query = (
             db.collection(TASKS_COLLECTION)
             .where("client_id", "==", self.client_id)
-            .order_by("created_at", direction="DESCENDING")
-            .limit(10)
         )
         tasks = []
         for doc in tasks_query.stream():
             d = doc.to_dict()
             d["id"] = doc.id
             tasks.append(d)
+        tasks.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        tasks = tasks[:10]
 
         # --- Recent time logs (limit 10) ---
         logs_query = (
             db.collection(TIME_LOGS_COLLECTION)
             .where("client_id", "==", self.client_id)
-            .order_by("created_at", direction="DESCENDING")
-            .limit(10)
         )
         time_logs = []
         for doc in logs_query.stream():
             d = doc.to_dict()
             d["id"] = doc.id
             time_logs.append(d)
+        time_logs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        time_logs = time_logs[:10]
 
         # --- Recent meetings (limit 5) ---
         meetings_query = (
             db.collection(MEETINGS_COLLECTION)
             .where("client_id", "==", self.client_id)
-            .order_by("created_at", direction="DESCENDING")
-            .limit(5)
         )
         meetings = []
         for doc in meetings_query.stream():
             d = doc.to_dict()
             d["id"] = doc.id
             meetings.append(d)
+        meetings.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        meetings = meetings[:5]
 
         # --- Recent invoices (limit 5) ---
         invoices_query = (
             db.collection(INVOICES_COLLECTION)
             .where("client_id", "==", self.client_id)
-            .order_by("created_at", direction="DESCENDING")
-            .limit(5)
         )
         invoices = []
         for doc in invoices_query.stream():
             d = doc.to_dict()
             d["id"] = doc.id
             invoices.append(d)
+        invoices.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        invoices = invoices[:5]
 
         context = {
             "client": client_data,
