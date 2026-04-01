@@ -25,10 +25,37 @@ class ComposioClient:
         self.mcp_url = settings.COMPOSIO_MCP_URL
         self.api_key = settings.COMPOSIO_API_KEY
         self.http = httpx.AsyncClient(timeout=60.0)
+        self._session_initialized = False
+        self._headers: dict | None = None
 
     def is_configured(self) -> bool:
         """Return True if Composio MCP URL and API key are set."""
         return bool(self.mcp_url and self.api_key)
+
+    async def _ensure_session(self) -> dict:
+        """Initialize MCP session once and return cached headers."""
+        if self._headers and self._session_initialized:
+            return self._headers
+
+        self._headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            "x-api-key": self.api_key,
+        }
+
+        init_msg = {
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "id": 1,
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "fable-dashboard", "version": "1.0"},
+            },
+        }
+        await self.http.post(self.mcp_url, headers=self._headers, json=init_msg)
+        self._session_initialized = True
+        return self._headers
 
     async def call_tool(self, tool_name: str, arguments: dict | None = None) -> dict | list | str:
         """Call a Composio MCP tool and return the parsed result.
@@ -43,24 +70,7 @@ class ComposioClient:
         if not self.is_configured():
             raise RuntimeError("Composio MCP not configured")
 
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-            "x-api-key": self.api_key,
-        }
-
-        # Initialize MCP session
-        init_msg = {
-            "jsonrpc": "2.0",
-            "method": "initialize",
-            "id": 1,
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "fable-dashboard", "version": "1.0"},
-            },
-        }
-        await self.http.post(self.mcp_url, headers=headers, json=init_msg)
+        headers = await self._ensure_session()
 
         # Call the tool
         tool_msg = {

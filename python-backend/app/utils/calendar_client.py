@@ -90,21 +90,16 @@ class CalendarClient:
             logger.exception("Calendar events fetch failed via Composio")
             return []
 
-    async def get_meeting_density(self, days: int = 30) -> dict:
-        """Calculate meeting density metrics over a period.
+    def _compute_density(self, meetings: list[dict], days: int = 30) -> dict:
+        """Compute density metrics from an already-fetched meeting list.
 
         Args:
-            days: Number of days to analyze.
+            meetings: Pre-fetched list of meeting dicts.
+            days: Period length for per-day averages.
 
         Returns:
-            Dict with meetings_per_day average, total_meetings, busiest_day,
-            meeting_hours total, and daily breakdown.
+            Dict with density metrics.
         """
-        if not self.is_configured():
-            return {"configured": False}
-
-        meetings = await self.get_meetings(days_ahead=0, days_back=days)
-
         if not meetings:
             return {
                 "configured": True,
@@ -163,6 +158,20 @@ class CalendarClient:
             else None,
             "daily_breakdown": daily_breakdown,
         }
+
+    async def get_meeting_density(self, days: int = 30) -> dict:
+        """Calculate meeting density metrics over a period.
+
+        Args:
+            days: Number of days to analyze.
+
+        Returns:
+            Dict with density metrics.
+        """
+        if not self.is_configured():
+            return {"configured": False}
+        meetings = await self.get_meetings(days_ahead=0, days_back=days)
+        return self._compute_density(meetings, days)
 
     async def get_free_slots(self, date: str) -> list[dict]:
         """Find available time slots on a given date.

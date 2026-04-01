@@ -9,7 +9,7 @@ Detects operational anomalies and generates CEO-level alerts:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import google.generativeai as genai
 
@@ -97,7 +97,7 @@ class ProactiveEngine:
                 return alerts
 
             # Aggregate billable hours per client from time logs (last 30 days)
-            cutoff = datetime.utcnow() - timedelta(days=30)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30)
             hours_by_client: dict[str, float] = {}
             for doc in self.db.collection(TIME_LOGS_COLLECTION).where("is_billable", "==", True).stream():
                 data = doc.to_dict()
@@ -169,7 +169,7 @@ class ProactiveEngine:
         alerts: list[dict] = []
 
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             current_week_start = now - timedelta(days=now.weekday())
             current_week_start = current_week_start.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -394,7 +394,7 @@ class ProactiveEngine:
         alerts: list[dict] = []
 
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             risk_days = thresholds.get("deadline_risk_days", 3)
             horizon = now + timedelta(days=risk_days)
 
@@ -465,11 +465,14 @@ class ProactiveEngine:
         Returns:
             Dict with alerts list, summary counts, and checked_at timestamp.
         """
-        over_servicing = await self.detect_over_servicing()
-        utilization = await self.detect_utilization_drops()
-        cash = await self.detect_cash_alerts()
-        scope_creep = await self.detect_scope_creep()
-        deadline = await self.detect_deadline_risks()
+        import asyncio
+        over_servicing, utilization, cash, scope_creep, deadline = await asyncio.gather(
+            self.detect_over_servicing(),
+            self.detect_utilization_drops(),
+            self.detect_cash_alerts(),
+            self.detect_scope_creep(),
+            self.detect_deadline_risks(),
+        )
 
         all_alerts = over_servicing + utilization + cash + scope_creep + deadline
 
@@ -493,7 +496,7 @@ class ProactiveEngine:
         return {
             "alerts": all_alerts,
             "summary": summary,
-            "checked_at": datetime.utcnow().isoformat(),
+            "checked_at": datetime.now(timezone.utc).isoformat(),
         }
 
     # ------------------------------------------------------------------

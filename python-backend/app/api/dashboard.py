@@ -145,17 +145,34 @@ def _sync_internal_meetings(db) -> list:
 # ---------------------------------------------------------------------------
 
 
-async def _fetch_calendar_meetings() -> dict:
-    """Upcoming calendar meetings (next 7 days)."""
+async def _fetch_calendar_all() -> tuple[dict, dict]:
+    """Fetch calendar meetings once and compute both upcoming + density."""
     client = get_calendar_client()
     if not client.is_configured():
-        return {"configured": False, "meetings": [], "count": 0}
+        return (
+            {"configured": False, "meetings": [], "count": 0},
+            {"configured": False},
+        )
     try:
-        meetings = await client.get_meetings(days_ahead=7, days_back=0)
-        return {"configured": True, "meetings": meetings, "count": len(meetings)}
+        # Single Composio call: fetch 30 days back + 7 ahead
+        all_meetings = await client.get_meetings(days_ahead=7, days_back=30)
+
+        # Split into upcoming (next 7 days) for the meetings widget
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        upcoming = [m for m in all_meetings if m.get("start", "") >= now.isoformat()]
+        upcoming_result = {"configured": True, "meetings": upcoming, "count": len(upcoming)}
+
+        # Compute density from the full set (reuse data, no extra API call)
+        density = client._compute_density(all_meetings, days=30)
+
+        return upcoming_result, density
     except Exception:
-        logger.warning("dashboard: calendar meetings failed", exc_info=True)
-        return {"configured": True, "meetings": [], "count": 0}
+        logger.warning("dashboard: calendar fetch failed", exc_info=True)
+        return (
+            {"configured": True, "meetings": [], "count": 0},
+            {"configured": True},
+        )
 
 
 async def _fetch_email_stats() -> dict:
@@ -181,16 +198,6 @@ async def _fetch_email_stats() -> dict:
         return {"configured": True, "error": "Failed to fetch"}
 
 
-async def _fetch_meeting_density() -> dict:
-    """Meeting density metrics for the last 7 days."""
-    client = get_calendar_client()
-    if not client.is_configured():
-        return {"configured": False}
-    try:
-        return await client.get_meeting_density(days=7)
-    except Exception:
-        logger.warning("dashboard: meeting density failed", exc_info=True)
-        return {"configured": True}
 
 
 async def _fetch_alerts(db) -> dict:
@@ -226,9 +233,8 @@ async def dashboard_summary(
         clients,
         recent_logs,
         internal_meetings,
-        calendar_meetings,
+        calendar_all,
         email_stats,
-        meeting_density,
         alerts,
     ) = await asyncio.gather(
         asyncio.to_thread(_sync_financial, db),
@@ -236,9 +242,8 @@ async def dashboard_summary(
         asyncio.to_thread(_sync_clients, db),
         asyncio.to_thread(_sync_recent_logs, db),
         asyncio.to_thread(_sync_internal_meetings, db),
-        _fetch_calendar_meetings(),
+        _fetch_calendar_all(),
         _fetch_email_stats(),
-        _fetch_meeting_density(),
         _fetch_alerts(db),
         return_exceptions=True,
     )
@@ -254,9 +259,12 @@ async def dashboard_summary(
     clients = _safe(clients, {"active_count": None})
     recent_logs = _safe(recent_logs, [])
     internal_meetings = _safe(internal_meetings, [])
-    calendar_meetings = _safe(calendar_meetings, {"configured": False, "meetings": [], "count": 0})
+    calendar_all = _safe(calendar_all, (
+        {"configured": False, "meetings": [], "count": 0},
+        {"configured": False},
+    ))
+    calendar_meetings, meeting_density = calendar_all
     email_stats = _safe(email_stats, {"configured": False})
-    meeting_density = _safe(meeting_density, {"configured": False})
     alerts = _safe(alerts, {"alerts": [], "summary": {"total": 0, "high": 0, "medium": 0, "low": 0}})
 
     snap = financial.get("snapshot") or {}
